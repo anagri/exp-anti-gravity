@@ -3,7 +3,7 @@ import { useChat } from '../hooks/useChat';
 import { useApiKey } from '../contexts/ApiKeyContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { ScrollArea } from '../components/ui/scroll-area';
+// import { ScrollArea } from '../components/ui/scroll-area';
 import { Card } from '../components/ui/card';
 import { Send, LogOut, Bot, User } from 'lucide-react';
 import { cn } from '../lib/utils';

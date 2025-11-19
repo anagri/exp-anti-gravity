@@ -25,12 +25,12 @@ test('welcome screen flow', async ({ page }) => {
 
   // Should navigate to chat
   await expect(page).toHaveURL('/chat');
-  await expect(page.getByText('Chat Page')).toBeVisible();
+  await expect(page.getByText('AI Chat')).toBeVisible();
 
   // Check persistence
   await page.reload();
   await expect(page).toHaveURL('/chat');
-  await expect(page.getByText('Chat Page')).toBeVisible();
+  await expect(page.getByText('AI Chat')).toBeVisible();
 
   // Logout
   await page.getByRole('button', { name: 'Logout' }).click();

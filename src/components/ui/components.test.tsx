@@ -3,7 +3,7 @@ import { Button } from './button';
 import { Input } from './input';
 import { Card, CardTitle, CardContent } from './card';
 import { describe, it, expect } from 'vitest';
-import React from 'react';
+
 
 describe('UI Components', () => {
   it('renders Button correctly', () => {
