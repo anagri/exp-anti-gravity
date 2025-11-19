@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useChat } from '../hooks/useChat';
 import { useApiKey } from '../contexts/ApiKeyContext';
 import { Button } from '../components/ui/button';
@@ -8,11 +9,18 @@ import { Card } from '../components/ui/card';
 import { Send, LogOut, Bot, User } from 'lucide-react';
 import { cn } from '../lib/utils';
 
+import { ModelSelector } from '../components/ModelSelector';
+
 export default function ChatPage() {
+  const navigate = useNavigate();
   const { apiKey, clearApiKey } = useApiKey();
-  const { messages, isLoading, error, sendMessage, clearChat } = useChat(apiKey);
+  const { messages, isLoading, error, sendMessage, clearChat, models, selectedModel, setSelectedModel, fetchModels } = useChat(apiKey);
   const [inputValue, setInputValue] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetchModels();
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -29,19 +37,31 @@ export default function ChatPage() {
     await sendMessage(content);
   };
 
+  const handleLogout = () => {
+    clearApiKey();
+    navigate('/');
+  };
+
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b p-4 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-2">
           <Bot className="w-6 h-6 text-primary" />
-          <h1 className="font-semibold text-lg">AI Chat</h1>
+          <h1 className="font-semibold text-lg hidden sm:block">AI Chat</h1>
+          <ModelSelector
+            models={models}
+            selectedModel={selectedModel}
+            onSelect={setSelectedModel}
+            disabled={isLoading}
+          />
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={clearChat} disabled={messages.length === 0}>
             Clear Chat
           </Button>
-          <Button variant="ghost" size="sm" onClick={clearApiKey}>
+          <Button variant="ghost" size="sm" onClick={handleLogout}>
             <LogOut className="w-4 h-4 mr-2" />
             Logout
           </Button>

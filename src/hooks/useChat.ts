@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import OpenAI from 'openai';
 
 export interface Message {
@@ -10,6 +10,31 @@ export function useChat(apiKey: string | null) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [models, setModels] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    return localStorage.getItem('openai_selected_model') || 'gpt-3.5-turbo';
+  });
+
+  useEffect(() => {
+    if (selectedModel) {
+      localStorage.setItem('openai_selected_model', selectedModel);
+    }
+  }, [selectedModel]);
+
+  const fetchModels = async () => {
+    if (!apiKey) return;
+    try {
+      const openai = new OpenAI({
+        apiKey: apiKey,
+        dangerouslyAllowBrowser: true,
+      });
+      const list = await openai.models.list();
+      const modelIds = list.data.map(m => m.id).filter(id => id.startsWith('gpt')); // Filter for GPT models
+      setModels(modelIds);
+    } catch (err) {
+      console.error('Failed to fetch models', err);
+    }
+  };
 
   const sendMessage = async (content: string) => {
     if (!apiKey) {
@@ -26,17 +51,26 @@ export function useChat(apiKey: string | null) {
     try {
       const openai = new OpenAI({
         apiKey: apiKey,
-        dangerouslyAllowBrowser: true, // Required for client-side only usage
+        dangerouslyAllowBrowser: true,
       });
 
-      const completion = await openai.chat.completions.create({
+      const stream = await openai.chat.completions.create({
         messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-        model: 'gpt-3.5-turbo',
+        model: selectedModel,
+        stream: true,
       });
 
-      const assistantMessage = completion.choices[0].message;
-      if (assistantMessage) {
-        setMessages(prev => [...prev, { role: assistantMessage.role, content: assistantMessage.content || '' } as Message]);
+      let assistantContent = '';
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        assistantContent += content;
+        setMessages(prev => {
+          const newMsgs = [...prev];
+          newMsgs[newMsgs.length - 1] = { role: 'assistant', content: assistantContent };
+          return newMsgs;
+        });
       }
     } catch (err) {
       console.error(err);
@@ -57,5 +91,9 @@ export function useChat(apiKey: string | null) {
     error,
     sendMessage,
     clearChat,
+    models,
+    selectedModel,
+    setSelectedModel,
+    fetchModels,
   };
 }
