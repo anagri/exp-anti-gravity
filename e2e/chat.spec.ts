@@ -9,6 +9,9 @@ test('chat flow', async ({ page }) => {
           { id: 'gpt-3.5-turbo' },
           { id: 'gpt-4' },
           { id: 'gpt-4-turbo' },
+          { id: 'text-embedding-ada-002' },
+          { id: 'whisper-1' },
+          { id: 'dall-e-3' },
         ],
       },
     });
@@ -63,8 +66,9 @@ test('chat flow', async ({ page }) => {
   // Check assistant response
   await expect(page.getByText(/Hello from gpt-3\.5-turbo/)).toBeVisible({ timeout: 10000 });
 
-  // Select GPT-4
-  await page.locator('select').selectOption('gpt-4');
+  // Select GPT-4 using the new Combobox
+  await page.getByRole('combobox').click();
+  await page.getByRole('option', { name: 'gpt-4', exact: true }).click();
 
   // Send another message
   await page.getByPlaceholder('Type a message...').fill('Testing GPT-4');

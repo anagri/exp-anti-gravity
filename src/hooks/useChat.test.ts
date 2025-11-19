@@ -29,7 +29,7 @@ describe('useChat', () => {
       await result.current.fetchModels();
     });
 
-    expect(result.current.models).toEqual(['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo']);
+    expect(result.current.models).toEqual(['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'text-embedding-ada-002', 'whisper-1', 'dall-e-3']);
   });
 
   it('should persist selected model', () => {

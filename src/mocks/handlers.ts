@@ -8,6 +8,9 @@ export const handlers = [
         { id: 'gpt-3.5-turbo' },
         { id: 'gpt-4' },
         { id: 'gpt-4-turbo' },
+        { id: 'text-embedding-ada-002' },
+        { id: 'whisper-1' },
+        { id: 'dall-e-3' },
       ],
     })
   }),
