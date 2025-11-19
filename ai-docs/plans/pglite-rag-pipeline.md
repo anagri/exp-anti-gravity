@@ -511,31 +511,12 @@ db.onLeaderChange(() => {
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Database Schema Requirements
-
-The system requires three main tables:
-
-**1. Documents Table**
-- Purpose: Store uploaded file metadata
-- Fields: unique ID (UUID), filename, full content, file size (bytes), MIME type (text/markdown or text/plain), upload timestamp, chunk count, indexing completion timestamp
-- Constraints: Filename and content are required
-
-**2. Chunks Table**
-- Purpose: Store text chunks with vector embeddings
-- Fields: unique ID (UUID), document reference (foreign key with cascade delete), chunk position index (0-based), chunk text content, optional heading context (markdown section), vector embedding (1536 dimensions), estimated token count, creation timestamp
-- Constraints: Unique combination of document ID and chunk index to prevent duplicates
-
-**3. Indexing Queue Table**
-- Purpose: Manage background indexing jobs with retry logic
-- Fields: unique ID (UUID), document reference (foreign key with cascade delete), status (pending/processing/completed/failed), error message (nullable), retry attempt count, maximum retries allowed (default: 3), creation timestamp, processing start timestamp, completion timestamp
-- Constraints: One queue entry per document, status must be one of the allowed values
-
-**Required Indexes:**
-- HNSW index on chunk embeddings for fast vector similarity search (parameters: m=16, ef_construction=64, cosine distance)
-- B-tree index on chunk document_id for efficient document lookups
-- Composite index on indexing queue (status, created_at) for efficient job polling
-
 ### Data Flow Diagrams
+
+**Note:** Database tables and indexes are created incrementally across phases:
+- **Phase 2:** Documents table (basic file metadata storage)
+- **Phase 4:** Indexing queue + Chunks tables (job queue and embeddings storage)
+- **Phase 5:** HNSW index on chunks (fast vector search)
 
 #### File Upload Flow
 
@@ -761,19 +742,25 @@ Create the following directory structure:
 *Database Initialization:*
 - Create singleton PGlite instance stored in worker scope
 - Configure PGlite with IndexedDB data directory (idb://rag-vectors)
-- Enable pgvector extension
+- Enable pgvector extension (will be used in Phase 4 for vector embeddings)
 - Enable relaxedDurability mode for better performance
-- Create all required tables (documents, chunks, indexing_queue) if they don't exist
-- Create all required indexes (HNSW on embeddings, B-tree on document_id, composite on queue status)
 - Return existing instance if already initialized (prevent duplicate initialization)
+
+*Document Storage Requirements:*
+**Functional Goal:** Store uploaded file metadata and content for later retrieval and indexing
+
+Create documents table with:
+- Purpose: Store uploaded markdown/text files with metadata
+- Fields needed: unique ID (UUID), filename, full content, file size (bytes), MIME type (text/markdown or text/plain), upload timestamp
+- Constraints: Filename and content are required
 
 *Worker API Interface:*
 Expose the following operations via Comlink:
 
 1. **init()** - Initialize database and return ready status
-2. **uploadDocument(file)** - Accept file metadata (filename, content, mimeType), calculate file size, insert into documents table, create pending indexing queue entry, return generated document ID
-3. **getDocuments()** - Query all documents with left join to indexing queue, include indexing status and error messages, return ordered by upload date descending
-4. **deleteDocument(id)** - Delete document by ID (cascade delete will remove chunks and queue entries)
+2. **uploadDocument(file)** - Accept file metadata (filename, content, mimeType), calculate file size, insert into documents table, return generated document ID
+3. **getDocuments()** - Query all documents, return ordered by upload date descending
+4. **deleteDocument(id)** - Delete document by ID
 5. **search(query, topK)** - Placeholder for Phase 5 implementation, return empty array for now
 
 *Worker Client Requirements:*
@@ -792,24 +779,23 @@ Expose the following operations via Comlink:
 - Test WebWorker types are available in worker context
 - Test DOM types are not available in worker context
 - Test database initialization creates PGlite instance
-- Test database initialization creates all required tables
-- Test database initialization creates pgvector extension
-- Test database initialization creates all required indexes
+- Test database initialization creates documents table
+- Test database initialization enables pgvector extension
 - Test singleton pattern prevents duplicate database initialization
-- Test uploadDocument inserts document and creates queue entry
+- Test uploadDocument inserts document with metadata
 - Test uploadDocument calculates correct file size
 - Test uploadDocument returns generated UUID
-- Test getDocuments returns documents with indexing status
+- Test getDocuments returns all documents
 - Test getDocuments orders by upload date descending
-- Test deleteDocument removes document and cascades to chunks/queue
+- Test deleteDocument removes document from database
 - Test worker client singleton pattern
 - Test worker client wraps API with Comlink correctly
 
 *Integration Tests:*
 - Test worker initialization via Comlink RPC
-- Test full upload flow: upload document, verify in database, verify queue entry created
-- Test document retrieval after upload includes correct status
-- Test delete operation removes all related data
+- Test full upload flow: upload document, verify in database
+- Test document retrieval after upload
+- Test delete operation removes document
 - Test multiple worker API calls maintain single database instance
 
 *E2E Tests:*
@@ -821,10 +807,10 @@ Expose the following operations via Comlink:
 - Project structure directories created (workers/, lib/, types/)
 - PGlite worker file created with all required operations
 - Worker client wrapper created
-- All tables and indexes created on initialization
+- Documents table created for file metadata storage
 - All unit tests passing
 - All integration tests passing
-- Commit message: `feat(worker): implement PGlite worker with database operations`
+- Commit message: `feat(worker): implement PGlite worker with document storage`
 
 ### Phase 3: File Upload & Storage
 
@@ -928,6 +914,34 @@ Create the following directory structure:
 **Dependency Installation Requirements:**
 - Install LangChain text splitters (@langchain/textsplitters) for markdown chunking
 
+**Database Schema Requirements:**
+
+**Functional Goal:** Implement background job queue with retry logic and store chunked text with vector embeddings
+
+Create two new tables:
+
+1. **Indexing Queue Table**
+   - Purpose: Manage background indexing jobs with retry logic and error tracking
+   - Fields needed: unique ID (UUID), document reference (foreign key to documents with cascade delete), status (pending/processing/completed/failed), error message (nullable), retry attempt count, maximum retries allowed (default: 3), creation timestamp, processing start timestamp, completion timestamp
+   - Constraints: One queue entry per document, status must be one of the allowed values
+   - Index needed: Composite index on (status, created_at) for efficient job polling
+
+2. **Chunks Table**
+   - Purpose: Store text chunks with vector embeddings for similarity search
+   - Fields needed: unique ID (UUID), document reference (foreign key to documents with cascade delete), chunk position index (0-based), chunk text content, optional heading context (markdown section), vector embedding (1536 dimensions), estimated token count, creation timestamp
+   - Constraints: Unique combination of document ID and chunk index to prevent duplicates
+   - Index needed: B-tree index on document_id for efficient lookups
+
+**Document Table Extensions:**
+- Add fields to existing documents table: chunk count (integer), indexing completion timestamp
+
+**Worker API Extensions:**
+
+Update existing worker operations:
+- **uploadDocument()** - After inserting document, create pending entry in indexing_queue
+- **getDocuments()** - Left join with indexing_queue to include status and error messages
+- **deleteDocument()** - Cascade delete will now remove queue entries and chunks
+
 **Indexing Pipeline Requirements:**
 
 *Progress Tracking:*
@@ -987,6 +1001,14 @@ Create the following directory structure:
 **Test Requirements:**
 
 *Unit Tests (Mocked APIs):*
+- Test indexing_queue table creation with correct schema
+- Test chunks table creation with correct schema
+- Test documents table extensions (chunk_count, indexed_at fields)
+- Test composite index creation on indexing_queue
+- Test B-tree index creation on chunks.document_id
+- Test uploadDocument creates queue entry with 'pending' status
+- Test getDocuments includes indexing status from queue
+- Test deleteDocument cascades to queue and chunks
 - Test progress tracking emits to all registered callbacks
 - Test OpenAI client initialization
 - Test queue processor fetches oldest pending job first
@@ -998,17 +1020,18 @@ Create the following directory structure:
 - Test token estimation algorithm
 - Test batch creation (100 chunks per batch)
 - Test exponential backoff retry logic for rate limits
-- Test chunk insertion into database
-- Test document chunk count update
+- Test chunk insertion into database with embeddings
+- Test document chunk count update after indexing
 
 *Integration Tests (Mocked APIs):*
-- Test full indexing pipeline: upload document → chunking → embedding → storage
+- Test full indexing pipeline: upload document → queue creation → chunking → embedding → chunk storage
 - Test progress updates emitted at each stage
 - Test retry logic on simulated API failures
 - Test queue processing handles multiple documents sequentially
 - Test concurrent queue processing prevented by processing flag
 - Test auto-retry on transient failures
 - Test permanent failure after max retries
+- Test cascade delete removes queue entries and chunks
 
 *E2E Tests (Real APIs):*
 - Test upload 10,000-word markdown document
@@ -1021,6 +1044,11 @@ Create the following directory structure:
 
 **Phase Completion:**
 - LangChain text splitters dependency installed
+- Indexing_queue table created with retry logic support
+- Chunks table created for storing embeddings
+- Documents table extended with indexing metadata
+- Required indexes created (composite on queue, B-tree on chunks)
+- Worker API operations updated (uploadDocument, getDocuments, deleteDocument)
 - Indexing pipeline implemented in worker
 - Progress tracking system implemented
 - Queue processor with retry logic implemented
@@ -1029,9 +1057,22 @@ Create the following directory structure:
 - All unit tests passing (mocked APIs)
 - All integration tests passing (mocked APIs)
 - All E2E tests passing (real APIs, 10,000-word document)
-- Commit message: `feat(indexing): implement background indexing pipeline with retry logic`
+- Commit message: `feat(indexing): add indexing queue, chunks storage, and embedding pipeline`
 
 ### Phase 5: Vector Search & RAG Integration
+
+**Database Schema Requirements:**
+
+**Functional Goal:** Enable fast vector similarity search on chunk embeddings
+
+Create HNSW index:
+- **HNSW Index on chunks.embedding**
+  - Purpose: Fast approximate nearest neighbor search on vector embeddings
+  - Index type: HNSW (Hierarchical Navigable Small World)
+  - Distance operator: Cosine distance (<=>)
+  - Parameters: m=16, ef_construction=64 (small dataset defaults)
+  - Note: HNSW builds incrementally, no training step required
+  - This enables sub-50ms vector search queries
 
 **Vector Search Worker Requirements:**
 
@@ -1078,6 +1119,9 @@ Create the following directory structure:
 **Test Requirements:**
 
 *Unit Tests (Mocked APIs):*
+- Test HNSW index creation on chunks.embedding
+- Test HNSW index uses cosine distance operator
+- Test HNSW index parameters (m=16, ef_construction=64)
 - Test search generates query embedding correctly
 - Test search executes HNSW vector search query
 - Test search returns topK results ordered by similarity
@@ -1091,6 +1135,7 @@ Create the following directory structure:
 - Test sources state updated with search results
 
 *Integration Tests (Mocked APIs):*
+- Test HNSW index improves search performance over brute force
 - Test full RAG flow: user query → vector search → context injection → chat completion
 - Test vector search returns relevant chunks based on embedding similarity
 - Test context formatting includes document names and headings
@@ -1100,9 +1145,10 @@ Create the following directory structure:
 
 *E2E Tests (Real APIs):*
 - Test upload 10,000-word markdown document and complete indexing
+- Test HNSW index is created after chunks are inserted
 - Test enable RAG mode in chat interface
 - Test ask question related to document content
-- Test vector search returns relevant chunks from indexed document
+- Test vector search returns relevant chunks from indexed document (sub-50ms)
 - Test AI response references document content correctly
 - Test AI response includes source citations ([1], [2], etc.)
 - Test sources section displays document filenames and similarity scores
@@ -1110,6 +1156,7 @@ Create the following directory structure:
 - Test RAG mode can be toggled on/off during conversation
 
 **Phase Completion:**
+- HNSW index created on chunks.embedding for fast similarity search
 - Vector search function implemented in worker using HNSW index
 - RAG integration added to useChat hook
 - Context formatting and injection implemented
@@ -1117,7 +1164,7 @@ Create the following directory structure:
 - All unit tests passing (mocked APIs)
 - All integration tests passing (mocked APIs)
 - All E2E tests passing (real APIs, 10,000-word document Q&A)
-- Commit message: `feat(rag): implement vector search and RAG integration`
+- Commit message: `feat(rag): add HNSW index and implement vector search with RAG`
 
 ### Phase 6: UI Components
 
@@ -1636,14 +1683,16 @@ function log(...args: any[]) {
 
 ### From Current App
 
-1. Install dependencies
-2. Create workers
-3. Add VectorDB context (doesn't affect existing chat)
-4. Add upload UI (new page/modal)
-5. Update chat to support RAG mode (toggle)
-6. Deploy
+Follow the implementation phases in order (2-10):
+1. **Phase 2:** Set up PGlite worker with document storage
+2. **Phase 3:** Add file upload UI
+3. **Phase 4:** Implement background indexing pipeline
+4. **Phase 5:** Add vector search and RAG integration
+5. **Phase 6-7:** Build UI components and state management
+6. **Phase 8-9:** Optimize and configure build
+7. **Phase 10:** Test and deploy
 
-**Backward Compatible:** Existing chat still works without RAG.
+**Backward Compatible:** Existing chat still works without RAG throughout the implementation.
 
 ### Future Enhancements
 
@@ -1778,8 +1827,10 @@ This plan provides a complete implementation roadmap for converting the OpenAI c
 
 The implementation is **fully client-side**, requires **no backend**, and can be deployed to **static hosting** (GitHub Pages, S3, etc.). All data remains in the user's browser, ensuring **complete privacy**.
 
-**Total Estimated Timeline:** 8 days
+**Total Estimated Timeline:** ~12 days (with comprehensive TDD)
 **Bundle Size Impact:** +3-4 MB (PGlite WASM)
 **Cost per 1000 documents:** ~$0.10 (OpenAI embeddings)
 
 The plan is **production-ready**, **scalable** (handles 100-100K documents), and **future-proof** (can upgrade to cloud Postgres later).
+
+**Database Schema Approach:** Tables and indexes are created incrementally as needed rather than upfront, avoiding premature architectural commitments.
