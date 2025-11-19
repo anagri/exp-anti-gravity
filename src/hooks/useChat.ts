@@ -29,7 +29,7 @@ export function useChat(apiKey: string | null) {
         dangerouslyAllowBrowser: true,
       });
       const list = await openai.models.list();
-      const modelIds = list.data.map(m => m.id).filter(id => id.startsWith('gpt')); // Filter for GPT models
+      const modelIds = list.data.map(m => m.id);
       setModels(modelIds);
     } catch (err) {
       console.error('Failed to fetch models', err);
