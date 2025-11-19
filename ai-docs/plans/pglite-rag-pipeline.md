@@ -675,42 +675,31 @@ Main Thread: Display answer + sources
 ### Test Environment Requirements
 
 **Test Setup Configuration:**
-- Initialize MSW server before all tests with bypass mode for unhandled requests
-- Reset all MSW request handlers after each test to ensure isolation
-- Clear all mocks after each test
-- Clean up MSW server after all tests complete
-- Clean up all IndexedDB databases before each test to ensure fresh state
-- Integrate with existing Vitest configuration
+- MSW server already configured in existing test/setup.ts
+- Continue using existing Vitest configuration
+- Clean IndexedDB databases before each test to ensure fresh state
 
-**Database Test Helpers:**
-- Provide utility to create isolated PGlite test database instances with unique names
-- Implement helper to create test database with pgvector extension enabled
-- Implement helper to create all required tables (documents, chunks, indexing_queue)
-- Provide function to insert test documents with default or custom content
-- Provide function to insert test chunks with mock embeddings
-- Support parameterized test data creation for various scenarios
+**Testing Approach - YAGNI Principle:**
 
-**Worker Test Helpers:**
-- Provide utility to create and initialize test worker instances
-- Implement worker initialization with Comlink wrapping
-- Provide cleanup utility to terminate workers after tests
-- Ensure workers are properly isolated between tests
+Create test helpers and fixtures ONLY when actually needed:
 
-**Test Data Fixtures:**
-- Provide sample markdown document with sections and headings for testing chunking
-- Provide plain text document for testing text file processing
-- Provide large document (100+ paragraphs) for testing chunking behavior
-- Provide utility to generate mock embeddings (configurable dimensions, default 1536)
-- Provide utility to generate similar embeddings for testing similarity search
-- Provide mock OpenAI embedding response structure
+1. **Write Tests First**: Start with inline test data in each test
+2. **Extract When Duplicated**: If 3+ tests need same setup, create helper
+3. **Keep It Simple**: Prefer simple test data over complex fixtures
 
-**MSW Mock Handlers:**
-- Mock OpenAI embeddings endpoint (POST /v1/embeddings)
-- Support both single string and array input formats
-- Return properly formatted embedding responses with configurable dimensions
-- Include realistic usage metadata (prompt_tokens, total_tokens)
-- Maintain existing chat completions handlers
-- Support batch embedding requests (up to 100 inputs)
+**Common Patterns to Watch For:**
+- Database setup: Extract helper when pattern stabilizes across 3+ tests
+- Test data: Start inline, extract only if repeated
+- Worker helpers: Create when worker tests actually need them
+- Mock handlers: Add to MSW handlers as needed for each phase
+
+**Create Incrementally by Phase:**
+- Phase 2: Basic worker test helpers (if needed)
+- Phase 3: File upload test data (if needed)
+- Phase 4: Embedding/chunking mocks (when those tests written)
+- Phase 5: Vector search test data (when search tests written)
+
+Don't create "just in case" test infrastructure.
 
 ---
 
@@ -731,11 +720,12 @@ Main Thread: Display answer + sources
 - Worker config should only include WebWorker lib (no DOM)
 - Worker config should only include src/workers/**/* files
 
-**Project Structure Requirements:**
-Create the following directory structure:
-- **src/workers/** - Web worker files for PGlite instance, database operations, and shared types
-- **src/lib/** - Add Comlink wrapper for worker client communication
-- **src/types/** - Add type definitions for vector database operations
+**File Organization:**
+
+Create files/directories as needed when writing code:
+- Create src/workers/ when adding pglite.worker.ts
+- Create src/lib/ when adding worker client wrapper
+- Co-locate types with implementation (avoid premature src/types/ directory)
 
 **PGlite Worker Requirements:**
 
@@ -761,7 +751,8 @@ Expose the following operations via Comlink:
 2. **uploadDocument(file)** - Accept file metadata (filename, content, mimeType), calculate file size, insert into documents table, return generated document ID
 3. **getDocuments()** - Query all documents, return ordered by upload date descending
 4. **deleteDocument(id)** - Delete document by ID
-5. **search(query, topK)** - Placeholder for Phase 5 implementation, return empty array for now
+
+Note: search() will be added in Phase 5 when vector search is implemented.
 
 *Worker Client Requirements:*
 - Implement singleton pattern for worker instance management
@@ -772,34 +763,20 @@ Expose the following operations via Comlink:
 
 **Test Requirements:**
 
-*Unit Tests:*
-- Test all required dependencies are installed and importable
-- Test TypeScript configuration compiles without errors
-- Test worker TypeScript configuration is correctly isolated from main config
-- Test WebWorker types are available in worker context
-- Test DOM types are not available in worker context
-- Test database initialization creates PGlite instance
-- Test database initialization creates documents table
-- Test database initialization enables pgvector extension
-- Test singleton pattern prevents duplicate database initialization
-- Test uploadDocument inserts document with metadata
-- Test uploadDocument calculates correct file size
-- Test uploadDocument returns generated UUID
-- Test getDocuments returns all documents
-- Test getDocuments orders by upload date descending
-- Test deleteDocument removes document from database
-- Test worker client singleton pattern
-- Test worker client wraps API with Comlink correctly
+Write tests after implementing code. Focus on behavior, not implementation details.
 
-*Integration Tests:*
-- Test worker initialization via Comlink RPC
-- Test full upload flow: upload document, verify in database
-- Test document retrieval after upload
-- Test delete operation removes document
-- Test multiple worker API calls maintain single database instance
+*Key Behaviors to Test:*
+- Worker initializes PGlite with documents table
+- Upload document flow works end-to-end
+- Get documents returns uploaded documents
+- Delete document removes from database
+- Worker communication via Comlink works correctly
 
-*E2E Tests:*
-- Not required for this phase
+*Testing Strategy:*
+- Start with integration tests (full workflows)
+- Add unit tests only for complex logic or edge cases
+- Don't test TypeScript configuration or type availability
+- Don't test third-party libraries (PGlite, Comlink)
 
 **Phase Completion:**
 - All dependencies installed (PGlite, uuid, Comlink)
@@ -810,7 +787,7 @@ Expose the following operations via Comlink:
 - Documents table created for file metadata storage
 - All unit tests passing
 - All integration tests passing
-- Commit message: `feat(worker): implement PGlite worker with document storage`
+- Review changes and commit with appropriate message
 
 ### Phase 3: File Upload & Storage
 
@@ -822,10 +799,12 @@ Rationale:
 - No need for separate OPFS worker
 - Sufficient performance with relaxedDurability mode
 
-**Project Structure Requirements:**
-Create the following directory structure:
-- **src/components/** - Add new components for file upload with drag-drop
-- **src/hooks/** - Add new hooks for vector DB operations and file upload handling
+**File Organization:**
+
+Create components and context as needed:
+- FileUpload component in src/components/
+- VectorDBContext in src/contexts/
+- useVectorDB hook (co-located with context or as separate file)
 
 **File Upload Component Requirements:**
 
@@ -847,67 +826,68 @@ Create the following directory structure:
 - Handle drag events properly (preventDefault on dragOver)
 - Iterate through files sequentially with status updates
 
-**useVectorDB Hook Requirements:**
+**VectorDB Context Requirements:**
 
-*State Management:*
-- Maintain documents array state
-- Maintain loading state (initially true)
-- Get worker instance from worker client singleton
+**YAGNI Note:** Create context now instead of creating hook first then context later (avoid redundant abstractions).
 
-*Initialization:*
-- Initialize worker on mount
-- Load initial documents on mount
-- Set loading to false after initialization
+*Context Type Definition:*
+- initialized: boolean (tracks if worker and database are ready)
+- documents: array of documents with metadata
+- uploadFiles: async function to upload multiple files
+- deleteDocument: async function to delete by ID
+- refreshDocuments: async function to reload documents from database
 
-*Operations:*
-- **refreshDocuments()** - Fetch latest documents from worker and update state
-- **uploadFiles(files)** - Upload array of files to worker sequentially, refresh documents after all uploads complete
-- **deleteDocument(id)** - Delete document by ID via worker, refresh documents after deletion
+*Provider Implementation:*
+- Accept children (React nodes) and apiKey (from ApiKeyContext)
+- Maintain initialized state (default: false)
+- Maintain documents state (default: empty array)
+- Get worker instance from singleton on component creation
+- On mount/apiKey change:
+  - Initialize worker database
+  - Set OpenAI API key in worker if apiKey provided (note: API key not used until Phase 4)
+  - Refresh documents from database
+  - Mark as initialized
+- Implement refreshDocuments: fetch from worker, update state
+- Implement uploadFiles: upload each file to worker, refresh documents
+- Implement deleteDocument: delete via worker, refresh documents
+- Provide all state and functions via context value
 
-*Return Interface:*
-- documents: current documents array
-- loading: boolean loading state
-- uploadFiles: function to upload multiple files
-- deleteDocument: function to delete document by ID
-- refreshDocuments: function to manually refresh documents list
+*useVectorDB Hook:*
+- Access VectorDBContext using useContext
+- Throw error if used outside VectorDBProvider
+- Return context value (all state and functions)
+
+*App Integration:*
+- Wrap app routes with VectorDBProvider inside ApiKeyProvider
+- Create wrapper component to access apiKey from ApiKeyContext
+- Pass apiKey to VectorDBProvider
+- Ensure VectorDBProvider is inside BrowserRouter and ApiKeyProvider
 
 **Test Requirements:**
 
-*Unit Tests:*
-- Test FileUpload component renders drag-drop zone
-- Test FileUpload component filters only .md and .txt files
-- Test FileUpload component updates progress state correctly
-- Test FileUpload component calls uploadFiles for valid files
-- Test FileUpload component handles drag events properly
-- Test useVectorDB hook initializes worker on mount
-- Test useVectorDB hook loads documents on mount
-- Test useVectorDB hook refreshes documents after upload
-- Test useVectorDB hook refreshes documents after delete
-- Test useVectorDB hook manages loading state correctly
+Write tests for actual behavior after implementing code. Don't specify exhaustive test lists upfront.
 
-*Integration Tests:*
-- Test file upload flow: select file → read content → call worker → refresh documents
-- Test multiple file upload processes files sequentially
-- Test invalid file types are rejected
-- Test worker integration: upload creates database entry and queue entry
+*Key Behaviors to Test:*
+- File upload flow works end-to-end
+- Invalid file types rejected
+- VectorDBContext provides documents to components
+- Upload refreshes document list
 
-*E2E Tests:*
-- Test drag-and-drop file upload in browser
-- Test click-to-select file upload
-- Test upload progress displays for each file
-- Test uploaded documents appear in document list
-- Test upload of multiple files simultaneously
-- Test only .md and .txt files are accepted
+*Testing Strategy:*
+- Write integration tests first (full upload flow)
+- Add unit tests only for complex logic or edge cases
+- Use inline test data initially, extract helpers if duplicated 3+ times
 
 **Phase Completion:**
 - FileUpload component created with drag-drop and file input
-- useVectorDB hook created with upload/delete/refresh operations
+- VectorDBContext created with upload/delete/refresh operations
+- useVectorDB hook created for accessing context
 - File validation implemented
 - Progress tracking implemented
-- All unit tests passing (using mocked worker)
-- All integration tests passing
-- All E2E tests passing (with real worker)
-- Commit message: `feat(upload): implement file upload with drag-drop support`
+- App.tsx updated to include VectorDBProvider
+- Tests written for key behaviors
+- All tests passing
+- Review changes and commit with appropriate message
 
 ### Phase 4: Background Indexing Pipeline
 
@@ -1000,47 +980,23 @@ Update existing worker operations:
 
 **Test Requirements:**
 
-*Unit Tests (Mocked APIs):*
-- Test indexing_queue table creation with correct schema
-- Test chunks table creation with correct schema
-- Test documents table extensions (chunk_count, indexed_at fields)
-- Test composite index creation on indexing_queue
-- Test B-tree index creation on chunks.document_id
-- Test uploadDocument creates queue entry with 'pending' status
-- Test getDocuments includes indexing status from queue
-- Test deleteDocument cascades to queue and chunks
-- Test progress tracking emits to all registered callbacks
-- Test OpenAI client initialization
-- Test queue processor fetches oldest pending job first
-- Test queue processor updates status to 'processing' before indexing
-- Test successful indexing marks queue as 'completed'
-- Test failed indexing increments retry count
-- Test failed indexing marks as 'failed' after max retries
-- Test chunking creates correct number of chunks with overlap
-- Test token estimation algorithm
-- Test batch creation (100 chunks per batch)
-- Test exponential backoff retry logic for rate limits
-- Test chunk insertion into database with embeddings
-- Test document chunk count update after indexing
+Write tests after implementing. Focus on key workflows, not exhaustive unit tests.
 
-*Integration Tests (Mocked APIs):*
-- Test full indexing pipeline: upload document → queue creation → chunking → embedding → chunk storage
-- Test progress updates emitted at each stage
-- Test retry logic on simulated API failures
-- Test queue processing handles multiple documents sequentially
-- Test concurrent queue processing prevented by processing flag
-- Test auto-retry on transient failures
-- Test permanent failure after max retries
-- Test cascade delete removes queue entries and chunks
+*Key Behaviors to Test:*
+- Full indexing pipeline works end-to-end
+- Queue processes documents automatically
+- Retry logic handles failures correctly
+- Progress updates emitted during indexing
+- Chunking splits documents appropriately
+- Embeddings stored with chunks
+- Cascade delete works (document → queue → chunks)
 
-*E2E Tests (Real APIs):*
-- Test upload 10,000-word markdown document
-- Test document is automatically queued for indexing
-- Test indexing completes successfully with real OpenAI API
-- Test chunks are created and stored with real embeddings
-- Test progress updates appear in UI during indexing
-- Test indexed document status shows 'completed'
-- Test chunk count matches expected value for 10,000-word document
+*Testing Strategy:*
+- Write integration tests with mocked OpenAI API first
+- Add unit tests for complex logic (retry logic, chunking algorithm)
+- E2E test with real API for verification (use small document first)
+- Don't test schema creation details
+- Don't test every field individually
 
 **Phase Completion:**
 - LangChain text splitters dependency installed
@@ -1057,7 +1013,7 @@ Update existing worker operations:
 - All unit tests passing (mocked APIs)
 - All integration tests passing (mocked APIs)
 - All E2E tests passing (real APIs, 10,000-word document)
-- Commit message: `feat(indexing): add indexing queue, chunks storage, and embedding pipeline`
+- Review changes and commit with appropriate message
 
 ### Phase 5: Vector Search & RAG Integration
 
@@ -1118,42 +1074,22 @@ Create HNSW index:
 
 **Test Requirements:**
 
-*Unit Tests (Mocked APIs):*
-- Test HNSW index creation on chunks.embedding
-- Test HNSW index uses cosine distance operator
-- Test HNSW index parameters (m=16, ef_construction=64)
-- Test search generates query embedding correctly
-- Test search executes HNSW vector search query
-- Test search returns topK results ordered by similarity
-- Test search applies filename filter when provided
-- Test search calculates similarity score correctly (1 - cosine distance)
-- Test RAG mode toggle updates state
-- Test RAG mode disabled sends normal message
-- Test RAG mode enabled triggers vector search
-- Test RAG mode formats context correctly with citations
-- Test RAG mode injects system message with context
-- Test sources state updated with search results
+Write tests after implementing. Focus on RAG workflow, not implementation details.
 
-*Integration Tests (Mocked APIs):*
-- Test HNSW index improves search performance over brute force
-- Test full RAG flow: user query → vector search → context injection → chat completion
-- Test vector search returns relevant chunks based on embedding similarity
-- Test context formatting includes document names and headings
-- Test chat completion receives context in system message
-- Test sources displayed match search results
-- Test RAG toggle affects message sending behavior
+*Key Behaviors to Test:*
+- Vector search returns relevant chunks
+- RAG mode integrates search results into chat
+- Context formatted correctly with citations
+- Sources displayed with similarity scores
+- RAG toggle works during conversation
+- Search performance acceptable (measure actual latency)
 
-*E2E Tests (Real APIs):*
-- Test upload 10,000-word markdown document and complete indexing
-- Test HNSW index is created after chunks are inserted
-- Test enable RAG mode in chat interface
-- Test ask question related to document content
-- Test vector search returns relevant chunks from indexed document (sub-50ms)
-- Test AI response references document content correctly
-- Test AI response includes source citations ([1], [2], etc.)
-- Test sources section displays document filenames and similarity scores
-- Test ask multiple questions in same conversation
-- Test RAG mode can be toggled on/off during conversation
+*Testing Strategy:*
+- Integration tests with mocked APIs for RAG flow
+- E2E test with real APIs for full RAG verification
+- Use small document for E2E tests first
+- Don't test HNSW index parameters individually
+- Don't test SQL query syntax
 
 **Phase Completion:**
 - HNSW index created on chunks.embedding for fast similarity search
@@ -1164,16 +1100,17 @@ Create HNSW index:
 - All unit tests passing (mocked APIs)
 - All integration tests passing (mocked APIs)
 - All E2E tests passing (real APIs, 10,000-word document Q&A)
-- Commit message: `feat(rag): add HNSW index and implement vector search with RAG`
+- Review changes and commit with appropriate message
 
 ### Phase 6: UI Components
 
-**Project Structure Requirements:**
-Create the following components in **src/components/**:
-- DocumentManager component for document library display
-- IndexingStatusBadge component for status display
-- RAGToggle component for RAG mode toggle
-- SourcesList component for displaying search result sources
+**Components to Create:**
+
+Add these components to src/components/:
+- DocumentManager - document library display
+- IndexingStatusBadge - status display
+- RAGToggle - RAG mode toggle
+- SourcesList - search result sources display
 
 **Document Manager Component Requirements:**
 
@@ -1226,33 +1163,20 @@ Create the following components in **src/components/**:
 
 **Test Requirements:**
 
-*Unit Tests:*
-- Test DocumentManager renders loading state
-- Test DocumentManager renders empty state
-- Test DocumentManager renders document list
-- Test DocumentManager displays document metadata correctly
-- Test DocumentManager delete button calls deleteDocument
-- Test IndexingStatusBadge applies correct colors for each status
-- Test IndexingStatusBadge shows error icon when error present
-- Test RAGToggle renders checkbox with correct checked state
-- Test RAGToggle calls setRAGMode on change
-- Test SourcesList returns null when empty
-- Test SourcesList renders sources with citations
-- Test SourcesList formats similarity percentage correctly
+Write tests after implementing components. Focus on integration with existing hooks/context.
 
-*Integration Tests:*
-- Test DocumentManager integrates with useVectorDB hook
-- Test document list updates after upload
-- Test document list updates after delete
-- Test RAGToggle integrates with useChat hook
-- Test SourcesList displays search results from RAG query
+*Key Behaviors to Test:*
+- Document list displays uploaded documents
+- Status badges show correct states
+- Delete button removes documents
+- RAG toggle changes mode
+- Sources list displays after RAG query
 
-*E2E Tests:*
-- Test document library displays uploaded documents
-- Test document status updates from pending to processing to completed
-- Test delete document removes from list
-- Test RAG mode toggle enables/disables RAG functionality
-- Test sources list appears after RAG query with indexed document
+*Testing Strategy:*
+- Integration tests for component + context interaction
+- Unit tests only if complex rendering logic exists
+- E2E tests for user workflows
+- Use data-testid for selectors (per project conventions)
 
 **Phase Completion:**
 - DocumentManager component created with status display
@@ -1263,160 +1187,100 @@ Create the following components in **src/components/**:
 - All unit tests passing
 - All integration tests passing
 - All E2E tests passing
-- Commit message: `feat(ui): add document manager, RAG toggle, and sources display`
+- Review changes and commit with appropriate message
 
-### Phase 7: VectorDB Context & State Management
+### Phase 7: State Management Integration
 
-**Project Structure Requirements:**
-Create the following directory structure:
-- **src/contexts/** - Add new VectorDBContext for vector DB state management (ApiKeyContext already exists)
+**Note:** VectorDBContext was moved to Phase 3 to avoid redundant abstractions (YAGNI principle).
 
-**VectorDBContext Requirements:**
+**This Phase: Extend Context with RAG Search Capability**
 
-*Context Type Definition:*
-- initialized: boolean (tracks if worker and database are ready)
-- documents: array of documents with metadata
-- uploadFiles: async function to upload multiple files
-- deleteDocument: async function to delete by ID
-- refreshDocuments: async function to reload documents from database
-- search: async function for vector search with optional topK parameter
-
-*Provider Implementation:*
-- Accept children (React nodes) and apiKey (from ApiKeyContext)
-- Maintain initialized state (default: false)
-- Maintain documents state (default: empty array)
-- Get worker instance from singleton on component creation
-- On mount/apiKey change:
-  - Initialize worker database
-  - Set OpenAI API key in worker if apiKey provided
-  - Refresh documents from database
-  - Mark as initialized
-  - Start background indexing queue processor
-- Implement refreshDocuments: fetch from worker, update state
-- Implement uploadFiles: upload each file to worker, refresh documents
-- Implement deleteDocument: delete via worker, refresh documents
+*VectorDBContext Extensions:*
+- Add search: async function for vector search with optional topK parameter
 - Implement search: proxy to worker search function
-- Provide all state and functions via context value
 
-*useVectorDB Hook Requirements:*
-- Access VectorDBContext using useContext
-- Throw error if used outside VectorDBProvider
-- Return context value (all state and functions)
-
-*App Integration Requirements:*
-- Wrap app routes with VectorDBProvider inside ApiKeyProvider
-- Create wrapper component to access apiKey from ApiKeyContext
-- Pass apiKey to VectorDBProvider
-- Ensure VectorDBProvider is inside BrowserRouter and ApiKeyProvider
+*Background Indexing:*
+- Start background indexing queue processor when context initializes
+- Queue processor auto-starts in Phase 4 when indexing queue is created
 
 **Test Requirements:**
 
-*Unit Tests:*
-- Test VectorDBProvider initializes worker on mount
-- Test VectorDBProvider sets API key when provided
-- Test VectorDBProvider loads initial documents
-- Test VectorDBProvider re-initializes when apiKey changes
-- Test VectorDBProvider starts indexing queue on init
-- Test useVectorDB throws error outside provider
-- Test useVectorDB returns context value inside provider
-- Test uploadFiles function uploads and refreshes
-- Test deleteDocument function deletes and refreshes
-- Test search function proxies to worker
-
-*Integration Tests:*
-- Test context provides worker access to all components
-- Test apiKey changes propagate to worker
-- Test document list updates propagate to all consumers
-- Test upload from one component updates list in another
-- Test delete from one component updates list in another
-
-*E2E Tests:*
-- Test entire app initializes with VectorDB context
-- Test context state persists across navigation
-- Test multiple components can access same document state
+Write tests after implementing. Focus on:
+- Search function proxies to worker correctly
+- Background indexing queue processes automatically
 
 **Phase Completion:**
-- VectorDBContext created with full API
-- VectorDBProvider implemented with worker integration
-- useVectorDB hook created
-- App.tsx updated to include VectorDBProvider
-- All unit tests passing
-- All integration tests passing
-- All E2E tests passing
-- Commit message: `feat(state): add VectorDB context for global state management`
+- VectorDBContext extended with search capability
+- Background indexing queue auto-starts
+- Tests written for new behaviors
+- All tests passing
+- Review changes and commit with appropriate message
 
-### Phase 8: Optimization & Performance Tuning
+### Phase 8: Performance Measurement & Conditional Optimization
 
-**HNSW Index Optimization Requirements:**
+**YAGNI Approach - Measure First, Optimize Only If Needed**
 
-*Dynamic Index Tuning:*
-- Implement function to adjust HNSW parameters based on dataset size
-- Parameter thresholds:
-  - Small (<10K vectors): m=16, ef_construction=64
-  - Medium (10K-100K): m=24, ef_construction=100
-  - Large (>100K): m=32, ef_construction=200
-- Drop existing index before recreation
-- Create new index with optimized parameters
-- Consider ef_search runtime parameter for query optimization
+**Performance Measurement (Required):**
 
-*Bulk Insert Optimization:*
-- For large batch operations (>100 chunks), temporarily disable HNSW index
-- Insert all chunks without index overhead
-- Rebuild index after all inserts complete
-- Significantly faster for initial bulk uploads
-- Use for Phase 4 indexing pipeline when chunk count is high
+After completing Phases 2-7, measure actual performance:
 
-*Worker Communication Optimization:*
-- Use Comlink's transfer() function for large data transfers
-- Transfer ArrayBuffer ownership to worker (zero-copy)
-- Reduces memory overhead and transfer time
-- Apply to file upload operations with large content
+1. **Test with Realistic Dataset:**
+   - Upload 100-1000 documents
+   - Typical document size: 500-5000 words
+   - Complete full indexing pipeline
 
-**Storage Quota Management Requirements:**
+2. **Measure Key Metrics:**
+   - Upload time per document
+   - Indexing time per document
+   - Search query latency
+   - Memory usage during indexing
+   - Browser storage used
 
-*Quota Monitoring:*
-- Implement function to check browser storage quota
-- Use navigator.storage.estimate() API
-- Calculate percentage used (usage / quota * 100)
-- Warn user when quota exceeds 80%
-- Display quota information in UI (optional)
-- Return: used bytes, total bytes, percentage used
+3. **Define Acceptable Thresholds:**
+   - Indexing: <5 minutes for typical dataset
+   - Search: <100ms per query
+   - Upload: No UI freezing
 
-*Quota Handling:*
-- Provide cleanup suggestions when quota is low
-- Allow user to delete old documents
-- Consider implementing LRU (Least Recently Used) eviction policy
-- Gracefully handle quota exceeded errors during uploads
+**Conditional Optimization (Only If Measurements Show Problems):**
+
+*If indexing is slow (>5 min for typical dataset):*
+- Consider bulk insert optimization (disable HNSW during inserts, rebuild after)
+- Consider adjusting HNSW parameters for larger datasets
+
+*If search is slow (>100ms):*
+- Check HNSW index exists
+- Consider tuning ef_search parameter
+- Consider adjusting HNSW m/ef_construction parameters
+
+*If uploads freeze UI:*
+- Consider Comlink transfer() for large files (>10MB)
+
+*If quota exceeded errors occur:*
+- Add basic error handling (catch error, show message)
+- If users request it, add quota monitoring
 
 **Test Requirements:**
 
-*Unit Tests:*
-- Test HNSW parameter selection for different dataset sizes
-- Test index recreation with new parameters
-- Test bulk insert disables and rebuilds index
-- Test storage quota calculation
-- Test storage quota warning triggers at 80%
-
-*Integration Tests:*
-- Test HNSW optimization improves search performance on large datasets
-- Test bulk insert optimization reduces indexing time
-- Test transfer() optimization reduces memory usage
-- Test quota monitoring tracks actual storage usage
-
-*E2E Tests:*
-- Test large document upload (>1000 chunks) uses optimized bulk insert
-- Test storage quota warning appears when quota is low
-- Test application handles quota exceeded gracefully
+*Performance Tests:*
+- Measure baseline performance with realistic dataset
+- Document actual measurements
+- Only test optimizations if implemented
 
 **Phase Completion:**
-- HNSW dynamic tuning implemented
-- Bulk insert optimization implemented
-- Comlink transfer optimization applied
-- Storage quota management implemented
-- All unit tests passing
-- All integration tests passing
-- All E2E tests passing
-- Commit message: `perf(optimization): add HNSW tuning and storage quota management`
+
+Option A - No Optimization Needed (Preferred):
+- Performance measurements documented
+- All metrics within acceptable thresholds
+- Skip optimization, proceed to Phase 9
+- Review changes and commit with appropriate message
+
+Option B - Optimization Required (Only if measurements show problems):
+- Specific optimizations implemented based on bottlenecks
+- Performance improvement measured and documented
+- All tests passing
+- Review changes and commit with appropriate message
+
+**Default Assumption: Performance will be acceptable, this phase can be skipped.**
 
 ### Phase 9: Build Configuration
 
@@ -1479,7 +1343,7 @@ Create the following directory structure:
 - All unit tests passing
 - All integration tests passing
 - All E2E tests passing
-- Commit message: `build(vite): configure worker and WASM module support`
+- Review changes and commit with appropriate message
 
 ### Phase 10: Testing & Deployment
 
@@ -1517,50 +1381,41 @@ Create the following directory structure:
 
 **Deployment Requirements:**
 
-*GitHub Pages Deployment:*
-- Run production build (npm run build)
-- Test production build locally (npm run preview)
-- Verify all features work in production mode
-- Install gh-pages package (--save-dev)
-- Add deploy script to package.json
-- Run deploy script to publish to GitHub Pages
-- Verify deployed app works (real URL)
+*Deploy to GitHub Pages:*
 
-*Alternative Deployment (S3/Netlify/Vercel):*
-- Build app (npm run build)
-- Configure static hosting
-- Set proper MIME types for .wasm files
-- Configure cache headers for WASM files (immutable, max-age=31536000)
-- Verify deployment
+1. Run production build: `npm run build`
+2. Test locally: `npm run preview`
+3. Verify all features work in production mode
+4. Install gh-pages: `npm install --save-dev gh-pages`
+5. Add deploy script to package.json
+6. Deploy: `npm run deploy`
+7. Verify deployed app works at GitHub Pages URL
+8. Fix any issues that arise (WASM loading, routing, etc.)
+9. Document actual deployment steps taken
 
-*CORS & Security:*
-- No CORS configuration needed (no backend)
-- OpenAI API allows browser requests
-- Verify API key is not exposed in source code
-- Verify API key stays in localStorage only
+*If Deployment Issues Occur:*
+- WASM MIME types: Configure if needed
+- Routing: Add 404.html for SPA routing if needed
+- Cache headers: Add if needed for performance
+
+Don't configure things "just in case" - fix actual problems as they occur.
+
+*Security Verification:*
+- API key not exposed in source code
+- API key stays in localStorage only
+- No CORS needed (client-side only app)
 
 **Test Requirements:**
 
-*Unit Tests:*
-- Run full test suite: npm test
-- Verify 100% passing
-- Verify code coverage >80% for new code
+*Run Full Test Suite:*
+- `npm test` - All unit and integration tests
+- `npm run test:e2e` - All E2E tests
+- Fix any failures before deploying
 
-*Integration Tests:*
-- Run integration tests with mocked APIs
-- Verify 100% passing
-- Verify worker communication works correctly
-
-*E2E Tests:*
-- Run E2E test suite: npm run test:e2e
-- Verify 100% passing
-- Test with real OpenAI API key
-- Test full RAG pipeline with 10,000-word document
-- Measure and document:
-  - Upload time
-  - Indexing time
-  - Search latency
-  - Storage used
+*Performance Verification:*
+- Test with realistic dataset (100-1000 documents)
+- Measure key metrics (upload time, indexing time, search latency)
+- Document actual performance (not theoretical)
 
 **Phase Completion:**
 - All unit tests passing (Phases 1-10)
@@ -1570,7 +1425,7 @@ Create the following directory structure:
 - Application deployed to GitHub Pages (or alternative)
 - Deployment verified and functional
 - Performance benchmarks documented
-- Commit message: `chore(deploy): finalize testing and deploy to production`
+- Review changes and commit with appropriate message
 
 **Post-Deployment Verification:**
 - Test deployed app in multiple browsers (Chrome, Firefox, Safari)
@@ -1587,25 +1442,33 @@ Create the following directory structure:
 
 ### Error Handling Strategies
 
-1. **Network Failures:**
-   - Exponential backoff for OpenAI API (429 rate limits)
-   - Retry queue for failed indexing jobs
-   - Store partial progress (allow resume)
+**Basic Error Handling (All Phases):**
 
-2. **Storage Quota Exceeded:**
-   - Monitor quota with `navigator.storage.estimate()`
-   - Warn user at 80% capacity
-   - Provide cleanup UI (delete old documents)
+1. **Catch exceptions** in async operations
+2. **Display error messages** to user (use existing UI patterns)
+3. **Log to console** for debugging (with context)
+4. **Fail gracefully** (don't crash the app)
 
-3. **Worker Crashes:**
-   - PGlite data persists in IndexedDB
-   - Indexing queue survives page reload
-   - Auto-resume pending jobs on startup
+**Add Advanced Handling ONLY When Problems Occur:**
 
-4. **Invalid Files:**
-   - Validate file type before upload
-   - Handle non-UTF8 encoding gracefully
-   - Skip chunks that fail embedding
+*If API rate limits hit (429 errors):*
+- Add exponential backoff retry logic
+- Implement in Phase 4 indexing pipeline if needed
+
+*If storage quota exceeded errors:*
+- Catch error, show message: "Storage full. Delete old documents."
+- If users request it, add quota monitoring later
+
+*If worker crashes frequently:*
+- PGlite data already persists in IndexedDB
+- Indexing queue already survives page reload
+- Add recovery logic only if crashes occur in testing
+
+*If file encoding failures:*
+- Basic validation already in Phase 3
+- Add encoding detection only if users report issues
+
+**Default Approach:** Start simple. Add complexity when pain points emerge.
 
 ### Security Considerations
 
@@ -1635,47 +1498,27 @@ Create the following directory structure:
 
 *Assumes average 500 words/doc, 5 chunks/doc*
 
-### Monitoring & Debugging
+### Debugging Approach
 
-**Add telemetry to worker:**
-
-```typescript
-const stats = {
-  totalDocuments: 0,
-  totalChunks: 0,
-  totalEmbeddings: 0,
-  indexingTime: 0,
-  errorCount: 0,
-}
-
-async function getStats() {
-  const db = await initDB()
-
-  const docCount = await db.query('SELECT COUNT(*) FROM documents')
-  const chunkCount = await db.query('SELECT COUNT(*) FROM chunks')
-  const pendingCount = await db.query(`
-    SELECT COUNT(*) FROM indexing_queue WHERE status = 'pending'
-  `)
-
-  return {
-    documents: docCount.rows[0].count,
-    chunks: chunkCount.rows[0].count,
-    pendingJobs: pendingCount.rows[0].count,
-    ...stats
-  }
-}
-```
-
-**Console logging:**
+**Simple Console Logging:**
 
 ```typescript
-// Enable debug mode
-const DEBUG = import.meta.env.DEV
-
-function log(...args: any[]) {
-  if (DEBUG) console.log('[VectorDB]', ...args)
+// Log important events in development
+if (import.meta.env.DEV) {
+  console.log('[VectorDB] Document uploaded:', documentId)
+  console.log('[VectorDB] Indexing started:', documentId)
+  console.log('[VectorDB] Indexing completed:', documentId, chunkCount)
 }
+
+// Always log errors
+console.error('[VectorDB] Error:', error.message, { context })
 ```
+
+**Don't Create Stats System Unless Needed:**
+- Console logging sufficient for debugging
+- Browser DevTools shows IndexedDB contents
+- SQL queries in appendix for manual inspection
+- Add stats dashboard only if users request it
 
 ---
 
@@ -1693,34 +1536,6 @@ Follow the implementation phases in order (2-10):
 7. **Phase 10:** Test and deploy
 
 **Backward Compatible:** Existing chat still works without RAG throughout the implementation.
-
-### Future Enhancements
-
-1. **Cloud Sync (ElectricSQL):**
-   - Sync PGlite to cloud Postgres
-   - Multi-device access
-   - Collaborative document libraries
-
-2. **Advanced Search:**
-   - Full-text + vector hybrid search
-   - Filters: date range, document type, tags
-   - Search within specific documents
-
-3. **Document Processing:**
-   - PDF support (pdf.js)
-   - DOCX support
-   - Image OCR (Tesseract.js)
-   - Code file chunking (tree-sitter)
-
-4. **Embeddings Cache:**
-   - Store embeddings in separate table
-   - Reuse for similar queries
-   - LRU eviction policy
-
-5. **Batch API Integration:**
-   - For large initial uploads
-   - 50% cost savings
-   - Background processing over 24hrs
 
 ---
 
