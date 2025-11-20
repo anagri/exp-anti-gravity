@@ -25,7 +25,7 @@ export default function DocumentToolbar({
   return (
     <div className="mb-6 flex flex-col sm:flex-row gap-3">
       <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
         <Input
           type="text"
           placeholder="Search documents..."
@@ -50,7 +50,7 @@ export default function DocumentToolbar({
       <select
         value={sortOption}
         onChange={(e) => onSortChange(e.target.value as SortOption)}
-        className="w-full sm:w-[180px] h-10 px-3 rounded-md border border-input bg-background text-sm"
+        className="w-full sm:w-[180px] h-10 px-3 rounded-md border border-gray-300 bg-white text-sm"
         data-testid="select-doc-sort"
       >
         <option value="date-desc">Date (Newest)</option>
@@ -64,7 +64,7 @@ export default function DocumentToolbar({
       <select
         value={filterOption}
         onChange={(e) => onFilterChange(e.target.value as FilterOption)}
-        className="w-full sm:w-[150px] h-10 px-3 rounded-md border border-input bg-background text-sm"
+        className="w-full sm:w-[150px] h-10 px-3 rounded-md border border-gray-300 bg-white text-sm"
         data-testid="select-doc-filter"
       >
         <option value="all">All Files</option>

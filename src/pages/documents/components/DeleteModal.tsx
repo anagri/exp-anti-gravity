@@ -13,13 +13,13 @@ export default function DeleteModal({ filename, onConfirm, onCancel }: DeleteMod
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
       data-testid="div-delete-modal"
     >
-      <div className="bg-background border rounded-lg p-6 max-w-md w-full mx-4 shadow-lg">
+      <div className="bg-white border rounded-lg p-6 max-w-md w-full mx-4 shadow-lg">
         <div className="flex items-start mb-4">
-          <AlertTriangle className="w-6 h-6 text-destructive mr-3 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-6 h-6 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
           <div>
             <h2 className="text-lg font-semibold mb-2">Delete Document</h2>
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete <span className="font-medium text-foreground">{filename}</span>?
+            <p className="text-sm text-gray-500">
+              Are you sure you want to delete <span className="font-medium text-gray-900">{filename}</span>?
               This action cannot be undone.
             </p>
           </div>

@@ -46,15 +46,15 @@ export default function DocumentCard({ document, onDelete }: DocumentCardProps) 
 
   return (
     <Card
-      className="border border-border rounded-lg overflow-hidden hover:shadow-card transition-all duration-200 group"
+      className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-all duration-200 group"
       data-testid={`div-doc-item-${document.id}`}
     >
       <div className="p-4 space-y-3">
         <div className="flex items-start">
-          <FileText className="w-8 h-8 text-muted-foreground mr-3 flex-shrink-0" />
+          <FileText className="w-8 h-8 text-gray-500 mr-3 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <h3
-              className="font-medium text-foreground truncate"
+              className="font-medium text-gray-900 truncate"
               data-testid={`span-doc-filename-${document.id}`}
               title={document.filename}
             >
@@ -63,12 +63,12 @@ export default function DocumentCard({ document, onDelete }: DocumentCardProps) 
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <div className="flex items-center justify-between text-xs text-gray-500">
           <span className="font-mono">{formatFileSize(document.file_size)}</span>
           <span>{formatDate(document.uploaded_at)}</span>
         </div>
 
-        <div className="flex items-center gap-2 pt-2 border-t border-border">
+        <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
           <Button
             variant="outline"
             size="sm"

@@ -100,12 +100,12 @@ export default function DocumentsPage() {
     });
 
   return (
-    <div className="flex flex-col h-screen bg-background" data-db-initialized={initialized} data-uploading={isUploading}>
+    <div className="flex flex-col h-screen bg-gray-50" data-db-initialized={initialized} data-uploading={isUploading}>
       {/* Header */}
       <header className="bg-white border-b p-4 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <FileText className="w-6 h-6 text-primary" />
+            <FileText className="w-6 h-6 text-blue-600" />
             <h1 className="font-semibold text-lg hidden sm:block">Documents</h1>
           </div>
           <nav className="flex items-center gap-2 border-l pl-4">
@@ -134,12 +134,12 @@ export default function DocumentsPage() {
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-7xl mx-auto">
           {!initialized && (
-            <p className="text-sm text-muted-foreground mb-4" data-testid="div-doc-loading">
+            <p className="text-sm text-gray-500 mb-4" data-testid="div-doc-loading">
               Initializing database...
             </p>
           )}
           {isUploading && (
-            <p className="text-sm text-muted-foreground mb-4" data-testid="div-doc-uploading">
+            <p className="text-sm text-gray-500 mb-4" data-testid="div-doc-uploading">
               Uploading...
             </p>
           )}

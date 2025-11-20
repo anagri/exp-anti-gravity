@@ -49,7 +49,7 @@ export default function ChatPage() {
       <header className="bg-white border-b p-4 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Bot className="w-6 h-6 text-primary" />
+            <Bot className="w-6 h-6 text-blue-600" />
             <h1 className="font-semibold text-lg hidden sm:block">AI Chat</h1>
           </div>
           <nav className="flex items-center gap-2 border-l pl-4">
@@ -88,7 +88,7 @@ export default function ChatPage() {
         <Card className="flex-1 flex flex-col overflow-hidden shadow-md bg-white">
           <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
             {messages.length === 0 && (
-              <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
+              <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-50">
                 <Bot className="w-12 h-12 mb-2" />
                 <p>Start a conversation...</p>
               </div>
@@ -106,8 +106,8 @@ export default function ChatPage() {
                   className={cn(
                     "flex max-w-[80%] rounded-lg p-3 text-sm",
                     msg.role === 'user'
-                      ? "bg-primary text-primary-foreground ml-auto"
-                      : "bg-muted text-foreground"
+                      ? "bg-blue-600 text-white ml-auto"
+                      : "bg-gray-100 text-gray-900"
                   )}
                 >
                   {msg.role !== 'user' && <Bot className="w-4 h-4 mr-2 mt-0.5 shrink-0" />}
@@ -119,7 +119,7 @@ export default function ChatPage() {
 
             {isLoading && (
               <div className="flex justify-start w-full">
-                <div className="bg-muted rounded-lg p-3 text-sm flex items-center">
+                <div className="bg-gray-100 rounded-lg p-3 text-sm flex items-center">
                   <Bot className="w-4 h-4 mr-2" />
                   <span className="animate-pulse">Thinking...</span>
                 </div>
@@ -127,7 +127,7 @@ export default function ChatPage() {
             )}
 
             {error && (
-              <div className="text-destructive text-center text-sm p-2 bg-destructive/10 rounded-md">
+              <div className="text-red-600 text-center text-sm p-2 bg-red-50 rounded-md">
                 {error}
               </div>
             )}

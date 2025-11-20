@@ -25,8 +25,8 @@ export default function WelcomePage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-4">
-            <Key className="w-8 h-8 text-primary" />
+          <div className="mx-auto bg-blue-100 p-3 rounded-full w-fit mb-4">
+            <Key className="w-8 h-8 text-blue-600" />
           </div>
           <CardTitle className="text-2xl">Welcome to AI Chat</CardTitle>
           <CardDescription>
