@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test';
+import { Page } from '@playwright/test';
 import { UploadZoneComponent } from './documents/UploadZoneComponent';
 import { DocumentListComponent } from './documents/DocumentListComponent';
 import { DeleteModalComponent } from './documents/DeleteModalComponent';
@@ -18,32 +18,6 @@ export class DocumentPage {
     this.deleteModal = new DeleteModalComponent(page);
     this.toolbar = new ToolbarComponent(page);
     this.emptyState = new EmptyStateComponent(page);
-  }
-
-  async clearDatabase() {
-    await this.page.goto('/');
-    await this.page.evaluate(async () => {
-      const databases = await indexedDB.databases();
-      console.log('[clearPGliteDB] Available databases:', databases);
-
-      const promises = databases
-        .filter(db => db.name?.includes('rag') || db.name?.includes('pglite'))
-        .map(db => {
-          return new Promise<void>((resolve) => {
-            if (db.name) {
-              console.log('[clearPGliteDB] Deleting database:', db.name);
-              const request = indexedDB.deleteDatabase(db.name);
-              request.onsuccess = () => resolve();
-              request.onerror = () => resolve();
-              request.onblocked = () => resolve();
-            } else {
-              resolve();
-            }
-          });
-        });
-
-      await Promise.all(promises);
-    });
   }
 
   async setup(apiKey: string = 'sk-test-key-123') {
