@@ -483,17 +483,46 @@ async function processJob(job: IndexingJob): Promise<void> {
   } catch (error) {
     console.error('[PGlite Worker] Job processing error:', error)
 
-    // Basic error handling (full retry logic in Phase error-retry)
+    // Phase error-retry: Implement retry logic with max retries
     const errorMessage = error instanceof Error ? error.message : String(error)
+    const maxRetries = job.max_retries
+    const currentRetryCount = job.retry_count
 
-    await db!.query(
-      `UPDATE indexing_queue
-       SET status = 'failed', error_message = $1
-       WHERE id = $2`,
-      [errorMessage, jobId]
-    )
+    if (currentRetryCount < maxRetries) {
+      // Retry: reset to pending and increment retry count
+      await db!.query(
+        `UPDATE indexing_queue
+         SET status = 'pending', retry_count = $1, error_message = $2
+         WHERE id = $3`,
+        [currentRetryCount + 1, errorMessage, jobId]
+      )
 
-    emitProgress(document_id, 'failed', 0, 'error', `Failed: ${errorMessage}`)
+      emitProgress(
+        document_id,
+        'failed',
+        0,
+        'error',
+        `Retry ${currentRetryCount + 1}/${maxRetries}: ${errorMessage}`
+      )
+
+      if (import.meta.env.DEV) {
+        console.log(`[PGlite Worker] Job will retry (${currentRetryCount + 1}/${maxRetries})`)
+      }
+    } else {
+      // Permanent failure: mark as failed
+      await db!.query(
+        `UPDATE indexing_queue
+         SET status = 'failed', error_message = $1, completed_at = CURRENT_TIMESTAMP
+         WHERE id = $2`,
+        [errorMessage, jobId]
+      )
+
+      emitProgress(document_id, 'failed', 0, 'error', `Failed: ${errorMessage}`)
+
+      if (import.meta.env.DEV) {
+        console.log('[PGlite Worker] Job permanently failed after max retries')
+      }
+    }
   }
 }
 
