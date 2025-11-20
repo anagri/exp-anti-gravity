@@ -1765,15 +1765,50 @@ npm run test:e2e
 
 **Goal:** Integrate vector search into chat flow, inject context into LLM prompt
 
+**ACTUAL IMPLEMENTATION:**
+- ✅ Extended useChat hook signature: accepts UseChatParams object or string (backwards compatible)
+- ✅ UseChatParams: { apiKey, attachedDocumentIds?, searchVectors? }
+- ✅ Added state: isSearching (boolean), sources (SearchResult[])
+- ✅ Implemented formatContext helper:
+  - Formats SearchResult[] into context string
+  - Format: [Source N] filename - heading\ncontent
+  - Returns "No relevant context found..." for empty results
+- ✅ Enhanced sendMessage with RAG flow:
+  - Checks if attachedDocumentIds.length > 0 && searchVectors exists
+  - If yes: setIsSearching(true) → searchVectors → setSources → formatContext → inject system message → send
+  - If no: normal chat flow (no RAG)
+  - System message includes instructions for citation with [1], [2], [3] format
+- ✅ ChatPage integration:
+  - Passes { apiKey, attachedDocumentIds, searchVectors } to useChat
+  - searchVectors from VectorDBContext
+  - All tests passing (unit: 14/14, E2E: 4/4)
+
+**System Prompt Template:**
+```
+You are a helpful assistant. Answer the user's question using ONLY the provided context below.
+
+IMPORTANT INSTRUCTIONS:
+- Use ONLY information from the CONTEXT section below
+- If the context doesn't contain enough information to answer fully, say: "Based on the provided documents, I can only partially answer: [partial answer]. The documents don't contain information about [missing info]."
+- Cite your sources using [1], [2], [3] format when referencing specific context
+- Do not make up information not present in the context
+- If the question is completely unrelated to the context, say: "I cannot answer this question based on the provided documents."
+
+CONTEXT:
+{formatted context}
+
+Now answer the user's question using the context above. Remember to cite sources with [1], [2], etc.
+```
+
 **Build:**
-- Extend useChat hook (Section 4.1)
-- Add state: `attachedDocumentIds`, `sources`, `isSearching`
-- Modify sendMessage:
-  - Check if attachments exist
-  - If yes: searchVectors → formatContext → inject system message → send
-  - If no: normal chat flow
-- Implement formatContext helper (Section 4.1)
-- Add loading state during search
+- ✅ Extend useChat hook (Section 4.1)
+- ✅ Add state: `attachedDocumentIds`, `sources`, `isSearching`
+- ✅ Modify sendMessage:
+  - ✅ Check if attachments exist
+  - ✅ If yes: searchVectors → formatContext → inject system message → send
+  - ✅ If no: normal chat flow
+- ✅ Implement formatContext helper (Section 4.1)
+- ✅ Add loading state during search
 
 **Test:** Extend `e2e/vector-search-workflow.spec.ts` (phase 3)
 ```typescript

@@ -1,15 +1,29 @@
 import { useState, useEffect } from 'react';
 import OpenAI from 'openai';
+import type { SearchResult } from '@/contexts/VectorDBContext';
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
-export function useChat(apiKey: string | null) {
+interface UseChatParams {
+  apiKey: string | null;
+  attachedDocumentIds?: string[];
+  searchVectors?: (query: string, documentIds: string[]) => Promise<SearchResult[]>;
+}
+
+export function useChat(params: UseChatParams | string | null) {
+  // Support both old API (string) and new API (object) for backwards compatibility
+  const apiKey = typeof params === 'string' || params === null ? params : params.apiKey;
+  const attachedDocumentIds = typeof params === 'object' && params !== null ? params.attachedDocumentIds || [] : [];
+  const searchVectors = typeof params === 'object' && params !== null ? params.searchVectors : undefined;
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sources, setSources] = useState<SearchResult[]>([]);
   const [models, setModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>(() => {
     return localStorage.getItem('openai_selected_model') || 'gpt-3.5-turbo';
@@ -36,6 +50,24 @@ export function useChat(apiKey: string | null) {
     }
   };
 
+  // Format search results into context for LLM (Phase rag-integration)
+  const formatContext = (results: SearchResult[]): string => {
+    if (results.length === 0) {
+      return 'No relevant context found in attached documents.';
+    }
+
+    return results
+      .map((result, index) => {
+        const sourceNumber = index + 1;
+        const heading = result.heading ? ` - ${result.heading}` : '';
+
+        return `[Source ${sourceNumber}] ${result.filename}${heading}
+${result.content}
+`;
+      })
+      .join('\n\n');
+  };
+
   const sendMessage = async (content: string) => {
     if (!apiKey) {
       setError('API Key is missing');
@@ -43,8 +75,7 @@ export function useChat(apiKey: string | null) {
     }
 
     const newMessage: Message = { role: 'user', content };
-    const newMessages = [...messages, newMessage];
-    setMessages(newMessages);
+    setMessages(prev => [...prev, newMessage]);
     setIsLoading(true);
     setError(null);
 
@@ -54,8 +85,44 @@ export function useChat(apiKey: string | null) {
         dangerouslyAllowBrowser: true,
       });
 
+      let messagesToSend: Message[] = [...messages, newMessage];
+
+      // RAG flow: Check if documents are attached (Phase rag-integration)
+      if (attachedDocumentIds.length > 0 && searchVectors) {
+        setIsSearching(true);
+
+        // Perform vector search
+        const searchResults = await searchVectors(content, attachedDocumentIds);
+        setSources(searchResults);
+        setIsSearching(false);
+
+        // Format context from search results
+        const context = formatContext(searchResults);
+
+        // Inject context into system message
+        const systemMessage: Message = {
+          role: 'system',
+          content: `You are a helpful assistant. Answer the user's question using ONLY the provided context below.
+
+IMPORTANT INSTRUCTIONS:
+- Use ONLY information from the CONTEXT section below
+- If the context doesn't contain enough information to answer fully, say: "Based on the provided documents, I can only partially answer: [partial answer]. The documents don't contain information about [missing info]."
+- Cite your sources using [1], [2], [3] format when referencing specific context
+- Do not make up information not present in the context
+- If the question is completely unrelated to the context, say: "I cannot answer this question based on the provided documents."
+
+CONTEXT:
+${context}
+
+Now answer the user's question using the context above. Remember to cite sources with [1], [2], etc.`,
+        };
+
+        // Prepend system message to conversation
+        messagesToSend = [systemMessage, ...messages, newMessage];
+      }
+
       const stream = await openai.chat.completions.create({
-        messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+        messages: messagesToSend.map(m => ({ role: m.role, content: m.content })),
         model: selectedModel,
         stream: true,
       });
@@ -77,6 +144,7 @@ export function useChat(apiKey: string | null) {
       setError('Failed to send message. Please check your API key.');
     } finally {
       setIsLoading(false);
+      setIsSearching(false);
     }
   };
 
@@ -88,6 +156,7 @@ export function useChat(apiKey: string | null) {
   return {
     messages,
     isLoading,
+    isSearching,
     error,
     sendMessage,
     clearChat,
@@ -95,5 +164,6 @@ export function useChat(apiKey: string | null) {
     selectedModel,
     setSelectedModel,
     fetchModels,
+    sources,
   };
 }

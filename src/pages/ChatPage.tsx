@@ -17,11 +17,16 @@ import AttachmentBadges from '../components/AttachmentBadges';
 export default function ChatPage() {
   const navigate = useNavigate();
   const { apiKey, clearApiKey } = useApiKey();
-  const { documents } = useVectorDB();
-  const { messages, isLoading, error, sendMessage, clearChat, models, selectedModel, setSelectedModel, fetchModels } = useChat(apiKey);
+  const { documents, searchVectors } = useVectorDB();
+  const [attachedDocumentIds, setAttachedDocumentIds] = useState<string[]>([]);
+  const { messages, isLoading, error, sendMessage, clearChat, models, selectedModel, setSelectedModel, fetchModels } = useChat({
+    apiKey,
+    attachedDocumentIds,
+    searchVectors,
+  });
+  // isSearching and sources will be used in Phase ui-citations
   const [inputValue, setInputValue] = useState('');
   const [isFileSelectorOpen, setIsFileSelectorOpen] = useState(false);
-  const [attachedDocumentIds, setAttachedDocumentIds] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
