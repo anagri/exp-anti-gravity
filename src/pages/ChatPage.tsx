@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 // import { ScrollArea } from '../components/ui/scroll-area';
 import { Card } from '../components/ui/card';
-import { Send, LogOut, Bot, User, FileText } from 'lucide-react';
+import { Send, LogOut, Bot, User, FileText, Paperclip } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 import { ModelSelector } from '../components/ModelSelector';
@@ -16,6 +16,7 @@ export default function ChatPage() {
   const { apiKey, clearApiKey } = useApiKey();
   const { messages, isLoading, error, sendMessage, clearChat, models, selectedModel, setSelectedModel, fetchModels } = useChat(apiKey);
   const [inputValue, setInputValue] = useState('');
+  const [isFileSelectorOpen, setIsFileSelectorOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -137,6 +138,19 @@ export default function ChatPage() {
           {/* Input Area */}
           <div className="p-4 border-t bg-gray-50/50">
             <form onSubmit={handleSend} className="flex gap-2">
+              <Button
+                data-testid="btn-attach-files"
+                data-state={isLoading ? 'disabled' : 'enabled'}
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setIsFileSelectorOpen(true)}
+                disabled={isLoading}
+                title="Attach indexed documents"
+              >
+                <Paperclip className="w-4 h-4" />
+                <span className="sr-only">Attach indexed documents</span>
+              </Button>
               <Input
                 data-testid="inp-chat-message"
                 value={inputValue}
@@ -153,6 +167,36 @@ export default function ChatPage() {
           </div>
         </Card>
       </main>
+
+      {/* Placeholder File Selector Modal (Phase ui-attach-button) */}
+      {isFileSelectorOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          data-testid="modal-file-selector"
+          data-state="open"
+          onClick={() => setIsFileSelectorOpen(false)}
+        >
+          <div
+            className="bg-white border rounded-lg p-6 max-w-2xl w-full mx-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Select Documents</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsFileSelectorOpen(false)}
+                data-testid="btn-close-file-selector"
+              >
+                ✕
+              </Button>
+            </div>
+            <p className="text-gray-500 text-sm">
+              File selector will be implemented in Phase ui-file-selector
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

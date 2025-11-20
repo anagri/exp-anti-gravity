@@ -1381,11 +1381,21 @@ npm run test:e2e:live -- e2e/indexing-workflow-basic.spec.ts
 **Goal:** Add attach button to ChatPage that opens file selector modal
 
 **Build:**
-- Add attach button to ChatPage (left of input field)
-- Use lucide-react `Paperclip` icon
-- Add modal state: `isFileSelectorOpen`
-- Button click: `setIsFileSelectorOpen(true)`
-- Add data attributes: `data-testid="btn-attach-files"`, `data-state`
+- ✅ Add attach button to ChatPage (left of input field)
+- ✅ Use lucide-react `Paperclip` icon
+- ✅ Add modal state: `isFileSelectorOpen`
+- ✅ Button click: `setIsFileSelectorOpen(true)`
+- ✅ Add data attributes: `data-testid="btn-attach-files"`, `data-state`
+
+**ACTUAL IMPLEMENTATION:**
+- ✅ Added Paperclip icon import from lucide-react
+- ✅ Added state: `const [isFileSelectorOpen, setIsFileSelectorOpen] = useState(false)`
+- ✅ Added attach button with proper data attributes (data-testid, data-state)
+- ✅ Button positioned left of input field using flex layout
+- ✅ Button disabled during loading (same as send button)
+- ✅ Added placeholder modal with backdrop, close button, and proper data attributes
+- ✅ Modal uses same pattern as DeleteModal (simple div with backdrop)
+- ✅ All tests passing (unit: 14/14, E2E: 4/4)
 
 **Test:** Manual verification (E2E test comes later)
 - Navigate to /chat
@@ -1393,10 +1403,10 @@ npm run test:e2e:live -- e2e/indexing-workflow-basic.spec.ts
 - Verify modal opens (placeholder modal OK for now)
 
 **Pass Criteria:**
-- ✅ Attach button visible on ChatPage
-- ✅ Button opens file selector modal
-- ✅ Data attributes present
-- ✅ No TypeScript errors
+- ✅ Attach button visible on ChatPage (line 141-153 in ChatPage.tsx)
+- ✅ Button opens file selector modal (placeholder implementation)
+- ✅ Data attributes present (btn-attach-files, modal-file-selector)
+- ✅ No TypeScript errors (build successful)
 
 **Checkpoint:** Attach button functional, ready for file selector implementation
 
