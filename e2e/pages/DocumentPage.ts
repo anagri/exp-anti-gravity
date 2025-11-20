@@ -124,4 +124,33 @@ export class DocumentPage {
   async expectEmptyState() {
     await this.emptyState.expectVisible();
   }
+
+  async openSettings() {
+    await this.page.click('[data-testid="btn-settings"]');
+    await this.page.waitForSelector('[data-testid="div-settings-modal"]', { state: 'visible' });
+  }
+
+  async closeSettings() {
+    await this.page.click('[data-testid="btn-close-settings"]');
+    await this.page.waitForSelector('[data-testid="div-settings-modal"]', { state: 'hidden' });
+  }
+
+  async getFeatureFlagValue(flagName: string): Promise<boolean> {
+    const row = this.page.locator(`[data-testid="feature-flag-${flagName}"]`);
+    const enabled = await row.getAttribute('data-enabled');
+    return enabled === 'true';
+  }
+
+  async toggleFeatureFlag(flagName: string) {
+    await this.page.click(`[data-testid="toggle-${flagName}"]`);
+  }
+
+  async expectReloadWarning() {
+    await this.page.waitForSelector('[data-testid="reload-warning"]', { state: 'visible' });
+  }
+
+  async reloadToApplyChanges() {
+    await this.page.click('[data-testid="btn-reload-now"]');
+    await this.waitForDBInitialized();
+  }
 }

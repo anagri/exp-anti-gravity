@@ -63,3 +63,50 @@ Using Tailwind CSS v4 with Vite plugin:
 - No `@apply` directives (removed for v4 compatibility)
 - CSS theme configuration in `src/index.css`
 - in e2e tests, never use waitForTimeout, instead have the app pages such that it updates the ui element, or attribute on ui element as data-test-state="ready|pending|processing|busy|etc." and we wait for state to be ready for assertion
+
+## Feature Toggles
+
+Runtime feature toggles allow users to enable/disable features through the Settings UI.
+
+### `FEATURE_INDEXING_ENABLED`
+Runtime toggle for document indexing functionality (for future implementation).
+
+**Behavior:**
+- **Enabled** (default): When not set OR not explicitly set to "false" in localStorage
+- **Disabled**: When explicitly set to "false" in localStorage
+- **Changes:** Require page reload to take effect
+
+**Storage:**
+- localStorage key: `feature-flag-FEATURE_INDEXING_ENABLED`
+- Value: `"true"` or `"false"` (string)
+
+**Usage in Code:**
+```typescript
+import { isFeatureEnabled, setFeatureFlag, FEATURES } from '@/lib/feature-flags'
+
+// Read toggle state
+if (isFeatureEnabled(FEATURES.INDEXING_ENABLED)) {
+  // Indexing logic here
+}
+
+// Write toggle state
+setFeatureFlag(FEATURES.INDEXING_ENABLED, false) // disable
+```
+
+**Settings UI:**
+- Access via Settings cog icon in Documents page header
+- Interactive toggles allow users to enable/disable features
+- Warning shown when changes pending
+- "Reload Now" button to apply changes immediately
+
+**Test Strategy:**
+Use `page.addInitScript()` to set toggle state before app loads:
+```typescript
+test.beforeEach(async ({ page }) => {
+  // Disable indexing in tests
+  await page.addInitScript(() => {
+    localStorage.setItem('feature-flag-FEATURE_INDEXING_ENABLED', 'false')
+  })
+  // ... setup
+})
+```

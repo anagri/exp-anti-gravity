@@ -6,6 +6,7 @@ import {
   ReactNode,
 } from 'react'
 import { getWorkerClient } from '@/lib/pglite-client'
+import { isFeatureEnabled, FEATURES } from '@/lib/feature-flags'
 
 interface Document {
   id: string
@@ -38,11 +39,16 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     async function initializeWorker() {
       try {
         await worker.init()
+
+        // Send initial feature flag state to worker
+        const indexingEnabled = isFeatureEnabled(FEATURES.INDEXING_ENABLED)
+        await worker.setIndexingEnabled(indexingEnabled)
+
         await refreshDocuments()
         setInitialized(true)
 
         if (import.meta.env.DEV) {
-          console.log('[VectorDB] Context initialized')
+          console.log('[VectorDB] Context initialized, indexing enabled:', indexingEnabled)
         }
       } catch (error) {
         console.error('[VectorDB] Initialization error:', error)
@@ -51,6 +57,23 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
     initializeWorker()
   }, [])
+
+  // Listen for feature flag changes
+  useEffect(() => {
+    const handleFlagChange = (event: Event) => {
+      const customEvent = event as CustomEvent
+      if (customEvent.detail.flag === 'FEATURE_INDEXING_ENABLED') {
+        worker.setIndexingEnabled(customEvent.detail.enabled)
+
+        if (import.meta.env.DEV) {
+          console.log('[VectorDB] Indexing enabled changed to:', customEvent.detail.enabled)
+        }
+      }
+    }
+
+    window.addEventListener('featureFlagChanged', handleFlagChange)
+    return () => window.removeEventListener('featureFlagChanged', handleFlagChange)
+  }, [worker])
 
   const refreshDocuments = async () => {
     try {

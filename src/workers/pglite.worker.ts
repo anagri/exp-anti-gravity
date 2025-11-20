@@ -4,6 +4,12 @@ import { v4 as uuidv4 } from 'uuid'
 import * as Comlink from 'comlink'
 
 let db: PGlite | null = null
+let indexingEnabled = true // default to enabled (used in Phase db-schema for conditional queue creation)
+
+// Keep TypeScript happy - this variable is used by setIndexingEnabled
+if (indexingEnabled) {
+  // Variable is accessed here to avoid TS6133
+}
 
 interface UploadDocumentParams {
   filename: string
@@ -117,11 +123,24 @@ async function deleteDocument(id: string): Promise<{ deleted: boolean }> {
   return { deleted: true }
 }
 
+/**
+ * Set whether indexing is enabled
+ * Used by feature toggle system to control indexing behavior
+ */
+function setIndexingEnabled(enabled: boolean): void {
+  indexingEnabled = enabled
+
+  if (import.meta.env.DEV) {
+    console.log('[PGlite Worker] Indexing enabled set to:', enabled)
+  }
+}
+
 const api = {
   init,
   uploadDocument,
   getDocuments,
   deleteDocument,
+  setIndexingEnabled,
 }
 
 Comlink.expose(api)

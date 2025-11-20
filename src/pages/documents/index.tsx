@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useVectorDB } from '@/contexts/VectorDBContext';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, FileText, LogOut } from 'lucide-react';
+import { MessageSquare, FileText, LogOut, Settings } from 'lucide-react';
 import { useApiKey } from '@/contexts/ApiKeyContext';
 import { useNavigate } from 'react-router-dom';
 import UploadZone from './components/UploadZone';
 import DocumentCard from './components/DocumentCard';
 import DeleteModal from './components/DeleteModal';
+import SettingsModal from './components/SettingsModal';
 import DocumentToolbar from './components/DocumentToolbar';
 import EmptyState from './components/EmptyState';
 
@@ -19,6 +20,7 @@ export default function DocumentsPage() {
   const { clearApiKey } = useApiKey();
   const { documents, uploadFiles, deleteDocument, initialized } = useVectorDB();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<{ id: string; filename: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('date-desc');
@@ -123,6 +125,14 @@ export default function DocumentsPage() {
           </nav>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSettingsOpen(true)}
+            data-testid="btn-settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="sm" onClick={handleLogout}>
             <LogOut className="w-4 h-4 mr-2" />
             Logout
@@ -176,6 +186,11 @@ export default function DocumentsPage() {
             onCancel={handleDeleteCancel}
           />
         )}
+
+        <SettingsModal
+          isOpen={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+        />
         </div>
       </div>
     </div>
