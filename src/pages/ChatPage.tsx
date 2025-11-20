@@ -1,17 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useChat } from '../hooks/useChat';
 import { useApiKey } from '../contexts/ApiKeyContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 // import { ScrollArea } from '../components/ui/scroll-area';
 import { Card } from '../components/ui/card';
-import { Send, LogOut, Bot, User } from 'lucide-react';
+import { Send, LogOut, Bot, User, FileText } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 import { ModelSelector } from '../components/ModelSelector';
-import { FileUpload } from '../components/FileUpload';
-import { DocumentList } from '../components/DocumentList';
 
 export default function ChatPage() {
   const navigate = useNavigate();
@@ -49,9 +47,24 @@ export default function ChatPage() {
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b p-4 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-2">
-          <Bot className="w-6 h-6 text-primary" />
-          <h1 className="font-semibold text-lg hidden sm:block">AI Chat</h1>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Bot className="w-6 h-6 text-primary" />
+            <h1 className="font-semibold text-lg hidden sm:block">AI Chat</h1>
+          </div>
+          <nav className="flex items-center gap-2 border-l pl-4">
+            <Link to="/chat">
+              <Button variant="ghost" size="sm" className="font-medium">
+                Chat
+              </Button>
+            </Link>
+            <Link to="/documents">
+              <Button variant="ghost" size="sm">
+                <FileText className="w-4 h-4 mr-2" />
+                Documents
+              </Button>
+            </Link>
+          </nav>
           <ModelSelector
             models={models}
             selectedModel={selectedModel}
@@ -72,12 +85,6 @@ export default function ChatPage() {
 
       {/* Chat Area */}
       <main className="flex-1 overflow-hidden p-4 max-w-4xl mx-auto w-full flex flex-col">
-        {/* Document Management Section */}
-        <div className="mb-4 p-4 bg-white rounded-lg shadow-sm border">
-          <FileUpload />
-          <DocumentList />
-        </div>
-
         <Card className="flex-1 flex flex-col overflow-hidden shadow-md bg-white">
           <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
             {messages.length === 0 && (

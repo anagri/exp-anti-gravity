@@ -1,5 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useVectorDB } from '@/contexts/VectorDBContext';
+import { Button } from '@/components/ui/button';
+import { MessageSquare, FileText, LogOut } from 'lucide-react';
+import { useApiKey } from '@/contexts/ApiKeyContext';
+import { useNavigate } from 'react-router-dom';
 import UploadZone from './components/UploadZone';
 import DocumentCard from './components/DocumentCard';
 import DeleteModal from './components/DeleteModal';
@@ -10,6 +15,8 @@ type SortOption = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'size-as
 type FilterOption = 'all' | 'markdown' | 'text';
 
 export default function DocumentsPage() {
+  const navigate = useNavigate();
+  const { clearApiKey } = useApiKey();
   const { documents, uploadFiles, deleteDocument, initialized } = useVectorDB();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<{ id: string; filename: string } | null>(null);
@@ -17,6 +24,11 @@ export default function DocumentsPage() {
   const [sortOption, setSortOption] = useState<SortOption>('date-desc');
   const [filterOption, setFilterOption] = useState<FilterOption>('all');
   const [isUploading, setIsUploading] = useState(false);
+
+  const handleLogout = () => {
+    clearApiKey();
+    navigate('/');
+  };
 
   const handleFilesSelected = async (files: File[]) => {
     const validFiles = files.filter(file => {
@@ -88,24 +100,49 @@ export default function DocumentsPage() {
     });
 
   return (
-    <div className="min-h-screen bg-background p-6" data-db-initialized={initialized} data-uploading={isUploading}>
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">Document Library</h1>
-          <p className="text-muted-foreground">
-            Upload and manage your markdown and text files
-          </p>
+    <div className="flex flex-col h-screen bg-background" data-db-initialized={initialized} data-uploading={isUploading}>
+      {/* Header */}
+      <header className="bg-white border-b p-4 flex justify-between items-center shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <FileText className="w-6 h-6 text-primary" />
+            <h1 className="font-semibold text-lg hidden sm:block">Documents</h1>
+          </div>
+          <nav className="flex items-center gap-2 border-l pl-4">
+            <Link to="/chat">
+              <Button variant="ghost" size="sm">
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Chat
+              </Button>
+            </Link>
+            <Link to="/documents">
+              <Button variant="ghost" size="sm" className="font-medium">
+                Documents
+              </Button>
+            </Link>
+          </nav>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={handleLogout}>
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-7xl mx-auto">
           {!initialized && (
-            <p className="text-sm text-muted-foreground mt-2" data-testid="div-doc-loading">
+            <p className="text-sm text-muted-foreground mb-4" data-testid="div-doc-loading">
               Initializing database...
             </p>
           )}
           {isUploading && (
-            <p className="text-sm text-muted-foreground mt-2" data-testid="div-doc-uploading">
+            <p className="text-sm text-muted-foreground mb-4" data-testid="div-doc-uploading">
               Uploading...
             </p>
           )}
-        </div>
 
         <UploadZone onFilesSelected={handleFilesSelected} disabled={isUploading || !initialized} />
 
@@ -139,6 +176,7 @@ export default function DocumentsPage() {
             onCancel={handleDeleteCancel}
           />
         )}
+        </div>
       </div>
     </div>
   );
