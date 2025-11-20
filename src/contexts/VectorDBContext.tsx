@@ -63,6 +63,16 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         const indexingEnabled = isFeatureEnabled(FEATURES.INDEXING_ENABLED)
         await worker.setIndexingEnabled(indexingEnabled)
 
+        // Subscribe to worker progress updates (Phase queue-processor)
+        worker.onProgress((progress: IndexingProgress) => {
+          _setIndexingProgress(prev => new Map(prev).set(progress.documentId, progress))
+
+          // Refresh documents to update UI with latest status
+          if (progress.status === 'completed' || progress.status === 'failed') {
+            refreshDocuments()
+          }
+        })
+
         await refreshDocuments()
         setInitialized(true)
 

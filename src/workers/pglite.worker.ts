@@ -5,10 +5,12 @@ import * as Comlink from 'comlink'
 
 let db: PGlite | null = null
 let indexingEnabled = true // default to enabled (used in Phase db-schema for conditional queue creation)
+let isProcessing = false // queue processor state (Phase queue-processor)
+let progressCallbacks: Array<(progress: IndexingProgress) => void> = [] // Phase queue-processor
 
-// Keep TypeScript happy - this variable is used by setIndexingEnabled
-if (indexingEnabled) {
-  // Variable is accessed here to avoid TS6133
+// Keep TypeScript happy - variables are used
+if (indexingEnabled && !isProcessing && progressCallbacks.length >= 0) {
+  // Variables are accessed here to avoid TS6133
 }
 
 interface UploadDocumentParams {
@@ -29,6 +31,23 @@ interface Document {
   indexing_status: 'pending' | 'processing' | 'completed' | 'failed' | null
   error_message: string | null
   retry_count: number | null
+}
+
+interface IndexingProgress {
+  documentId: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  progress: number // 0-100
+  stage: string
+  message: string
+}
+
+interface IndexingJob {
+  id: string
+  document_id: string
+  status: string
+  error_message: string | null
+  retry_count: number
+  max_retries: number
 }
 
 /**
@@ -202,12 +221,143 @@ function setIndexingEnabled(enabled: boolean): void {
   }
 }
 
+// ========== Queue Processor (Phase queue-processor) ==========
+
+/**
+ * Sleep helper
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
+ * Emit progress update to all registered callbacks
+ */
+function emitProgress(
+  documentId: string,
+  status: IndexingProgress['status'],
+  progress: number,
+  stage: string,
+  message: string
+): void {
+  const progressData: IndexingProgress = {
+    documentId,
+    status,
+    progress,
+    stage,
+    message,
+  }
+
+  progressCallbacks.forEach(callback => {
+    try {
+      callback(progressData)
+    } catch (error) {
+      console.error('[PGlite Worker] Progress callback error:', error)
+    }
+  })
+
+  if (import.meta.env.DEV) {
+    console.log(`[PGlite Worker] ${documentId}: ${status} ${progress}% - ${message}`)
+  }
+}
+
+/**
+ * Process a single indexing job (Phase queue-processor: mock work only)
+ */
+async function processJob(job: IndexingJob): Promise<void> {
+  const { id: jobId, document_id } = job
+
+  try {
+    // Mark as processing
+    await db!.query(
+      `UPDATE indexing_queue
+       SET status = 'processing', started_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [jobId]
+    )
+
+    emitProgress(document_id, 'processing', 0, 'processing', 'Starting indexing...')
+
+    // Mock work: Just wait 1 second (Phase queue-processor)
+    // Real chunking, embedding, storing will be added in later phases
+    await sleep(1000)
+
+    emitProgress(document_id, 'processing', 100, 'completed', 'Indexing complete (mock)')
+
+    // Mark as completed
+    await db!.query(
+      `UPDATE indexing_queue
+       SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [jobId]
+    )
+
+    emitProgress(document_id, 'completed', 100, 'completed', 'Indexing completed successfully')
+
+  } catch (error) {
+    console.error('[PGlite Worker] Job processing error:', error)
+    // Error handling will be implemented in Phase error-retry
+  }
+}
+
+/**
+ * Process pending jobs from the queue
+ */
+async function processQueue(): Promise<void> {
+  if (isProcessing || !db) return
+  isProcessing = true
+
+  try {
+    while (true) {
+      // Get next pending job
+      const result = await db.query<IndexingJob>(`
+        SELECT * FROM indexing_queue
+        WHERE status = 'pending'
+        ORDER BY created_at ASC
+        LIMIT 1
+      `)
+
+      if (result.rows.length === 0) break
+
+      const job = result.rows[0]
+      await processJob(job)
+
+      await sleep(100) // Brief delay between jobs
+    }
+  } catch (error) {
+    console.error('[PGlite Worker] Queue processing error:', error)
+  } finally {
+    isProcessing = false
+  }
+}
+
+/**
+ * Register a progress callback
+ */
+function onProgress(callback: (progress: IndexingProgress) => void): void {
+  progressCallbacks.push(Comlink.proxy(callback))
+}
+
+// Auto-start queue processor after init (Phase queue-processor)
+const originalInit = init
+async function initWithQueueProcessor(): Promise<{ ready: boolean }> {
+  const result = await originalInit()
+
+  // Start queue processor in background
+  processQueue()
+  // Poll for new jobs every 5 seconds
+  setInterval(() => processQueue(), 5000)
+
+  return result
+}
+
 const api = {
-  init,
+  init: initWithQueueProcessor,
   uploadDocument,
   getDocuments,
   deleteDocument,
   setIndexingEnabled,
+  onProgress,
 }
 
 Comlink.expose(api)
