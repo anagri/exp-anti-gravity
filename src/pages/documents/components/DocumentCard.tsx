@@ -46,51 +46,47 @@ export default function DocumentCard({ document, onDelete }: DocumentCardProps) 
 
   return (
     <Card
-      className="p-4 hover:shadow-md transition-shadow"
+      className="border border-border rounded-lg overflow-hidden hover:shadow-card transition-all duration-200 group"
       data-testid={`div-doc-item-${document.id}`}
     >
-      <div className="flex flex-col h-full">
-        <div className="flex items-start mb-3">
+      <div className="p-4 space-y-3">
+        <div className="flex items-start">
           <FileText className="w-8 h-8 text-muted-foreground mr-3 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <h3
-              className="font-medium text-sm truncate"
+              className="font-medium text-foreground truncate"
               data-testid={`span-doc-filename-${document.id}`}
               title={document.filename}
             >
               {document.filename}
             </h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              {formatFileSize(document.file_size)}
-            </p>
           </div>
         </div>
 
-        <div className="mt-auto">
-          <p className="text-xs text-muted-foreground mb-3">
-            Uploaded {formatDate(document.uploaded_at)}
-          </p>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span className="font-mono">{formatFileSize(document.file_size)}</span>
+          <span>{formatDate(document.uploaded_at)}</span>
+        </div>
 
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownload}
-              data-testid={`btn-doc-download-${document.id}`}
-              className="flex-1"
-            >
-              <Download className="w-4 h-4 mr-1" />
-              Download
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={onDelete}
-              data-testid={`btn-doc-delete-${document.id}`}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
+        <div className="flex items-center gap-2 pt-2 border-t border-border">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownload}
+            data-testid={`btn-doc-download-${document.id}`}
+            className="flex-1"
+          >
+            <Download className="w-4 h-4 mr-1" />
+            Download
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onDelete}
+            data-testid={`btn-doc-delete-${document.id}`}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
         </div>
       </div>
     </Card>

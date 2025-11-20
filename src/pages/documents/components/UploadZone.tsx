@@ -62,9 +62,9 @@ export default function UploadZone({ onFilesSelected, disabled = false }: Upload
   return (
     <div
       className={`
-        relative border-2 border-dashed rounded-lg p-12 mb-6 transition-colors
-        ${isDragging ? 'border-primary bg-primary/5' : 'border-border'}
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50'}
+        relative border-2 border-dashed rounded-lg p-8 mb-6 transition-all duration-200
+        ${isDragging ? 'border-primary bg-primary/5 scale-[1.02]' : 'border-border bg-card'}
+        ${disabled ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:border-primary/50 hover:bg-muted/50'}
       `}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -83,17 +83,19 @@ export default function UploadZone({ onFilesSelected, disabled = false }: Upload
       />
 
       <div className="flex flex-col items-center justify-center text-center">
-        {isDragging ? (
-          <Download className="w-12 h-12 text-primary mb-4" />
-        ) : (
-          <Upload className="w-12 h-12 text-muted-foreground mb-4" />
-        )}
+        <div className={`p-4 rounded-full mb-4 transition-all duration-200 ${isDragging ? 'bg-primary/10' : 'bg-muted'}`}>
+          {isDragging ? (
+            <Download className="w-8 h-8 text-primary" />
+          ) : (
+            <Upload className="w-8 h-8 text-muted-foreground" />
+          )}
+        </div>
 
-        <h3 className="text-lg font-semibold mb-2">
+        <h3 className="text-lg font-semibold text-foreground mb-2">
           {isDragging ? 'Drop files here' : 'Upload Documents'}
         </h3>
 
-        <p className="text-sm text-muted-foreground mb-4">
+        <p className="text-sm text-muted-foreground max-w-md mb-4">
           Drag and drop .md or .txt files here, or click to browse
         </p>
 
