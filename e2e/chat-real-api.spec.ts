@@ -11,7 +11,7 @@ test.describe('Chat with Real OpenAI API', () => {
     apiKey = loadTestApiKey();
   });
 
-  test('chat flow with model selection and streaming', async ({ page }) => {
+  test('chat flow with model selection, streaming, and logout', async ({ page }) => {
     const welcomePage = new WelcomePage(page, baseUrl);
     const chatPage = new ChatPage(page, baseUrl);
 
@@ -34,14 +34,6 @@ test.describe('Chat with Real OpenAI API', () => {
     await chatPage.clearChat();
     await chatPage.expectMessageNotVisible('What day comes after Monday?');
     await chatPage.expectEmptyState();
-  });
-
-  test('logout clears API key and redirects to homepage', async ({ page }) => {
-    const welcomePage = new WelcomePage(page, baseUrl);
-    const chatPage = new ChatPage(page, baseUrl);
-
-    await welcomePage.navigateToWelcome();
-    await welcomePage.submitApiKey(apiKey);
 
     await chatPage.logout();
     await welcomePage.expectAtWelcomePage();
