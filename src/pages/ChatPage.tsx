@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useChat } from '../hooks/useChat';
 import { useApiKey } from '../contexts/ApiKeyContext';
+import { useVectorDB } from '../contexts/VectorDBContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 // import { ScrollArea } from '../components/ui/scroll-area';
@@ -10,13 +11,16 @@ import { Send, LogOut, Bot, User, FileText, Paperclip } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 import { ModelSelector } from '../components/ModelSelector';
+import FileSelector from '../components/FileSelector';
 
 export default function ChatPage() {
   const navigate = useNavigate();
   const { apiKey, clearApiKey } = useApiKey();
+  const { documents } = useVectorDB();
   const { messages, isLoading, error, sendMessage, clearChat, models, selectedModel, setSelectedModel, fetchModels } = useChat(apiKey);
   const [inputValue, setInputValue] = useState('');
   const [isFileSelectorOpen, setIsFileSelectorOpen] = useState(false);
+  const [attachedDocumentIds, setAttachedDocumentIds] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -168,34 +172,16 @@ export default function ChatPage() {
         </Card>
       </main>
 
-      {/* Placeholder File Selector Modal (Phase ui-attach-button) */}
+      {/* File Selector Modal (Phase ui-file-selector) */}
       {isFileSelectorOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          data-testid="modal-file-selector"
-          data-state="open"
-          onClick={() => setIsFileSelectorOpen(false)}
-        >
-          <div
-            className="bg-white border rounded-lg p-6 max-w-2xl w-full mx-4 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Select Documents</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsFileSelectorOpen(false)}
-                data-testid="btn-close-file-selector"
-              >
-                ✕
-              </Button>
-            </div>
-            <p className="text-gray-500 text-sm">
-              File selector will be implemented in Phase ui-file-selector
-            </p>
-          </div>
-        </div>
+        <FileSelector
+          documents={documents}
+          selectedDocumentIds={attachedDocumentIds}
+          onSelectionChange={(ids) => {
+            setAttachedDocumentIds(ids);
+          }}
+          onClose={() => setIsFileSelectorOpen(false)}
+        />
       )}
     </div>
   );
