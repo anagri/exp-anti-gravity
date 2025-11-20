@@ -1,7 +1,9 @@
 import { test, expect } from './fixtures/globalSetup';
 import { DocumentPage } from './pages/DocumentPage';
-import { PG_ESSAYS } from './fixtures/pg-essays';
+import { PG_ESSAYS, PG_ESSAY_NAMES } from './fixtures/pg-essays';
 import { loadTestApiKey } from './utils/env';
+
+const EQUITY_FILENAME = PG_ESSAY_NAMES.EQUITY;
 
 test.describe('Indexing Workflow @live', () => {
   let documentsPage: DocumentPage;
@@ -12,115 +14,49 @@ test.describe('Indexing Workflow @live', () => {
   });
 
   test.beforeEach(async ({ page }) => {
-    // Feature toggle enabled by default (no need to disable like in documents-upload.spec.ts)
     documentsPage = new DocumentPage(page);
-    await documentsPage.setup(apiKey); // Use real API key for embeddings
+    await documentsPage.setup(apiKey);
   });
 
-  test('Phase embeddings: upload → queue → chunk → embed → store', async ({ page }) => {
-    test.setTimeout(120000); // 2 minutes for OpenAI API calls
-    // Ensure we start with empty state
+  test('Phase embeddings: upload → queue → chunk → embed → store', async () => {
     await documentsPage.expectEmptyState();
 
-    // Upload shortest PG essay
     await documentsPage.uploadFiles(PG_ESSAYS.EQUITY);
-    await documentsPage.documentList.waitForFileToAppear('078_the_equity_equation.md');
+    await documentsPage.documentList.waitForFileToAppear(EQUITY_FILENAME);
 
-    // Phase db-schema: Verify queue entry created (status = pending)
-    const fileId = await documentsPage.documentList.findFileByName('078_the_equity_equation.md');
-    expect(fileId).toBeTruthy();
+    const fileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
+    if (!fileId) throw new Error('File not found after upload');
 
-    const card = page.locator(`[data-testid="div-doc-item-${fileId}"]`);
+    await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
 
-    // Wait for initial status (might be pending or already processing)
-    await page.waitForFunction(
-      ({ id }) => {
-        const card = document.querySelector(`[data-testid="div-doc-item-${id}"]`);
-        const status = card?.getAttribute('data-indexing-status');
-        return status === 'pending' || status === 'processing' || status === 'completed';
-      },
-      { id: fileId },
-      { timeout: 5000 }
-    );
-
-
-    // Phase embeddings: Wait for completion and verify chunk count > 0
-    await page.waitForFunction(
-      ({ id }) => {
-        const card = document.querySelector(`[data-testid="div-doc-item-${id}"]`);
-        const status = card?.getAttribute('data-indexing-status');
-        console.log('Polling status:', status);
-        return status === 'completed';
-      },
-      { id: fileId },
-      { timeout: 60000, polling: 1000 } // Longer timeout for OpenAI API calls
-    );
-
-    // Verify chunk count is > 0 (proves chunks were created and stored)
-    const chunkCount = await card.getAttribute('data-chunk-count');
-    expect(parseInt(chunkCount || '0')).toBeGreaterThan(0);
-
-    // Verify final status is 'completed' (proves embeddings were generated successfully)
-    const finalStatus = await card.getAttribute('data-indexing-status');
-    expect(finalStatus).toBe('completed');
+    await documentsPage.documentList.expectIndexingStatus(fileId, 'completed');
+    const chunkCount = await documentsPage.documentList.getChunkCount(fileId);
+    expect(chunkCount).toBeGreaterThan(0);
   });
 
   test('Phase persistence: indexing state survives page reload', async ({ page }) => {
-    test.setTimeout(120000); // 2 minutes for OpenAI API calls
-
-    // Phase 1: Index file successfully
     await documentsPage.expectEmptyState();
+
     await documentsPage.uploadFiles(PG_ESSAYS.EQUITY);
-    await documentsPage.documentList.waitForFileToAppear('078_the_equity_equation.md');
+    await documentsPage.documentList.waitForFileToAppear(EQUITY_FILENAME);
 
-    const fileId = await documentsPage.documentList.findFileByName('078_the_equity_equation.md');
-    const card = page.locator(`[data-testid="div-doc-item-${fileId}"]`);
+    const fileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
+    if (!fileId) throw new Error('File not found after upload');
 
-    // Wait for completion
-    await page.waitForFunction(
-      ({ id }) => {
-        const card = document.querySelector(`[data-testid="div-doc-item-${id}"]`);
-        const status = card?.getAttribute('data-indexing-status');
-        return status === 'completed';
-      },
-      { id: fileId },
-      { timeout: 60000, polling: 1000 }
-    );
+    await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
 
-    // Record pre-reload state
-    const preReloadChunkCount = await card.getAttribute('data-chunk-count');
-    const preReloadStatus = await card.getAttribute('data-indexing-status');
+    const preReloadChunkCount = await documentsPage.documentList.getChunkCount(fileId);
+    await documentsPage.documentList.expectIndexingStatus(fileId, 'completed');
+    expect(preReloadChunkCount).toBeGreaterThan(0);
 
-    console.log('Pre-reload state:', { status: preReloadStatus, chunkCount: preReloadChunkCount });
-    expect(preReloadStatus).toBe('completed');
-    expect(parseInt(preReloadChunkCount || '0')).toBeGreaterThan(0);
-
-    // Phase 2: Reload page
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await documentsPage.waitForDBInitialized();
 
-    // Wait for VectorDB to reinitialize and repopulate
-    await page.waitForFunction(
-      () => {
-        const container = document.querySelector('[data-db-initialized]');
-        return container?.getAttribute('data-db-initialized') === 'true';
-      },
-      { timeout: 10000 }
-    );
+    await documentsPage.documentList.waitForFileToAppear(EQUITY_FILENAME);
 
-    // Verify document still visible
-    await documentsPage.documentList.waitForFileToAppear('078_the_equity_equation.md');
-
-    // Verify indexing state persists
-    const reloadedCard = page.locator(`[data-testid="div-doc-item-${fileId}"]`);
-    const postReloadStatus = await reloadedCard.getAttribute('data-indexing-status');
-    const postReloadChunkCount = await reloadedCard.getAttribute('data-chunk-count');
-
-    console.log('Post-reload state:', { status: postReloadStatus, chunkCount: postReloadChunkCount });
-
-    // Assert: All indexing metadata persists
-    expect(postReloadStatus).toBe('completed');
+    const postReloadChunkCount = await documentsPage.documentList.getChunkCount(fileId);
+    await documentsPage.documentList.expectIndexingStatus(fileId, 'completed');
     expect(postReloadChunkCount).toBe(preReloadChunkCount);
-    expect(parseInt(postReloadChunkCount || '0')).toBeGreaterThan(0);
+    expect(postReloadChunkCount).toBeGreaterThan(0);
   });
 });

@@ -59,4 +59,30 @@ export class DocumentListComponent {
     const filenames = await this.page.locator('[data-testid^="span-doc-filename-"]').allTextContents();
     return filenames;
   }
+
+  getDocumentCard(fileId: string) {
+    return this.page.locator(`[data-testid="div-doc-item-${fileId}"]`);
+  }
+
+  async waitForIndexingStatus(fileId: string, status: 'completed' | 'failed') {
+    const card = this.getDocumentCard(fileId);
+    await expect(card).toHaveAttribute('data-indexing-status', status);
+  }
+
+  async expectIndexingStatus(fileId: string, status: string) {
+    const card = this.getDocumentCard(fileId);
+    await expect(card).toHaveAttribute('data-indexing-status', status);
+  }
+
+  async getChunkCount(fileId: string): Promise<number> {
+    const card = this.getDocumentCard(fileId);
+    const chunkCountStr = await card.getAttribute('data-chunk-count');
+    const chunkCount = parseInt(chunkCountStr || '0', 10);
+
+    if (isNaN(chunkCount)) {
+      throw new Error(`Invalid chunk count for file ${fileId}: ${chunkCountStr}`);
+    }
+
+    return chunkCount;
+  }
 }
