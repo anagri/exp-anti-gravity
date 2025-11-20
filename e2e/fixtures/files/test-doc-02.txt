@@ -1,0 +1,20 @@
+Test Document 02 - Plain Text File
+
+This is a plain text document for E2E testing.
+
+It contains multiple lines of text to simulate a real document.
+
+Section A
+---------
+This section contains some information about topic A.
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+
+Section B
+---------
+This section contains some information about topic B.
+Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+Section C
+---------
+This section contains some information about topic C.
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
