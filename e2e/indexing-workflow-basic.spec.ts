@@ -64,4 +64,63 @@ test.describe('Indexing Workflow @live', () => {
     const finalStatus = await card.getAttribute('data-indexing-status');
     expect(finalStatus).toBe('completed');
   });
+
+  test('Phase persistence: indexing state survives page reload', async ({ page }) => {
+    test.setTimeout(120000); // 2 minutes for OpenAI API calls
+
+    // Phase 1: Index file successfully
+    await documentsPage.expectEmptyState();
+    await documentsPage.uploadFiles(PG_ESSAYS.EQUITY);
+    await documentsPage.documentList.waitForFileToAppear('078_the_equity_equation.md');
+
+    const fileId = await documentsPage.documentList.findFileByName('078_the_equity_equation.md');
+    const card = page.locator(`[data-testid="div-doc-item-${fileId}"]`);
+
+    // Wait for completion
+    await page.waitForFunction(
+      ({ id }) => {
+        const card = document.querySelector(`[data-testid="div-doc-item-${id}"]`);
+        const status = card?.getAttribute('data-indexing-status');
+        return status === 'completed';
+      },
+      { id: fileId },
+      { timeout: 60000, polling: 1000 }
+    );
+
+    // Record pre-reload state
+    const preReloadChunkCount = await card.getAttribute('data-chunk-count');
+    const preReloadStatus = await card.getAttribute('data-indexing-status');
+
+    console.log('Pre-reload state:', { status: preReloadStatus, chunkCount: preReloadChunkCount });
+    expect(preReloadStatus).toBe('completed');
+    expect(parseInt(preReloadChunkCount || '0')).toBeGreaterThan(0);
+
+    // Phase 2: Reload page
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+
+    // Wait for VectorDB to reinitialize and repopulate
+    await page.waitForFunction(
+      () => {
+        const container = document.querySelector('[data-db-initialized]');
+        return container?.getAttribute('data-db-initialized') === 'true';
+      },
+      { timeout: 10000 }
+    );
+
+    // Verify document still visible
+    await documentsPage.documentList.waitForFileToAppear('078_the_equity_equation.md');
+
+    // Verify indexing state persists
+    const reloadedCard = page.locator(`[data-testid="div-doc-item-${fileId}"]`);
+    const postReloadStatus = await reloadedCard.getAttribute('data-indexing-status');
+    const postReloadChunkCount = await reloadedCard.getAttribute('data-chunk-count');
+
+    console.log('Post-reload state:', { status: postReloadStatus, chunkCount: postReloadChunkCount });
+
+    // Assert: All indexing metadata persists
+    expect(postReloadStatus).toBe('completed');
+    expect(postReloadChunkCount).toBe(preReloadChunkCount);
+    expect(parseInt(postReloadChunkCount || '0')).toBeGreaterThan(0);
+  });
 });
