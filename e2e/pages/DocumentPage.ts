@@ -1,11 +1,11 @@
 import { Page, expect } from '@playwright/test';
-import { UploadZoneComponent } from './UploadZoneComponent';
-import { DocumentListComponent } from './DocumentListComponent';
-import { DeleteModalComponent } from './DeleteModalComponent';
-import { ToolbarComponent } from './ToolbarComponent';
-import { EmptyStateComponent } from './EmptyStateComponent';
+import { UploadZoneComponent } from './documents/UploadZoneComponent';
+import { DocumentListComponent } from './documents/DocumentListComponent';
+import { DeleteModalComponent } from './documents/DeleteModalComponent';
+import { ToolbarComponent } from './documents/ToolbarComponent';
+import { EmptyStateComponent } from './documents/EmptyStateComponent';
 
-export class DocumentsPage {
+export class DocumentPage {
   readonly uploadZone: UploadZoneComponent;
   readonly documentList: DocumentListComponent;
   readonly deleteModal: DeleteModalComponent;

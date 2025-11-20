@@ -1,12 +1,12 @@
 import { test } from '@playwright/test';
-import { DocumentsPage } from './page-objects/DocumentsPage';
+import { DocumentPage } from '../pages/DocumentPage';
 import { TEST_FILES, FILE_NAMES } from '../fixtures/test-files';
 
 test.describe('File Validation', () => {
-  let documentsPage: DocumentsPage;
+  let documentsPage: DocumentPage;
 
   test.beforeEach(async ({ page }) => {
-    documentsPage = new DocumentsPage(page);
+    documentsPage = new DocumentPage(page);
     await documentsPage.clearDatabase();
     await documentsPage.setup();
   });

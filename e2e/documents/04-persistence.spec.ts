@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { DocumentsPage } from './page-objects/DocumentsPage';
+import { DocumentPage } from '../pages/DocumentPage';
 import { TEST_FILES, FILE_NAMES } from '../fixtures/test-files';
 
 test.describe('IndexedDB Persistence', () => {
-  let documentsPage: DocumentsPage;
+  let documentsPage: DocumentPage;
 
   test('data persists across page reload', async ({ page }) => {
-    documentsPage = new DocumentsPage(page);
+    documentsPage = new DocumentPage(page);
     await documentsPage.clearDatabase();
     await documentsPage.setup();
 
