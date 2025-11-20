@@ -25,6 +25,11 @@ export class DocumentsPage {
     await this.page.waitForURL('/documents');
   }
 
+  async navigateToAndWait() {
+    await this.navigateTo();
+    await this.waitForDBInitialized();
+  }
+
   async waitForDBInitialized() {
     await this.page.waitForFunction(() => {
       const container = document.querySelector('[data-db-initialized]');

@@ -100,15 +100,14 @@ git commit -m "fix(indexing): handle rate limit errors with exponential backoff"
 
 | Phase | Unit Tests | Integration Tests | E2E Tests |
 |-------|-----------|-------------------|-----------|
-| 2. Worker + Minimal UI | ✅ Core logic | ✅ Context integration | ✅ Document CRUD |
-| 3. UI Enhancements | ✅ Components | ✅ Enhanced UX | ✅ Upload flow |
-| 4. Indexing | ✅ Chunking/Retry | ✅ API mocking | ✅ Full pipeline |
-| 5. Search | ✅ Query logic | ✅ HNSW queries | ✅ RAG flow |
-| 6. UI | ✅ Components | ✅ Interactions | ✅ UI workflows |
-| 7. State | ✅ Hooks/Context | ✅ Propagation | ✅ Persistence |
-| 8. Perf | ✅ Algorithms | ✅ Benchmarks | ✅ Large datasets |
-| 9. Build | ✅ Config | ✅ Build output | ❌ |
-| 10. Deploy | ✅ All passing | ✅ All passing | ✅ Production |
+| worker-setup: Worker + Documents Page | ✅ Core logic | ✅ Context integration | ✅ Document CRUD |
+| indexing-pipeline: Indexing | ✅ Chunking/Retry | ✅ API mocking | ✅ Full pipeline |
+| vector-search: Search | ✅ Query logic | ✅ HNSW queries | ✅ RAG flow |
+| ui-components: UI | ✅ Components | ✅ Interactions | ✅ UI workflows |
+| state-management: State | ✅ Hooks/Context | ✅ Propagation | ✅ Persistence |
+| performance: Perf | ✅ Algorithms | ✅ Benchmarks | ✅ Large datasets |
+| build-config: Build | ✅ Config | ✅ Build output | ❌ |
+| deployment: Deploy | ✅ All passing | ✅ All passing | ✅ Production |
 
 #### Test File Organization
 
@@ -172,7 +171,7 @@ npm run build                             # Must compile successfully
 Use this checklist for EVERY phase:
 
 ```markdown
-### Phase X Completion Checklist
+### Phase <phase-id> Completion Checklist
 
 Implementation:
 - [ ] Code written following plan specifications
@@ -233,22 +232,6 @@ If tests fail:
    - Fix the code
    - Re-run tests
    - Repeat until all pass
-
-### Estimated Timeline with Testing
-
-| Phase | Implementation | Testing | Total |
-|-------|---------------|---------|-------|
-| 2. Worker | 0.75 days | 0.75 days | **1.5 days** |
-| 3. Upload | 0.75 days | 0.75 days | **1.5 days** |
-| 4. Indexing | 1.5 days | 1.5 days | **3 days** |
-| 5. Search/RAG | 0.75 days | 0.75 days | **1.5 days** |
-| 6. UI | 0.75 days | 0.75 days | **1.5 days** |
-| 7. State | 0.375 days | 0.375 days | **0.75 days** |
-| 8. Perf | 0.375 days | 0.375 days | **0.75 days** |
-| 9. Build | 0.25 days | 0.25 days | **0.5 days** |
-| 10. Deploy | 0.5 days | 0.5 days | **1 day** |
-
-**Total: ~12 days** (was ~7 days without comprehensive testing)
 
 ---
 
@@ -532,9 +515,9 @@ db.onLeaderChange(() => {
 ### Data Flow Diagrams
 
 **Note:** Database tables and indexes are created incrementally across phases:
-- **Phase 2:** Documents table (basic file metadata storage)
-- **Phase 4:** Indexing queue + Chunks tables (job queue and embeddings storage)
-- **Phase 5:** HNSW index on chunks (fast vector search)
+- **Phase worker-setup:** Documents table (basic file metadata storage)
+- **Phase indexing-pipeline:** Indexing queue + Chunks tables (job queue and embeddings storage)
+- **Phase vector-search:** HNSW index on chunks (fast vector search)
 
 #### File Upload Flow
 
@@ -712,10 +695,9 @@ Create test helpers and fixtures ONLY when actually needed:
 - Mock handlers: Add to MSW handlers as needed for each phase
 
 **Create Incrementally by Phase:**
-- Phase 2: Basic worker test helpers (if needed)
-- Phase 3: File upload test data (if needed)
-- Phase 4: Embedding/chunking mocks (when those tests written)
-- Phase 5: Vector search test data (when search tests written)
+- Phase worker-setup: Basic worker test helpers (if needed)
+- Phase indexing-pipeline: Embedding/chunking mocks (when those tests written)
+- Phase vector-search: Vector search test data (when search tests written)
 
 Don't create "just in case" test infrastructure.
 
@@ -723,251 +705,196 @@ Don't create "just in case" test infrastructure.
 
 ## Implementation Plan
 
-### Phase 2: PGlite Worker Setup + Minimal UI
+### Phase worker-setup: PGlite Worker Setup + Full-Featured Documents Page
 
-**Goal:** Browser-based PostgreSQL with basic document CRUD + passing E2E tests
+**Status:** ⚠️ **IN PROGRESS** - Core features complete, optional enhancements pending
 
-**Dependency Installation Requirements:**
-- Install PGlite with pgvector support (@electric-sql/pglite)
-- Install UUID generation library (uuid) for document ID generation
-- Install Comlink for simplified Web Worker RPC communication
+**Goal:** Browser-based PostgreSQL with full document management UI + comprehensive E2E tests
 
-**TypeScript Configuration Requirements:**
-- Update main tsconfig.json to include WebWorker library types
-- Add @types/uuid to types array
-- Ensure ES2020, DOM, and DOM.Iterable libraries are available
-- Create separate tsconfig for workers (tsconfig.worker.json) that extends main config
-- Worker config should only include WebWorker lib (no DOM)
-- Worker config should only include src/workers/**/* files
+---
 
-**File Organization:**
+#### ✅ COMPLETED REQUIREMENTS
 
-Create files/directories as needed when writing code:
-- Create src/workers/ when adding pglite.worker.ts
-- Create src/lib/ when adding worker client wrapper
-- Co-locate types with implementation (avoid premature src/types/ directory)
+**Dependencies Installed:**
+- ✅ @electric-sql/pglite@^0.3.14 (PGlite with pgvector)
+- ✅ comlink@^4.4.2 (Web Worker RPC)
+- ✅ uuid@^13.0.0 (UUID generation)
+- ✅ @types/uuid@^10.0.0 (TypeScript types)
+- ✅ @radix-ui/react-dialog@^1.1.15 (Modal component - already present)
 
-**PGlite Worker Requirements:**
+**TypeScript Configuration:**
+- ✅ tsconfig.worker.json created (WebWorker lib, ES2020)
+- ✅ vite.config.ts updated (worker format: 'es', exclude PGlite from optimizeDeps)
 
-*Database Initialization:*
-- Create singleton PGlite instance stored in worker scope
-- Configure PGlite with IndexedDB data directory (idb://rag-vectors)
-- Enable pgvector extension (will be used in Phase 4 for vector embeddings)
-- Enable relaxedDurability mode for better performance
-- Return existing instance if already initialized (prevent duplicate initialization)
+**Core Infrastructure:**
+- ✅ PGlite worker (`src/workers/pglite.worker.ts`) with singleton pattern
+- ✅ Worker client (`src/lib/pglite-client.ts`) with Comlink RPC
+- ✅ Database: IndexedDB (idb://rag-vectors) with relaxedDurability
+- ✅ pgvector extension enabled (ready for Phase indexing-pipeline)
+- ✅ Documents table with UUID, filename, content, size, mimeType, uploaded_at
 
-*Document Storage Requirements:*
-**Functional Goal:** Store uploaded file metadata and content for later retrieval and indexing
+**Worker API Implemented:**
+- ✅ `init()` - Initialize database, return ready status
+- ✅ `uploadDocument(file)` - Insert document, return UUID
+- ✅ `getDocuments()` - Query all documents (ordered by uploaded_at DESC)
+- ✅ `deleteDocument(id)` - Delete by ID
 
-Create documents table with:
-- Purpose: Store uploaded markdown/text files with metadata
-- Fields needed: unique ID (UUID), filename, full content, file size (bytes), MIME type (text/markdown or text/plain), upload timestamp
-- Constraints: Filename and content are required
+**React Context & State:**
+- ✅ VectorDBContext (`src/contexts/VectorDBContext.tsx`)
+- ✅ useVectorDB hook
+- ✅ State: initialized, documents, uploadFiles, deleteDocument, refreshDocuments
+- ✅ Auto-refresh after upload/delete
+- ✅ Client-side file type validation (.md/.txt only)
 
-*Worker API Interface:*
-Expose the following operations via Comlink:
+**UI Components - Full Document Management Page:**
+- ✅ DocumentsPage (`src/pages/documents/index.tsx`) - Standalone route at /documents
+- ✅ UploadZone (`src/pages/documents/components/UploadZone.tsx`) - Drag-and-drop with visual feedback
+- ✅ DocumentCard (`src/pages/documents/components/DocumentCard.tsx`) - Card layout with download/delete buttons
+- ✅ DeleteModal (`src/pages/documents/components/DeleteModal.tsx`) - Confirmation dialog (replaced browser confirm())
+- ✅ DocumentToolbar (`src/pages/documents/components/DocumentToolbar.tsx`) - Search, filter (markdown/text/all), sort (name/date/size)
+- ✅ EmptyState (`src/pages/documents/components/EmptyState.tsx`) - When no documents exist
+- ✅ Navigation link in ChatPage header to /documents page
 
-1. **init()** - Initialize database and return ready status
-2. **uploadDocument(file)** - Accept file metadata (filename, content, mimeType), calculate file size, insert into documents table, return generated document ID
-3. **getDocuments()** - Query all documents, return ordered by upload date descending
-4. **deleteDocument(id)** - Delete document by ID
+**Routing:**
+- ✅ /documents route added to App.tsx
+- ✅ VectorDBProvider wraps all routes
+- ✅ Navigation between /chat and /documents
 
-Note: search() will be added in Phase 5 when vector search is implemented.
+**E2E Test Infrastructure:**
+- ✅ Page Object Model (7 classes):
+  - DocumentsPage (main page object)
+  - UploadZoneComponent
+  - DocumentListComponent
+  - DeleteModalComponent
+  - ToolbarComponent
+  - EmptyStateComponent
+- ✅ Test fixtures (4 files: 3 valid .md/.txt, 1 invalid .pdf)
+- ✅ Helper functions (clearPGliteDB, navigateToDocuments, etc.)
 
-*Worker Client Requirements:*
-- Implement singleton pattern for worker instance management
-- Provide function to get or create worker instance using module URL
-- Wrap worker API with Comlink for RPC communication
-- Provide function to terminate worker and clean up references
-- Ensure worker is created with type='module' for ES module support
+**E2E Tests Passing (3 test files):**
 
-**Minimal UI Components (NEW - moved from Phase 3):**
+✅ **Test 1: `e2e/documents/01-document-lifecycle.spec.ts`**
+- Upload single file
+- Verify file appears in list
+- Download file (blob URL generation)
+- Delete with cancel (verify still exists)
+- Delete with confirm (verify removed)
+- Verify empty state shown
 
-*VectorDBContext Requirements:*
-- Purpose: Connect worker to React components, manage document state
-- Create context with type definition:
-  - initialized: boolean (tracks worker ready state)
-  - documents: Document[] (array of uploaded documents)
-  - uploadFiles: (files: File[]) => Promise<void>
-  - deleteDocument: (id: string) => Promise<void>
-  - refreshDocuments: () => Promise<void>
-- Provider implementation:
-  - Get worker instance from singleton on component creation
-  - Initialize worker on mount (call worker.init())
-  - Maintain documents state, refresh on mount
-  - uploadFiles: read file content using FileReader, call worker.uploadDocument(), refresh list
-  - deleteDocument: call worker.deleteDocument(), refresh list
-  - refreshDocuments: call worker.getDocuments(), update state
-- useVectorDB hook: access context, throw error if used outside provider
+✅ **Test 2a: `e2e/documents/02-multi-document-operations.spec.ts`**
+- Upload 3 files simultaneously
+- Verify all 3 visible
+- Search by filename
+- Clear search
+- Filter by file type (markdown/text/all)
+- Sort by name/date/size
+- Delete one file
+- Verify remaining 2 files
 
-*FileUpload Component Requirements:*
-- Minimal implementation (no drag-drop, no progress tracking)
-- Plain file input: `<input type="file" accept=".md,.txt" multiple />`
-- Handle onChange: read files, filter valid types (.md, .txt), call uploadFiles from context
-- Reset input value after upload
-- Add data-testid="file-upload-input" for E2E testing
+✅ **Test 3: `e2e/documents/03-file-validation.spec.ts`**
+- Reject invalid file type (.pdf)
+- Accept valid file types (.md/.txt)
+- Verify no errors thrown
 
-*DocumentList Component Requirements:*
-- Minimal implementation (no cards, no styling, no status badges)
-- Display "No documents" when documents array empty
-- Map over documents: show filename and delete button
-- Each document item has data-testid={`document-${doc.id}`}
-- Filename has data-testid="document-filename"
-- Delete button has data-testid={`delete-${doc.id}`}
-- Call deleteDocument from context on delete click
+**Additional Features Implemented:**
+- ✅ Document download functionality (blob URLs)
+- ✅ Drag-and-drop upload with isDragging state
+- ✅ Search/filter/sort toolbar (client-side filtering)
+- ✅ Delete confirmation modal (better UX than browser confirm)
+- ✅ Loading indicators (data-db-initialized, data-uploading attributes)
+- ✅ Comprehensive Page Object Model for maintainable E2E tests
 
-*ChatPage Integration:*
-- Import FileUpload and DocumentList components
-- Add both components to ChatPage (above chat interface or in sidebar)
-- Wrap with conditional rendering based on initialized state
+---
 
-*App Integration:*
-- Import VectorDBProvider from VectorDBContext
-- Wrap app routes with VectorDBProvider
-- Ensure VectorDBProvider is inside BrowserRouter but outside route definitions
+#### ⚠️ PENDING REQUIREMENTS
 
-**Test Requirements:**
+**Critical E2E Test:**
 
-Write tests after implementing code. Focus on behavior, not implementation details.
-
-*E2E Tests (Playwright) - **PASS IN PHASE 2**:*
-
-**Test 1: Document upload, display, and delete workflow** (single test, 8 steps)
-- Navigate to app, enter API key
-- Verify "No documents" message shown initially
-- Upload test.md file via file input
-- Verify document appears in DocumentList
-- Verify filename displayed correctly
-- Click delete button
-- Verify document removed from list
-- Verify "No documents" shown again
-
-**Test 2: Multiple documents with persistence** (comprehensive workflow)
-- Upload 3 files (doc1.md, doc2.txt, doc3.md) with delays between uploads
+❌ **IndexedDB Persistence Test** (REQUIRED TO COMPLETE PHASE 2)
+- Upload 3 files (doc1.md, doc2.txt, doc3.md)
 - Verify all 3 documents visible in list
-- Reload page (test IndexedDB persistence)
-- Verify all 3 documents still visible after reload
+- **Reload page (test IndexedDB persistence)**
+- **Verify all 3 documents still visible after reload**
 - Delete doc2.txt (middle document)
 - Verify only doc1.md and doc3.md remain
 
-**Test 3: Invalid file type rejection**
-- Attempt to upload .pdf file
-- Verify file not added to document list
-- Verify no errors thrown
+**Why This Matters:**
+- Critical for verifying data persists across page reloads
+- Tests IndexedDB durability and PGlite initialization from existing data
+- Without this, we can't guarantee documents survive browser refresh
 
-*Unit Tests (Vitest):*
-- Worker client singleton pattern (same instance on multiple calls, new after termination)
-- VectorDBContext provides expected values (initialized, documents, functions)
-- uploadFiles/deleteDocument call worker correctly
+**File to Create:**
+- `e2e/documents/04-persistence.spec.ts`
 
-*Integration Tests:*
-- VectorDBContext + worker interaction
-- FileUpload component + context integration
-- DocumentList component + context integration
+**Status:** Deferred - IndexedDB data not currently reloading after page refresh. Implementation issue to investigate.
 
-*Testing Strategy:*
-- E2E tests prove worker communication works (avoid Vitest+Comlink issues)
-- Unit tests only for non-worker code (singleton, context)
-- Don't test PGlite internals, Comlink internals, TypeScript config
+---
 
-**Phase Completion:**
-- All dependencies installed (PGlite, uuid, Comlink)
-- TypeScript configurations created and validated
-- PGlite worker file created with all required operations
-- Worker client wrapper created
-- Documents table created for file metadata storage
-- **VectorDBContext and useVectorDB hook created**
-- **FileUpload component created (minimal)**
-- **DocumentList component created (minimal)**
-- **ChatPage updated with FileUpload and DocumentList**
-- **App.tsx updated with VectorDBProvider**
-- **E2E test helpers created (e2e/helpers.ts)**
-- **E2E tests created and PASSING (e2e/documents.spec.ts)**
-- All unit tests passing
-- All integration tests passing
-- Build successful (npm run build)
-- Lint passing (npm run lint)
-- Review changes and commit with appropriate message
+**Optional UI Enhancements (Nice-to-Have):**
 
-### Phase 3: UI Enhancements (Optional Polish)
+These features are optional polish that can be implemented now or deferred to later:
 
-**Note:** Phase 3 is now focused on UX improvements only. Core functionality (file upload, document CRUD) implemented in Phase 2.
-
-**Goal:** Enhance the minimal UI from Phase 2 with better user experience.
-
-**Enhanced File Upload Component:**
-
-*Drag-and-Drop Zone:*
-- Replace plain file input with drag-drop zone
-- Visual feedback on dragover (border color change, highlight)
-- Click-to-select fallback (hidden file input)
-- Centered text: "Drag files here or click to select"
-
-*Upload Progress Tracking:*
+❌ **Upload Progress Tracking:**
 - Display progress for each file during upload
 - Show status transitions: "Reading..." → "Uploading..." → "Queued for indexing"
 - Progress bar or percentage indicator
 - Disable interactions during upload
-- Clear progress after completion
 
-*Enhanced Validation:*
-- Show error messages for invalid file types
-- Visual feedback for rejected files
-- File size warnings (if very large)
+❌ **Visual Polish:**
+- File type icons (markdown vs text icons)
+- Smooth animations for add/remove documents
+- Loading spinner during delete operation
 
-**Enhanced Document List Component:**
-
-*Better Styling:*
-- Card layout for each document (border, padding, shadow)
-- File type icons (markdown vs text)
-- Better typography (filename prominent, metadata subtle)
-- Hover states on delete button
-- Responsive layout
-
-*Additional Information:*
-- Upload date/time (formatted, locale-aware)
-- File size display (KB/MB formatting)
-- Document status indicator (placeholder for Phase 4 indexing status)
-
-*User Interaction:*
-- Confirm dialog before delete
-- Loading state during delete operation
-- Smooth animations for add/remove
-
-**Optional Enhancements:**
-
-*Error Handling:*
-- Toast notifications for errors (replace console.error)
-- Inline error messages
+❌ **Enhanced Error Handling:**
+- Toast notifications for errors (currently uses console.error)
+- Inline error messages for invalid file types (currently silent rejection)
 - Retry mechanisms for failed uploads
+- File size warnings for very large files
 
-*Empty State:*
-- Illustration or icon when no documents
-- Call-to-action text
-- Upload button in empty state
-
-**Test Requirements:**
+**Test Requirements (if implementing optional features):**
 
 *E2E Tests:*
-- Drag-drop file upload workflow
-- Progress tracking displays correctly
-- Enhanced validation shows error messages
+- Upload progress indicators display correctly
+- Toast notifications appear for errors
+- File type icons render correctly
 
 *Unit Tests:*
-- Only if complex UI logic added (e.g., progress calculation)
+- Progress calculation logic (if complex)
+- Toast notification triggering
 
-**Phase Completion:**
-- Enhanced FileUpload with drag-drop implemented
-- Progress tracking system implemented
-- Enhanced DocumentList with better styling
-- Error handling improved
-- Tests updated for new features
-- All tests passing
-- Review changes and commit with appropriate message
+**Recommendation:** Implement persistence test, then proceed to Phase indexing-pipeline (Background Indexing Pipeline). Optional enhancements can be added later.
 
-**This phase can be skipped if minimal UI from Phase 2 is acceptable.**
+---
 
-### Phase 4: Background Indexing Pipeline
+#### 📋 PHASE worker-setup COMPLETION STATUS
+
+✅ **Core Implementation Complete:**
+- ✅ All dependencies installed (PGlite, uuid, Comlink, @radix-ui/react-dialog)
+- ✅ TypeScript configurations created and validated (tsconfig.worker.json)
+- ✅ PGlite worker with singleton pattern (init, uploadDocument, getDocuments, deleteDocument)
+- ✅ Worker client wrapper with Comlink RPC
+- ✅ Documents table for file metadata storage
+- ✅ VectorDBContext and useVectorDB hook
+- ✅ Dedicated /documents page with navigation
+- ✅ 6 specialized components (UploadZone, DocumentCard, DeleteModal, Toolbar, EmptyState, DocumentsPage)
+- ✅ /documents route in App.tsx with VectorDBProvider
+- ✅ E2E test infrastructure (Page Object Model, fixtures, helpers)
+- ✅ 3 E2E tests passing (lifecycle, multi-document, validation)
+- ✅ Download content verification in tests
+- ✅ Build passing (npm run build)
+- ✅ Lint passing (npm run lint)
+
+⚠️ **Pending Items:**
+- ❌ IndexedDB persistence E2E test (critical - see pending requirements above)
+- ❌ Optional UI enhancements (progress tracking, icons, toasts, animations)
+
+**To Complete Phase worker-setup:**
+1. Investigate and fix IndexedDB persistence issue
+2. Implement persistence E2E test
+3. Optionally implement UI enhancements (can be deferred)
+4. Commit changes with: `feat(documents): add persistence test and optional UI polish`
+
+### Phase indexing-pipeline: Background Indexing Pipeline
 
 **Dependency Installation Requirements:**
 - Install LangChain text splitters (@langchain/textsplitters) for markdown chunking
@@ -1076,7 +1003,7 @@ Write tests after implementing. Focus on key workflows, not exhaustive unit test
 - Don't test schema creation details
 - Don't test every field individually
 
-**Phase Completion:**
+**Phase indexing-pipeline Completion:**
 - LangChain text splitters dependency installed
 - Indexing_queue table created with retry logic support
 - Chunks table created for storing embeddings
@@ -1093,7 +1020,7 @@ Write tests after implementing. Focus on key workflows, not exhaustive unit test
 - All E2E tests passing (real APIs, 10,000-word document)
 - Review changes and commit with appropriate message
 
-### Phase 5: Vector Search & RAG Integration
+### Phase vector-search: Vector Search & RAG Integration
 
 **Database Schema Requirements:**
 
@@ -1169,7 +1096,7 @@ Write tests after implementing. Focus on RAG workflow, not implementation detail
 - Don't test HNSW index parameters individually
 - Don't test SQL query syntax
 
-**Phase Completion:**
+**Phase vector-search Completion:**
 - HNSW index created on chunks.embedding for fast similarity search
 - Vector search function implemented in worker using HNSW index
 - RAG integration added to useChat hook
@@ -1180,7 +1107,7 @@ Write tests after implementing. Focus on RAG workflow, not implementation detail
 - All E2E tests passing (real APIs, 10,000-word document Q&A)
 - Review changes and commit with appropriate message
 
-### Phase 6: UI Components
+### Phase ui-components: UI Components
 
 **Components to Create:**
 
@@ -1256,7 +1183,7 @@ Write tests after implementing components. Focus on integration with existing ho
 - E2E tests for user workflows
 - Use data-testid for selectors (per project conventions)
 
-**Phase Completion:**
+**Phase ui-components Completion:**
 - DocumentManager component created with status display
 - IndexingStatusBadge component created
 - RAGToggle component created
@@ -1267,9 +1194,9 @@ Write tests after implementing components. Focus on integration with existing ho
 - All E2E tests passing
 - Review changes and commit with appropriate message
 
-### Phase 7: State Management Integration
+### Phase state-management: State Management Integration
 
-**Note:** VectorDBContext was moved to Phase 3 to avoid redundant abstractions (YAGNI principle).
+**Note:** VectorDBContext was implemented in Phase worker-setup as part of the documents page.
 
 **This Phase: Extend Context with RAG Search Capability**
 
@@ -1279,7 +1206,7 @@ Write tests after implementing components. Focus on integration with existing ho
 
 *Background Indexing:*
 - Start background indexing queue processor when context initializes
-- Queue processor auto-starts in Phase 4 when indexing queue is created
+- Queue processor auto-starts in Phase indexing-pipeline when indexing queue is created
 
 **Test Requirements:**
 
@@ -1287,20 +1214,20 @@ Write tests after implementing. Focus on:
 - Search function proxies to worker correctly
 - Background indexing queue processes automatically
 
-**Phase Completion:**
+**Phase state-management Completion:**
 - VectorDBContext extended with search capability
 - Background indexing queue auto-starts
 - Tests written for new behaviors
 - All tests passing
 - Review changes and commit with appropriate message
 
-### Phase 8: Performance Measurement & Conditional Optimization
+### Phase performance: Performance Measurement & Conditional Optimization
 
 **YAGNI Approach - Measure First, Optimize Only If Needed**
 
 **Performance Measurement (Required):**
 
-After completing Phases 2-7, measure actual performance:
+After completing Phases worker-setup through state-management, measure actual performance:
 
 1. **Test with Realistic Dataset:**
    - Upload 100-1000 documents
@@ -1344,12 +1271,12 @@ After completing Phases 2-7, measure actual performance:
 - Document actual measurements
 - Only test optimizations if implemented
 
-**Phase Completion:**
+**Phase performance Completion:**
 
 Option A - No Optimization Needed (Preferred):
 - Performance measurements documented
 - All metrics within acceptable thresholds
-- Skip optimization, proceed to Phase 9
+- Skip optimization, proceed to Phase build-config
 - Review changes and commit with appropriate message
 
 Option B - Optimization Required (Only if measurements show problems):
@@ -1360,7 +1287,7 @@ Option B - Optimization Required (Only if measurements show problems):
 
 **Default Assumption: Performance will be acceptable, this phase can be skipped.**
 
-### Phase 9: Build Configuration
+### Phase build-config: Build Configuration
 
 **Vite Configuration Requirements:**
 
@@ -1413,7 +1340,7 @@ Option B - Optimization Required (Only if measurements show problems):
 - Test built app works in browser (npm run preview)
 - Test all features work in production build
 
-**Phase Completion:**
+**Phase build-config Completion:**
 - Vite config updated with worker and WASM support
 - Manual chunking configured for optimal loading
 - Build tested and verified
@@ -1423,14 +1350,14 @@ Option B - Optimization Required (Only if measurements show problems):
 - All E2E tests passing
 - Review changes and commit with appropriate message
 
-### Phase 10: Testing & Deployment
+### Phase deployment: Testing & Deployment
 
 **Comprehensive Testing Requirements:**
 
 *Final Test Suite Verification:*
-- Ensure ALL unit tests from Phases 1-9 are passing (mocked APIs)
-- Ensure ALL integration tests from Phases 1-9 are passing (mocked APIs)
-- Ensure ALL E2E tests from Phases 1-9 are passing (real OpenAI APIs)
+- Ensure ALL unit tests from all phases are passing (mocked APIs)
+- Ensure ALL integration tests from all phases are passing (mocked APIs)
+- Ensure ALL E2E tests from all phases are passing (real OpenAI APIs)
 
 *Full E2E RAG Pipeline Test:*
 - Load application in browser
@@ -1495,10 +1422,10 @@ Don't configure things "just in case" - fix actual problems as they occur.
 - Measure key metrics (upload time, indexing time, search latency)
 - Document actual performance (not theoretical)
 
-**Phase Completion:**
-- All unit tests passing (Phases 1-10)
-- All integration tests passing (Phases 1-10)
-- All E2E tests passing (Phases 1-10)
+**Phase deployment Completion:**
+- All unit tests passing (all phases)
+- All integration tests passing (all phases)
+- All E2E tests passing (all phases)
 - Full RAG pipeline tested with 10,000-word document
 - Application deployed to GitHub Pages (or alternative)
 - Deployment verified and functional
@@ -1531,7 +1458,7 @@ Don't configure things "just in case" - fix actual problems as they occur.
 
 *If API rate limits hit (429 errors):*
 - Add exponential backoff retry logic
-- Implement in Phase 4 indexing pipeline if needed
+- Implement in Phase indexing-pipeline if needed
 
 *If storage quota exceeded errors:*
 - Catch error, show message: "Storage full. Delete old documents."
@@ -1543,7 +1470,7 @@ Don't configure things "just in case" - fix actual problems as they occur.
 - Add recovery logic only if crashes occur in testing
 
 *If file encoding failures:*
-- Basic validation already in Phase 3
+- Basic validation already in Phase worker-setup
 - Add encoding detection only if users report issues
 
 **Default Approach:** Start simple. Add complexity when pain points emerge.
@@ -1604,14 +1531,13 @@ console.error('[VectorDB] Error:', error.message, { context })
 
 ### From Current App
 
-Follow the implementation phases in order (2-10):
-1. **Phase 2:** Set up PGlite worker with document storage
-2. **Phase 3:** Add file upload UI
-3. **Phase 4:** Implement background indexing pipeline
-4. **Phase 5:** Add vector search and RAG integration
-5. **Phase 6-7:** Build UI components and state management
-6. **Phase 8-9:** Optimize and configure build
-7. **Phase 10:** Test and deploy
+Follow the implementation phases in order:
+1. **Phase worker-setup:** Set up PGlite worker with full-featured documents page
+2. **Phase indexing-pipeline:** Implement background indexing pipeline
+3. **Phase vector-search:** Add vector search and RAG integration
+4. **Phase ui-components & state-management:** Build UI components and state management
+5. **Phase performance & build-config:** Optimize and configure build
+6. **Phase deployment:** Test and deploy
 
 **Backward Compatible:** Existing chat still works without RAG throughout the implementation.
 
@@ -1720,7 +1646,6 @@ This plan provides a complete implementation roadmap for converting the OpenAI c
 
 The implementation is **fully client-side**, requires **no backend**, and can be deployed to **static hosting** (GitHub Pages, S3, etc.). All data remains in the user's browser, ensuring **complete privacy**.
 
-**Total Estimated Timeline:** ~12 days (with comprehensive TDD)
 **Bundle Size Impact:** +3-4 MB (PGlite WASM)
 **Cost per 1000 documents:** ~$0.10 (OpenAI embeddings)
 

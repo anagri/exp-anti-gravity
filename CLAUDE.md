@@ -62,3 +62,4 @@ Using Tailwind CSS v4 with Vite plugin:
 - Theme colors defined as CSS custom properties (HSL values)
 - No `@apply` directives (removed for v4 compatibility)
 - CSS theme configuration in `src/index.css`
+- in e2e tests, never use waitForTimeout, instead have the app pages such that it updates the ui element, or attribute on ui element as data-test-state="ready|pending|processing|busy|etc." and we wait for state to be ready for assertion

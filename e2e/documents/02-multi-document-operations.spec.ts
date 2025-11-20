@@ -12,7 +12,7 @@ test.describe('Multi-Document Operations', () => {
     documentsPage = new DocumentsPage(page);
   });
 
-  test('upload multiple files, search, filter, sort, delete', async ({ page }) => {
+  test('upload multiple files, search, filter, sort, delete', async () => {
     await documentsPage.uploadFiles([
       TEST_FILES.DOC_01_MD,
       TEST_FILES.DOC_02_TXT,
