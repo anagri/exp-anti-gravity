@@ -44,7 +44,7 @@ async function init(): Promise<{ ready: boolean }> {
     extensions: { vector },
   })
 
-  // Enable pgvector extension (will be used in Phase 4 for embeddings)
+  // Enable pgvector extension (will be used in Phase embeddings)
   await db.query('CREATE EXTENSION IF NOT EXISTS vector')
 
   // Create documents table for file metadata storage
@@ -59,8 +59,49 @@ async function init(): Promise<{ ready: boolean }> {
     )
   `)
 
+  // Extend documents table with indexing fields (Phase db-schema)
+  await db.exec(`
+    ALTER TABLE documents ADD COLUMN IF NOT EXISTS chunk_count INTEGER;
+    ALTER TABLE documents ADD COLUMN IF NOT EXISTS indexed_at TIMESTAMP;
+  `)
+
+  // Create indexing_queue table (Phase db-schema)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS indexing_queue (
+      id UUID PRIMARY KEY,
+      document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+      error_message TEXT,
+      retry_count INTEGER NOT NULL DEFAULT 0,
+      max_retries INTEGER NOT NULL DEFAULT 3,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      started_at TIMESTAMP,
+      completed_at TIMESTAMP,
+      UNIQUE (document_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_queue_status_created ON indexing_queue(status, created_at);
+  `)
+
+  // Create chunks table (Phase db-schema)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS chunks (
+      id UUID PRIMARY KEY,
+      document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      chunk_index INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      heading TEXT,
+      embedding vector(1536),
+      token_count INTEGER NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (document_id, chunk_index)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_chunks_document ON chunks(document_id);
+  `)
+
   if (import.meta.env.DEV) {
-    console.log('[PGlite Worker] Database initialized with documents table')
+    console.log('[PGlite Worker] Database initialized with all tables')
   }
 
   return { ready: true }
@@ -85,6 +126,19 @@ async function uploadDocument(
     [id, params.filename, params.content, fileSize, params.mimeType]
   )
 
+  // Create indexing queue entry if feature enabled (Phase db-schema)
+  if (indexingEnabled) {
+    await db.query(
+      `INSERT INTO indexing_queue (id, document_id, status)
+       VALUES ($1, $2, 'pending')`,
+      [uuidv4(), id]
+    )
+
+    if (import.meta.env.DEV) {
+      console.log('[PGlite Worker] Indexing queue entry created for:', id)
+    }
+  }
+
   if (import.meta.env.DEV) {
     console.log('[PGlite Worker] Document uploaded:', params.filename, id)
   }
@@ -100,23 +154,23 @@ async function getDocuments(): Promise<Document[]> {
     throw new Error('Database not initialized. Call init() first.')
   }
 
-  const result = await db.query<Pick<Document, 'id' | 'filename' | 'content' | 'file_size' | 'mime_type' | 'uploaded_at'>>(
-    'SELECT * FROM documents ORDER BY uploaded_at DESC'
-  )
+  // LEFT JOIN with indexing_queue to get status (Phase db-schema)
+  const result = await db.query<Document>(`
+    SELECT
+      d.*,
+      iq.status as indexing_status,
+      iq.error_message,
+      iq.retry_count
+    FROM documents d
+    LEFT JOIN indexing_queue iq ON d.id = iq.document_id
+    ORDER BY d.uploaded_at DESC
+  `)
 
   if (import.meta.env.DEV) {
     console.log('[PGlite Worker] Retrieved documents:', result.rows.length)
   }
 
-  // Map to full Document interface with null indexing fields (will be populated in Phase db-schema)
-  return result.rows.map(row => ({
-    ...row,
-    chunk_count: null,
-    indexed_at: null,
-    indexing_status: null,
-    error_message: null,
-    retry_count: null,
-  }))
+  return result.rows
 }
 
 /**
