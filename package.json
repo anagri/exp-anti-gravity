@@ -6,7 +6,8 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "test": "vitest run",
-    "test:e2e": "playwright test --headed"
+    "test:e2e": "playwright test --headed --grep-invert @live",
+    "test:e2e:live": "playwright test --headed --grep @live"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.14",

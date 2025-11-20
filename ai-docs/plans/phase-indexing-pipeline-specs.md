@@ -17,7 +17,7 @@
 
 **Key Principles:**
 1. **Real API Testing** - Hit OpenAI API directly (no MSW mocking)
-2. **Test Isolation** - Existing document tests don't trigger indexing (no API key set)
+2. **Test Isolation** - Existing document tests don't trigger indexing (no feature toggled off)
 3. **Incremental Tests** - Write tests only for current phase, tests pass at phase completion
 4. **Progressive Enhancement** - Each phase adds functionality to working system
 
@@ -28,7 +28,7 @@
 4. **Phase chunking** - LangChain integration, store chunks (no embeddings)
 5. **Phase embeddings** - OpenAI API integration, full indexing pipeline
 6. **Phase progress-tracking** - Real-time progress updates
-7. **Phase error-retry** - Error handling, retry logic
+7. **Phase error-retry** - Error handling, retry logic (implementation only, no dedicated test)
 8. **Phase persistence** - State survives reload
 
 ---
@@ -50,39 +50,9 @@ Implement background job queue that automatically chunks uploaded documents, gen
 
 ## 1. UI Components (BUILD FIRST - TDD Step 1)
 
-### 1.1 API Key Input Component
+**Note:** Application uses existing ApiKeyContext for OpenAI API key management. No separate API key input needed for indexing.
 
-**Location:** `src/pages/documents/components/APIKeyInput.tsx` (NEW)
-
-**Purpose:** Allow user to set OpenAI API key for embedding generation
-
-**Visual Design:**
-```
-┌─────────────────────────────────────┐
-│ OpenAI API Key Required             │
-│ ┌─────────────────────────────────┐ │
-│ │ sk-...                    [Set] │ │
-│ └─────────────────────────────────┘ │
-│ ✓ API key configured successfully   │ ← Success message
-│ ✗ Invalid API key                   │ ← Error message
-└─────────────────────────────────────┘
-```
-
-**Data Attributes for Testing:**
-```typescript
-data-testid="input-api-key"          // Input field
-data-testid="btn-set-api-key"        // Submit button
-data-testid="api-key-status"         // Success/error message
-data-api-key-set="true|false"        // Whether key is configured
-```
-
-**Integration:**
-- Add to DocumentsPage header/toolbar
-- Connect to `VectorDBContext.setOpenAIKey()`
-- Show only if API key not set
-- Store in localStorage for persistence
-
-### 1.2 Indexing Status Badge Component
+### 1.1 Indexing Status Badge Component
 
 **Location:** `src/pages/documents/components/IndexingStatusBadge.tsx` (NEW)
 
@@ -129,7 +99,7 @@ data-message="Status message text"
 - Show only when status = "processing"
 - Hide when status = "pending", "completed", "failed"
 
-### 1.4 Document Card Extensions
+### 1.3 Document Card Extensions
 
 **Location:** `src/pages/documents/components/DocumentCard.tsx` (MODIFY EXISTING)
 
@@ -179,35 +149,6 @@ data-retry-count="N"
 data-testid="btn-retry-{documentId}"  // Retry button
 ```
 
-### 1.5 Empty State Update
-
-**Location:** `src/pages/documents/components/EmptyState.tsx` (MODIFY EXISTING)
-
-**Add API Key Prompt:**
-```typescript
-// Show different message based on API key state
-if (!apiKeySet) {
-  return (
-    <div data-api-key-required="true">
-      <h3>OpenAI API Key Required</h3>
-      <p>Set your OpenAI API key to enable document indexing</p>
-    </div>
-  )
-}
-
-return (
-  <div data-api-key-required="false">
-    <h3>No documents uploaded</h3>
-    <p>Drop .md or .txt files in the upload zone above to get started</p>
-  </div>
-)
-```
-
-**Data Attribute:**
-```typescript
-data-api-key-required="true|false"
-```
-
 ---
 
 ## 2. Context & State Management (BUILD SECOND - TDD Step 1 continued)
@@ -216,13 +157,13 @@ data-api-key-required="true|false"
 
 **Location:** `src/contexts/VectorDBContext.tsx` (EXTEND EXISTING)
 
+**Note:** Worker reads OpenAI API key from existing ApiKeyContext (via localStorage 'openai-api-key'). No separate API key management needed.
+
 **Add State:**
 ```typescript
 interface VectorDBContextType {
   // ... existing fields
-  apiKeySet: boolean
   indexingProgress: Map<string, IndexingProgress>
-  setOpenAIKey: (apiKey: string) => Promise<void>
   retryFailed: (documentId: string) => Promise<void>
 }
 
@@ -241,17 +182,7 @@ interface IndexingProgress {
 **Implementation:**
 ```typescript
 export function VectorDBProvider({ children }: { children: ReactNode }) {
-  const [apiKeySet, setApiKeySet] = useState(false)
   const [indexingProgress, setIndexingProgress] = useState<Map<string, IndexingProgress>>(new Map())
-
-  // Check if API key exists on mount
-  useEffect(() => {
-    const key = localStorage.getItem('openai-api-key')
-    if (key) {
-      setApiKeySet(true)
-      worker.setOpenAIKey(key)  // Will be implemented in Step 3
-    }
-  }, [])
 
   // Subscribe to worker progress updates
   useEffect(() => {
@@ -259,12 +190,6 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
       setIndexingProgress(prev => new Map(prev).set(progress.documentId, progress))
     })
   }, [])
-
-  const setOpenAIKey = async (apiKey: string) => {
-    localStorage.setItem('openai-api-key', apiKey)
-    await worker.setOpenAIKey(apiKey)
-    setApiKeySet(true)
-  }
 
   const retryFailed = async (documentId: string) => {
     await worker.retryFailed(documentId)
@@ -274,9 +199,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     <VectorDBContext.Provider
       value={{
         // ... existing
-        apiKeySet,
         indexingProgress,
-        setOpenAIKey,
         retryFailed,
       }}
     >
@@ -309,7 +232,7 @@ interface DocumentWithStatus {
 
 ## 3. Test Isolation Strategy
 
-**Problem:** Existing document tests (01-04) upload files → would trigger indexing → cost money
+**Problem:** Existing document tests (documents-upload.spec.ts) upload files → would trigger indexing → cost money
 
 **Solution:** Runtime feature toggle to conditionally enable/disable indexing
 
@@ -353,8 +276,8 @@ async function uploadDocument(params: UploadDocumentParams): Promise<{ id: strin
 ```
 
 **Test Strategy:**
-- Existing tests (01-04): Use `page.addInitScript()` to disable toggle → No indexing → No cost
-- New indexing tests (05-12): Don't set toggle (default=enabled) → Indexing happens
+- Existing tests (documents-*.spec.ts): Use `page.addInitScript()` to disable toggle → No indexing → No cost
+- New indexing tests (indexing-*.spec.ts): Don't set toggle (default=enabled) → Indexing happens
 - Feature toggle implemented as prerequisite (see `feature-toggle.md`), queue creation in **Phase db-schema**
 
 ---
@@ -514,15 +437,21 @@ async function getDocuments(): Promise<DocumentWithStatus[]> {
 
 ### 6.2 New Worker Methods
 
-**setOpenAIKey(apiKey: string):**
-```typescript
-async function setOpenAIKey(apiKey: string): Promise<{ success: boolean }> {
-  openaiClient = new OpenAI({
-    apiKey,
-    dangerouslyAllowBrowser: true,
-  })
+**Note:** Worker reads OpenAI API key from localStorage ('openai-api-key') on init(). No separate setOpenAIKey() method needed.
 
-  return { success: true }
+**Worker init() extension:**
+```typescript
+async function init() {
+  // ... existing db init
+
+  // Initialize OpenAI client from existing ApiKeyContext
+  const apiKey = localStorage.getItem('openai-api-key')
+  if (apiKey) {
+    openaiClient = new OpenAI({
+      apiKey,
+      dangerouslyAllowBrowser: true,
+    })
+  }
 }
 ```
 
@@ -704,7 +633,7 @@ async function generateEmbeddings(
   chunks: Array<{ content: string }>
 ): Promise<number[][]> {
   if (!openaiClient) {
-    throw new Error('OpenAI client not initialized. Call setOpenAIKey() first.')
+    throw new Error('OpenAI client not initialized. Set API key in application settings.')
   }
 
   const allEmbeddings: number[][] = []
@@ -975,37 +904,48 @@ export class DocumentListComponent {
 }
 ```
 
-### 8.3 E2E Test Files (Written Per Phase)
+### 8.3 E2E Test Files
 
 **Test Files Structure:**
 ```
-e2e/documents/
-├── 00-01-feature-flags-enabled.spec.ts  (PREREQUISITE - see feature-toggle.md)
-├── 00-02-feature-flags-disabled.spec.ts (PREREQUISITE - see feature-toggle.md)
-├── 00-03-feature-toggle-interaction.spec.ts (PREREQUISITE - see feature-toggle.md)
-├── 01-document-lifecycle.spec.ts        (✅ EXISTING - toggle disabled, no indexing)
-├── 02-multi-document-operations.spec.ts (✅ EXISTING - toggle disabled, no indexing)
-├── 03-file-validation.spec.ts           (✅ EXISTING - toggle disabled, no indexing)
-├── 04-persistence.spec.ts               (✅ EXISTING - toggle disabled, no indexing)
-├── 05-indexing-ui.spec.ts               (NEW - Phase ui-components)
-├── 06-indexing-queue.spec.ts            (NEW - Phase db-schema)
-├── 07-indexing-status.spec.ts           (NEW - Phase queue-processor)
-├── 08-indexing-chunking.spec.ts         (NEW - Phase chunking)
-├── 09-indexing-embeddings.spec.ts       (NEW - Phase embeddings)
-├── 10-indexing-progress.spec.ts         (NEW - Phase progress-tracking)
-├── 11-indexing-retry.spec.ts            (NEW - Phase error-retry)
-└── 12-indexing-persistence.spec.ts      (NEW - Phase persistence)
+e2e/
+├── feature-flags.spec.ts                 (✅ EXISTING - prerequisite, feature toggle tests)
+├── documents-upload.spec.ts              (✅ EXISTING - toggle disabled, no indexing)
+├── indexing-workflow-basic.spec.ts       (NEW @live - single file workflow + persistence)
+└── indexing-workflow-multi.spec.ts       (NEW @live - multiple files, parallel indexing)
 ```
 
-**Tests are written and pass at END of each phase** (details in section 9)
+**Live Test Strategy:**
+- All indexing tests tagged with `@live` (exclude from regular test:e2e)
+- Use real Paul Graham essays from `e2e/fixtures/files/`
+- Each test = comprehensive workflow with multiple phases/assertions
+- Tests hit real OpenAI API (acceptable cost for realistic testing)
+- Run via `npm run test:e2e:live`
+- Error/retry implementation included but not tested (manual verification)
+
+**Paul Graham Essays for Testing:**
+- `078_the_equity_equation.md` (1,142 words) - SHORT: Mathematical ← **Used in basic test**
+- `049_inequality_and_risk.md` (2,854 words) - MEDIUM-SHORT: Economic ← **Used in multi test**
+- `182_the_lesson_to_unlearn.md` (4,059 words) - MEDIUM: Educational
+- `018_a_plan_for_spam.md` (5,374 words) - LONG: Technical, code
+- `021_why_nerds_are_unpopular.md` (5,727 words) - LONGEST: Narrative
+
+**Test Essay Selection:**
+- Basic workflow test: Use shortest essay (078) to minimize cost & execution time
+- Multi file test: Use 2 shortest essays (078 + 049) for efficient parallel testing
+- All essays available for manual testing & future expansion
+
+**Tests written incrementally per phase** (details in section 9)
 
 ---
 
 ## 9. Incremental TDD Workflow (8 Phases)
 
-Each phase: Build → Test → Pass → Move to next phase
+Each phase: Build → Test (incrementally) → Pass → Move to next phase
 
-**Prerequisite:** Feature toggle system (see `feature-toggle.md`) must be implemented first
+**Prerequisite:** Feature toggle system must be complete (feature-flags.spec.ts passing)
+
+**Test Strategy:** Write 3 comprehensive workflow tests incrementally across phases, not 8 separate files
 
 ---
 
@@ -1014,58 +954,18 @@ Each phase: Build → Test → Pass → Move to next phase
 **Goal:** Render all indexing UI with data attributes, no worker integration
 
 **Build:**
-- Create `APIKeyInput.tsx` (input + button + localStorage)
 - Create `IndexingStatusBadge.tsx` (4 status variants)
 - Create `IndexingProgress.tsx` (progress bar)
 - Update `DocumentCard.tsx` (add indexing props + UI)
-- Update `EmptyState.tsx` (API key variant)
-- Update `VectorDBContext.tsx` (add apiKeySet, indexingProgress states - stubbed)
+- Update `VectorDBContext.tsx` (add indexingProgress state)
 - Wire components to context
 
-**Test:** `e2e/documents/05-indexing-ui.spec.ts`
-```typescript
-test('UI components render with data attributes', async ({ page }) => {
-  // Set API key via localStorage
-  await page.evaluate(() => localStorage.setItem('openai-api-key', 'sk-test'))
-  await page.reload()
-
-  // Verify API key set indicator
-  await expect(page.locator('[data-api-key-set="true"]')).toBeVisible()
-
-  // Manually trigger indexing state changes via context (stub)
-  await page.evaluate(() => {
-    window.setMockIndexingState('doc-id', {
-      status: 'pending',
-      progress: 0,
-      stage: 'pending',
-      message: 'Waiting...'
-    })
-  })
-
-  // Verify status badge renders
-  await expect(page.locator('[data-status="pending"]')).toBeVisible()
-
-  // Change to processing
-  await page.evaluate(() => {
-    window.setMockIndexingState('doc-id', {
-      status: 'processing',
-      progress: 50,
-      stage: 'embedding',
-      message: 'Generating embeddings...'
-    })
-  })
-
-  // Verify progress bar
-  await expect(page.locator('[data-progress="50"]')).toBeVisible()
-  await expect(page.locator('[data-stage="embedding"]')).toBeVisible()
-})
-```
+**Test:** UI verification (stubbed data, no real worker integration yet)
 
 **Pass Criteria:**
-- ✅ All UI components render
-- ✅ Data attributes present and correct
-- ✅ API key input works (localStorage)
-- ✅ Test 05 passes
+- ✅ All UI components render with data attributes
+- ✅ Status badges display all 4 states
+- ✅ Progress bar component exists
 
 **Checkpoint:** UI complete, no worker calls yet
 
@@ -1073,47 +973,21 @@ test('UI components render with data attributes', async ({ page }) => {
 
 ### **Phase db-schema**: Database Schema & Queue Creation
 
-**Goal:** Create tables, queue entries created on upload (if API key set)
+**Goal:** Create tables, queue entries created on upload (if feature toggle enabled)
 
 **Build:**
 - Create `indexing_queue` table in worker `init()`
 - Create `chunks` table in worker `init()`
-- Extend `documents` table (ALTER TABLE)
-- Update `uploadDocument()`: create queue entry only if API key exists in localStorage
+- Extend `documents` table (ALTER TABLE - chunk_count, indexed_at)
+- Update `uploadDocument()`: create queue entry if FEATURE_INDEXING_ENABLED
 - Update `getDocuments()`: LEFT JOIN with indexing_queue
 
-**Test:** `e2e/documents/06-indexing-queue.spec.ts`
-```typescript
-test('queue entry created on upload when API key set', async ({ page }) => {
-  const OPENAI_KEY = process.env.OPENAI_API_KEY
-  documentsPage = new DocumentPage(page)
-  await documentsPage.clearDatabase()
-  await documentsPage.setup()
-
-  // Upload WITHOUT API key → no queue entry
-  await documentsPage.uploadFiles([TEST_FILES.DOC_01_MD])
-  await documentsPage.documentList.waitForFileToAppear(FILE_NAMES.DOC_01_MD)
-
-  const statusWithoutKey = await documentsPage.documentList.getIndexingStatus(FILE_NAMES.DOC_01_MD)
-  expect(statusWithoutKey).toBeNull() // No queue entry
-
-  // Set API key
-  await documentsPage.setAPIKey(OPENAI_KEY)
-
-  // Upload WITH API key → queue entry created
-  await documentsPage.uploadFiles([TEST_FILES.DOC_02_TXT])
-  await documentsPage.documentList.waitForFileToAppear(FILE_NAMES.DOC_02_TXT)
-
-  const statusWithKey = await documentsPage.documentList.getIndexingStatus(FILE_NAMES.DOC_02_TXT)
-  expect(statusWithKey).toBe('pending')
-})
-```
+**Test:** Queue entry verification (extend existing documents-upload.spec.ts assertions or create focused verification)
 
 **Pass Criteria:**
 - ✅ Tables created successfully
-- ✅ Queue entry created only when API key set
-- ✅ Existing tests (01-04) still pass (no API key, no queue)
-- ✅ Test 06 passes
+- ✅ Queue entry created only when feature toggle enabled
+- ✅ Existing tests still pass (toggle disabled, no queue)
 
 **Checkpoint:** Database schema complete, conditional queue creation works
 
@@ -1126,37 +1000,14 @@ test('queue entry created on upload when API key set', async ({ page }) => {
 **Build:**
 - Implement `processQueue()` function
 - Implement `processJob()`: marks job as processing, waits 1 second, marks completed
-- Update `getDocuments()` query to return indexing_status
-- Connect VectorDBContext to worker via polling or worker events
+- Connect VectorDBContext to worker via `onProgress` events
 - Auto-start queue processor on worker init
 
-**Test:** `e2e/documents/07-indexing-status.spec.ts`
-```typescript
-test('status transitions from pending to completed', async ({ page }) => {
-  const OPENAI_KEY = process.env.OPENAI_API_KEY
-  documentsPage = new DocumentPage(page)
-  await documentsPage.clearDatabase()
-  await documentsPage.setup()
-
-  await documentsPage.setAPIKey(OPENAI_KEY)
-  await documentsPage.uploadFiles([TEST_FILES.DOC_01_MD])
-  await documentsPage.documentList.waitForFileToAppear(FILE_NAMES.DOC_01_MD)
-
-  // Wait for pending
-  await documentsPage.documentList.waitForIndexingStatus(FILE_NAMES.DOC_01_MD, 'pending', { timeout: 5000 })
-
-  // Wait for processing
-  await documentsPage.documentList.waitForIndexingStatus(FILE_NAMES.DOC_01_MD, 'processing', { timeout: 10000 })
-
-  // Wait for completed
-  await documentsPage.documentList.waitForIndexingStatus(FILE_NAMES.DOC_01_MD, 'completed', { timeout: 15000 })
-})
-```
+**Test:** Begin `e2e/indexing-workflow-basic.spec.ts @live` - verify status transitions
 
 **Pass Criteria:**
 - ✅ Queue processor runs automatically
-- ✅ Status transitions visible in UI
-- ✅ Test 07 passes
+- ✅ Status transitions visible in UI (pending → processing → completed)
 
 **Checkpoint:** Queue processing works, status updates visible
 
@@ -1173,29 +1024,12 @@ test('status transitions from pending to completed', async ({ page }) => {
 - Store chunks in `chunks` table (embedding = NULL for now)
 - Update `documents.chunk_count` after chunking
 
-**Test:** `e2e/documents/08-indexing-chunking.spec.ts`
-```typescript
-test('document gets chunked and count displayed', async ({ page }) => {
-  const OPENAI_KEY = process.env.OPENAI_API_KEY
-  documentsPage = new DocumentPage(page)
-  await documentsPage.clearDatabase()
-  await documentsPage.setup()
-
-  await documentsPage.setAPIKey(OPENAI_KEY)
-  await documentsPage.uploadFiles([TEST_FILES.DOC_01_MD])
-
-  await documentsPage.documentList.waitForIndexingStatus(FILE_NAMES.DOC_01_MD, 'completed', { timeout: 30000 })
-
-  const chunkCount = await documentsPage.documentList.getChunkCount(FILE_NAMES.DOC_01_MD)
-  expect(chunkCount).toBeGreaterThan(0)
-})
-```
+**Test:** Extend `e2e/indexing-workflow-basic.spec.ts @live` - upload `078_the_equity_equation.md`, verify chunk count > 0
 
 **Pass Criteria:**
 - ✅ Documents chunked with LangChain
 - ✅ Chunks stored in database
 - ✅ Chunk count visible in UI
-- ✅ Test 08 passes
 
 **Checkpoint:** Chunking works, chunks stored
 
@@ -1206,41 +1040,27 @@ test('document gets chunked and count displayed', async ({ page }) => {
 **Goal:** Generate real embeddings via OpenAI API, store with chunks
 
 **Build:**
-- Implement `setOpenAIKey()` worker method
-- Connect `context.setOpenAIKey()` to worker
-- Implement `generateEmbeddings()` with batching
+- Worker reads API key from localStorage ('openai-api-key') on init
+- Implement `generateEmbeddings()` with batching (100 chunks/batch)
 - Implement `generateEmbeddingBatchWithRetry()` with exponential backoff
 - Update `storeChunks()` to include embeddings
 - Update `documents.indexed_at` timestamp
 
-**Test:** `e2e/documents/09-indexing-embeddings.spec.ts`
+**Test:** Complete `e2e/indexing-workflow-basic.spec.ts @live` - full workflow test
 ```typescript
-test('full indexing pipeline with real embeddings', async ({ page }) => {
-  const OPENAI_KEY = process.env.OPENAI_API_KEY
-  documentsPage = new DocumentPage(page)
-  await documentsPage.clearDatabase()
-  await documentsPage.setup()
-
-  await documentsPage.setAPIKey(OPENAI_KEY)
-  await documentsPage.uploadFiles([TEST_FILES.DOC_01_MD])
-
-  await documentsPage.documentList.waitForIndexingStatus(FILE_NAMES.DOC_01_MD, 'completed', { timeout: 60000 })
-
-  // Verify embeddings stored (query worker directly)
-  const hasEmbeddings = await page.evaluate(async () => {
-    const result = await window.worker.query('SELECT COUNT(*) as count FROM chunks WHERE embedding IS NOT NULL')
-    return result.rows[0].count > 0
-  })
-
-  expect(hasEmbeddings).toBe(true)
+test('complete indexing: upload → chunk → embed → complete', async ({ page }) => {
+  // Upload 078_the_equity_equation.md (SHORT - 1,142 words)
+  // Assert: pending → processing → completed
+  // Assert: chunk_count > 0
+  // Assert: embeddings stored in DB (query chunks WHERE embedding IS NOT NULL)
+  // Assert: indexed_at timestamp set
 })
 ```
 
 **Pass Criteria:**
-- ✅ OpenAI client initialized with API key
+- ✅ OpenAI client initialized from existing ApiKeyContext
 - ✅ Embeddings generated and stored
 - ✅ Full pipeline works end-to-end
-- ✅ Test 09 passes
 
 **Checkpoint:** Complete indexing pipeline functional
 
@@ -1252,37 +1072,20 @@ test('full indexing pipeline with real embeddings', async ({ page }) => {
 
 **Build:**
 - Implement `emitProgress()` function
-- Add progress emission in `processJob()` at each stage
+- Add progress emission in `processJob()` at each stage (chunking 10-30%, embedding 30-70%, storing 70-100%)
 - Implement `onProgress()` worker method
 - Connect VectorDBContext to worker progress events
-- Update UI to display progress
+- Update DocumentCard to display progress
 
-**Test:** `e2e/documents/10-indexing-progress.spec.ts`
+**Test:** Create `e2e/indexing-workflow-multi.spec.ts @live`
 ```typescript
-test('progress updates during indexing', async ({ page }) => {
-  const OPENAI_KEY = process.env.OPENAI_API_KEY
-  documentsPage = new DocumentPage(page)
-  await documentsPage.clearDatabase()
-  await documentsPage.setup()
-
-  await documentsPage.setAPIKey(OPENAI_KEY)
-  await documentsPage.uploadFiles([TEST_FILES.DOC_03_MD]) // Large file
-
-  // Wait for processing to start
-  await documentsPage.documentList.waitForIndexingStatus(FILE_NAMES.DOC_03_MD, 'processing', { timeout: 10000 })
-
-  // Check progress increases
-  await page.waitForFunction(() => {
-    const card = document.querySelector(`[data-testid*="${FILE_NAMES.DOC_03_MD}"]`)
-    const progress = parseInt(card?.getAttribute('data-indexing-progress') || '0')
-    return progress > 0 && progress < 100
-  }, { timeout: 30000 })
-
-  // Wait for completion
-  await documentsPage.documentList.waitForIndexingStatus(FILE_NAMES.DOC_03_MD, 'completed', { timeout: 60000 })
-
-  // Final progress should be 100
-  await documentsPage.documentList.expectIndexingProgress(FILE_NAMES.DOC_03_MD, 100)
+test('progress tracking across multiple files', async ({ page }) => {
+  // Upload 2 shortest PG essays simultaneously
+  // - 078_the_equity_equation.md (SHORT - 1,142 words)
+  // - 049_inequality_and_risk.md (MEDIUM-SHORT - 2,854 words)
+  // Assert: Both show progress 0-100%
+  // Assert: Stages visible (chunking → embedding → storing)
+  // Assert: Both complete successfully
 })
 ```
 
@@ -1290,7 +1093,6 @@ test('progress updates during indexing', async ({ page }) => {
 - ✅ Progress updates visible in UI
 - ✅ Progress increases during processing
 - ✅ Stages visible (chunking, embedding, storing)
-- ✅ Test 10 passes
 
 **Checkpoint:** Progress tracking works
 
@@ -1301,49 +1103,20 @@ test('progress updates during indexing', async ({ page }) => {
 **Goal:** Failed jobs retry automatically, manual retry button works
 
 **Build:**
-- Implement `handleJobError()` with retry logic
+- Implement `handleJobError()` with retry logic (max 3 retries)
 - Implement `retryFailed()` worker method
 - Connect `context.retryFailed()` to worker
 - Add retry button to DocumentCard UI
-- Handle rate limit errors with exponential backoff
+- Handle rate limit errors with exponential backoff (1s, 2s, 4s)
 
-**Test:** `e2e/documents/11-indexing-retry.spec.ts`
-```typescript
-test('manual retry works after failure', async ({ page }) => {
-  const INVALID_KEY = 'sk-invalid-key-12345'
-  documentsPage = new DocumentPage(page)
-  await documentsPage.clearDatabase()
-  await documentsPage.setup()
-
-  // Set invalid API key
-  await documentsPage.setAPIKey(INVALID_KEY)
-  await documentsPage.uploadFiles([TEST_FILES.DOC_01_MD])
-
-  // Wait for failure
-  await documentsPage.documentList.waitForIndexingStatus(FILE_NAMES.DOC_01_MD, 'failed', { timeout: 30000 })
-
-  // Verify error message
-  await documentsPage.documentList.expectErrorMessage(FILE_NAMES.DOC_01_MD, 'Incorrect API key')
-
-  // Set valid API key
-  const VALID_KEY = process.env.OPENAI_API_KEY
-  await documentsPage.setAPIKey(VALID_KEY)
-
-  // Click retry button
-  await documentsPage.documentList.retryFailedIndexing(FILE_NAMES.DOC_01_MD)
-
-  // Should succeed now
-  await documentsPage.documentList.waitForIndexingStatus(FILE_NAMES.DOC_01_MD, 'completed', { timeout: 60000 })
-})
-```
+**Test:** No dedicated E2E test (manual verification recommended)
 
 **Pass Criteria:**
-- ✅ Failed jobs show error message
-- ✅ Retry button appears and works
-- ✅ Automatic retry on transient errors
-- ✅ Test 11 passes
+- ✅ Error handling logic implemented
+- ✅ Retry button UI exists
+- ✅ Retry mechanism works (manual verification)
 
-**Checkpoint:** Error handling and retry complete
+**Checkpoint:** Error handling and retry implementation complete
 
 ---
 
@@ -1352,44 +1125,29 @@ test('manual retry works after failure', async ({ page }) => {
 **Goal:** Indexing state persists across page reload
 
 **Build:**
-- Verify `getDocuments()` query includes all indexing fields
-- Verify VectorDBContext repopulates state on mount
+- Verify `getDocuments()` query includes all indexing fields (status, chunk_count, indexed_at, error_message, retry_count)
+- Verify VectorDBContext repopulates indexingProgress map on mount
 - Verify ongoing indexing continues after reload
 
-**Test:** `e2e/documents/12-indexing-persistence.spec.ts`
+**Test:** Extend `e2e/indexing-workflow-basic.spec.ts @live` with persistence test
 ```typescript
-test('indexing state persists across reload', async ({ page }) => {
-  const OPENAI_KEY = process.env.OPENAI_API_KEY
-  documentsPage = new DocumentPage(page)
-  await documentsPage.clearDatabase()
-  await documentsPage.setup()
+test('indexing state persists across page reload', async ({ page }) => {
+  // Phase 1: Index file successfully
+  // Upload 078_the_equity_equation.md, wait for completion
+  // Record chunk_count
 
-  await documentsPage.setAPIKey(OPENAI_KEY)
-  await documentsPage.uploadFiles([TEST_FILES.DOC_01_MD])
-
-  // Wait for completed
-  await documentsPage.documentList.waitForIndexingStatus(FILE_NAMES.DOC_01_MD, 'completed', { timeout: 60000 })
-
-  const chunkCountBefore = await documentsPage.documentList.getChunkCount(FILE_NAMES.DOC_01_MD)
-
-  // Reload page
-  await page.reload()
-  await documentsPage.waitForDBInitialized()
-
-  // Verify state persisted
-  const statusAfter = await documentsPage.documentList.getIndexingStatus(FILE_NAMES.DOC_01_MD)
-  expect(statusAfter).toBe('completed')
-
-  const chunkCountAfter = await documentsPage.documentList.getChunkCount(FILE_NAMES.DOC_01_MD)
-  expect(chunkCountAfter).toBe(chunkCountBefore)
+  // Phase 2: Reload page
+  // Assert: status still 'completed'
+  // Assert: chunk_count matches pre-reload value
+  // Assert: indexed_at timestamp present
+  // Assert: document still visible in list
 })
 ```
 
 **Pass Criteria:**
-- ✅ Indexing status survives reload
+- ✅ Completed indexing state survives reload
 - ✅ Chunk count survives reload
-- ✅ API key survives reload
-- ✅ Test 12 passes
+- ✅ All indexing metadata persists
 
 **Checkpoint:** Persistence complete
 
@@ -1398,17 +1156,22 @@ test('indexing state persists across reload', async ({ page }) => {
 ### **Final Verification**
 
 ```bash
-# Run ALL E2E tests
+# Run regular E2E tests (excludes @live)
 npm run test:e2e
+# Expected: 2/2 tests passing
+# - feature-flags.spec.ts ✅
+# - documents-upload.spec.ts ✅
 
-# Expected: 12/12 tests passing
-# - 01-04: Existing document tests (4) ✅
-# - 05-12: New indexing tests (8) ✅
+# Run live tests (hits real OpenAI API)
+npm run test:e2e:live
+# Expected: 2/2 tests passing
+# - indexing-workflow-basic.spec.ts ✅ (includes persistence test)
+# - indexing-workflow-multi.spec.ts ✅
 
 # Build verification
 npm run build
 
-# Manual browser testing
+# Manual browser testing (verify error/retry UI)
 npm run dev
 ```
 
@@ -1419,34 +1182,32 @@ npm run dev
 **Prerequisite:** Complete feature toggle system (see `feature-toggle.md`) before starting
 
 ### Phase ui-components
-- [ ] Create `APIKeyInput.tsx`
 - [ ] Create `IndexingStatusBadge.tsx`
 - [ ] Create `IndexingProgress.tsx`
 - [ ] Update `DocumentCard.tsx` (add indexing UI)
-- [ ] Update `EmptyState.tsx` (API key variant)
-- [ ] Update `VectorDBContext.tsx` (apiKeySet, indexingProgress states - stubbed)
-- [ ] Extend DocumentsPage POM (setAPIKey, expectAPIKeySet)
-- [ ] Extend DocumentListComponent POM (6 indexing methods)
-- [ ] Create `05-indexing-ui.spec.ts`
-- [ ] ✅ Test 05 PASSES
+- [ ] Update `VectorDBContext.tsx` (indexingProgress state)
+- [ ] Extend DocumentListComponent POM (indexing helper methods)
+- [ ] Create `e2e/fixtures/pg-essays.ts`
+- [ ] Begin `indexing-workflow-basic.spec.ts @live` (UI stub tests)
+- [ ] ✅ UI components render with data attributes
 
 ### Phase db-schema
 - [ ] Create `indexing_queue` table in worker init()
 - [ ] Create `chunks` table in worker init()
-- [ ] Extend `documents` table (ALTER TABLE)
-- [ ] Update `uploadDocument()` (conditional queue creation)
+- [ ] Extend `documents` table (ALTER TABLE - chunk_count, indexed_at)
+- [ ] Update `uploadDocument()` (conditional queue creation if FEATURE_INDEXING_ENABLED)
 - [ ] Update `getDocuments()` (LEFT JOIN indexing_queue)
-- [ ] Create `06-indexing-queue.spec.ts`
-- [ ] ✅ Test 06 PASSES
-- [ ] ✅ Tests 01-04 still pass (no indexing triggered)
+- [ ] ✅ Queue entries created conditionally
+- [ ] ✅ documents-upload.spec.ts still passes (toggle disabled)
 
 ### Phase queue-processor
 - [ ] Implement `processQueue()` function
 - [ ] Implement `processJob()` (mock work, 1 second delay)
-- [ ] Connect VectorDBContext to worker for status updates
+- [ ] Implement `onProgress()` worker method
+- [ ] Connect VectorDBContext to worker progress events
 - [ ] Auto-start queue processor on worker init
-- [ ] Create `07-indexing-status.spec.ts`
-- [ ] ✅ Test 07 PASSES
+- [ ] Extend `indexing-workflow-basic.spec.ts @live` (verify status transitions)
+- [ ] ✅ Status transitions visible (pending → processing → completed)
 
 ### Phase chunking
 - [ ] Install `@langchain/textsplitters`
@@ -1454,51 +1215,46 @@ npm run dev
 - [ ] Update `processJob()` to actually chunk
 - [ ] Store chunks (embedding = NULL)
 - [ ] Update `documents.chunk_count`
-- [ ] Create `08-indexing-chunking.spec.ts`
-- [ ] ✅ Test 08 PASSES
+- [ ] Extend `indexing-workflow-basic.spec.ts @live` (upload PG essay, verify chunk count)
+- [ ] ✅ Documents chunked and stored
 
 ### Phase embeddings
-- [ ] Implement `setOpenAIKey()` worker method
-- [ ] Connect `context.setOpenAIKey()` to worker
-- [ ] Implement `generateEmbeddings()` with batching
+- [ ] Worker init() reads API key from localStorage
+- [ ] Implement `generateEmbeddings()` with batching (100 chunks/batch)
 - [ ] Implement `generateEmbeddingBatchWithRetry()` (exponential backoff)
 - [ ] Update `storeChunks()` to include embeddings
 - [ ] Update `documents.indexed_at`
-- [ ] Create `09-indexing-embeddings.spec.ts`
-- [ ] ✅ Test 09 PASSES
+- [ ] Complete `indexing-workflow-basic.spec.ts @live` (full workflow with 078_the_equity_equation.md)
+- [ ] ✅ Full indexing pipeline works end-to-end
 
 ### Phase progress-tracking
 - [ ] Implement `emitProgress()` function
-- [ ] Add progress emission in `processJob()` at each stage
-- [ ] Implement `onProgress()` worker method
-- [ ] Connect VectorDBContext to worker progress events
+- [ ] Add progress emission in `processJob()` at each stage (10-30-70-100%)
 - [ ] Update DocumentCard to display progress
-- [ ] Create `10-indexing-progress.spec.ts`
-- [ ] ✅ Test 10 PASSES
+- [ ] Create `indexing-workflow-multi.spec.ts @live` (2 shortest PG essays: 078 + 049)
+- [ ] ✅ Progress tracking works across multiple files
 
 ### Phase error-retry
-- [ ] Implement `handleJobError()` with retry logic
+- [ ] Implement `handleJobError()` with retry logic (max 3)
 - [ ] Implement `retryFailed()` worker method
 - [ ] Connect `context.retryFailed()` to worker
 - [ ] Add retry button to DocumentCard
-- [ ] Handle rate limit errors in embeddings
-- [ ] Create `11-indexing-retry.spec.ts`
-- [ ] ✅ Test 11 PASSES
+- [ ] Handle rate limit errors with exponential backoff
+- [ ] ✅ Error handling and retry implementation complete (manual verification)
 
 ### Phase persistence
 - [ ] Verify `getDocuments()` returns all indexing fields
-- [ ] Verify VectorDBContext repopulates on mount
-- [ ] Verify ongoing indexing continues after reload
-- [ ] Create `12-indexing-persistence.spec.ts`
-- [ ] ✅ Test 12 PASSES
+- [ ] Verify VectorDBContext repopulates indexingProgress on mount
+- [ ] Extend `indexing-workflow-basic.spec.ts @live` (persistence test after completion)
+- [ ] ✅ Indexing state persists across reload
 
 ### Final Verification
-- [ ] All 12 E2E tests passing (4 existing + 8 new indexing)
-- [ ] Feature toggle tests pass (3 tests - see feature-toggle.md)
+- [ ] Regular tests pass: `npm run test:e2e` (2/2: feature-flags, documents-upload)
+- [ ] Live tests pass: `npm run test:e2e:live` (2/2: basic, multi)
 - [ ] TypeScript compilation passing
 - [ ] Build successful (`npm run build`)
 - [ ] No console errors
-- [ ] Manual browser testing verified
+- [ ] Manual browser testing verified (including error/retry UI)
 
 ---
 
@@ -1507,27 +1263,17 @@ npm run dev
 **Phase indexing-pipeline complete when all 8 phases pass:**
 
 ### UI & Visibility
-✅ API key input component renders and accepts input
+✅ Uses existing ApiKeyContext (no separate API key input)
 ✅ Indexing status badge shows all 4 states (pending/processing/completed/failed)
 ✅ Progress bar displays during processing with accurate percentages
 ✅ Document cards show indexing state with data attributes
 ✅ All background states observable via data attributes for testing
 
-### E2E Tests (All 12 Passing)
-✅ Test 05: UI components render with data attributes
-✅ Test 06: Queue entry created conditionally (toggle dependent)
-✅ Test 07: Status transitions (pending → processing → completed)
-✅ Test 08: Documents chunked and stored
-✅ Test 09: Full indexing with real OpenAI embeddings
-✅ Test 10: Real-time progress updates
-✅ Test 11: Error handling and manual retry
-✅ Test 12: Indexing state persists across reload
-✅ Tests 01-04: Existing document tests still pass (no indexing triggered)
-
-**Prerequisites** (see `feature-toggle.md`):
-✅ Test 00-01: Feature toggle enabled (default state)
-✅ Test 00-02: Feature toggle disabled (addInitScript)
-✅ Test 00-03: Toggle interaction and persistence
+### E2E Tests (4 Passing)
+✅ feature-flags.spec.ts: Feature toggle tests (prerequisite)
+✅ documents-upload.spec.ts: Existing document tests (toggle disabled, no indexing)
+✅ indexing-workflow-basic.spec.ts @live: Single file workflow + persistence (real OpenAI API)
+✅ indexing-workflow-multi.spec.ts @live: Multiple files, parallel indexing, progress tracking
 
 ### Worker Implementation
 ✅ Database tables created (indexing_queue, chunks, documents extended)
@@ -1540,12 +1286,12 @@ npm run dev
 ✅ Cascade deletes work (document → queue → chunks)
 
 ### Quality
-✅ 12 E2E tests passing (4 existing + 8 new indexing)
-✅ 3 feature toggle tests passing (prerequisite - see feature-toggle.md)
+✅ 4 E2E test files passing (2 regular + 2 @live)
 ✅ TypeScript compilation passing
 ✅ Build successful
 ✅ No console errors in tests
-✅ Manual testing verified in browser
+✅ Manual testing verified in browser (including error/retry UI)
+✅ Live tests use real PG essays (realistic content)
 
 ### Incremental TDD Process Followed
 ✅ Each phase built and tested independently
@@ -1566,25 +1312,198 @@ npm run dev
 - ✅ **Incremental TDD** - Tests pass at each phase completion
 - ✅ YAGNI approach - build only what's specified, no extras
 
-**Performance Expectations:**
-- Small document (500 words): ~2-5 seconds
-- Medium document (5000 words): ~10-30 seconds
-- Large document (50,000 words): ~1-3 minutes
+**Performance Expectations (Real PG Essays):**
+- 078_the_equity_equation.md (1,142 words): ~2-5 seconds
+- 049_inequality_and_risk.md (2,854 words): ~5-10 seconds
+- 182_the_lesson_to_unlearn.md (4,059 words): ~8-15 seconds
+- 018_a_plan_for_spam.md (5,374 words): ~10-20 seconds
+- 021_why_nerds_are_unpopular.md (5,727 words): ~12-25 seconds
 
-**Cost Expectations (OpenAI API):**
-- E2E test run (8 tests, ~8 small docs): ~$0.001 (negligible)
-- 100 documents (~500 words each): ~$0.01
-- 1,000 documents: ~$0.10
-- 10,000 documents: ~$1.00
+**Cost Expectations (OpenAI API text-embedding-3-small):**
+- Basic test (078 - shortest): ~$0.0002-0.0005
+- Multi test (078 + 049 - 2 shortest): ~$0.0005-0.001
+- Live test suite total (2 tests): < $0.002 per run
+- Acceptable cost for realistic testing
 
 **Test Isolation Strategy:**
-- Existing tests (01-04): No API key → No indexing → No cost
-- New tests (05-12): Set API key → Indexing happens → Minimal cost
-- Total test cost per run: < $0.01
+- documents-*.spec.ts: Feature toggle disabled → No indexing → No cost
+- indexing-*.spec.ts @live: Feature toggle enabled → Real indexing → Minimal cost
+- Total live test cost per run: < $0.002
 
 ---
 
-## 13. Next Steps After Completion
+## 13. Manual Testing Scenarios
+
+While automated E2E tests cover the happy path workflows, certain error scenarios require manual verification during development and QA.
+
+### Error Handling & Retry Flow
+
+**Scenario 1: Invalid API Key Error**
+
+**Setup:**
+1. Start application: `npm run dev`
+2. Navigate to Documents page
+3. Open browser DevTools → Application → Local Storage
+4. Set invalid API key: `localStorage.setItem('openai-api-key', 'sk-invalid-key-12345')`
+5. Reload page
+
+**Test Steps:**
+1. Upload shortest essay: `078_the_equity_equation.md`
+2. Observe indexing status changes: pending → processing
+3. Wait for failure (should happen within 10-15 seconds)
+
+**Expected Behavior:**
+- ✅ Status badge shows "Failed" (red background)
+- ✅ Error message visible on document card: "Incorrect API key provided"
+- ✅ Retry button appears on card
+- ✅ Retry count shows: "Attempt 1/3" (or similar)
+- ✅ Document remains in list (not deleted)
+
+**Manual Retry Test:**
+1. Open DevTools → Application → Local Storage
+2. Set valid API key: `localStorage.setItem('openai-api-key', 'YOUR_VALID_KEY')`
+3. Click retry button on failed document card
+4. Observe status changes: pending → processing → completed
+
+**Expected Behavior:**
+- ✅ Status changes to "Pending"
+- ✅ Retry count resets to 0
+- ✅ Error message clears
+- ✅ Indexing completes successfully
+- ✅ Chunk count appears
+- ✅ Status badge shows "Indexed" (green background)
+
+---
+
+**Scenario 2: Rate Limit Handling (Transient Error)**
+
+**Note:** Difficult to test reliably without hitting actual rate limits
+
+**Setup:**
+1. Use valid API key
+2. Upload multiple essays rapidly to trigger rate limiting
+
+**Test Steps:**
+1. Upload all 5 PG essays simultaneously
+2. Monitor network tab for 429 responses
+3. Observe automatic retry behavior
+
+**Expected Behavior:**
+- ✅ Rate limited requests automatically retry with exponential backoff (1s, 2s, 4s)
+- ✅ Eventually all documents complete successfully
+- ✅ No manual intervention required for transient errors
+- ✅ Only permanent failures (max retries exceeded) show retry button
+
+---
+
+**Scenario 3: Automatic Retry Logic (3 Attempts)**
+
+**Setup:**
+1. Set invalid API key
+2. Upload document
+
+**Test Steps:**
+1. Monitor indexing status
+2. Job should automatically retry 3 times before marking as failed
+
+**Expected Behavior:**
+- ✅ First attempt fails
+- ✅ Automatic retry after brief delay
+- ✅ Second attempt fails
+- ✅ Automatic retry after brief delay
+- ✅ Third attempt fails
+- ✅ Status marked as "Failed" after 3rd attempt
+- ✅ Retry count shows: 3/3
+- ✅ Manual retry button appears
+
+---
+
+### UI State Verification
+
+**Scenario 4: Progress Bar During Indexing**
+
+**Test Steps:**
+1. Upload medium-length essay: `049_inequality_and_risk.md` (2,854 words)
+2. Watch progress bar during indexing
+
+**Expected Behavior:**
+- ✅ Progress bar appears when status = "Processing"
+- ✅ Progress increases: 10% → 30% → 70% → 100%
+- ✅ Stage labels update: "Chunking" → "Generating embeddings" → "Storing chunks"
+- ✅ Progress percentage visible
+- ✅ Progress bar disappears when status = "Completed"
+
+---
+
+**Scenario 5: Error State UI**
+
+**Test Steps:**
+1. Trigger failure (invalid API key method)
+2. Inspect document card UI
+
+**Expected Behavior:**
+- ✅ Red "Failed" badge visible
+- ✅ Error message text clearly displayed
+- ✅ Retry button styled appropriately
+- ✅ Retry count visible: "Attempt X/3"
+- ✅ No progress bar shown
+- ✅ Chunk count not displayed (since indexing failed)
+
+---
+
+### Edge Cases
+
+**Scenario 6: Network Interruption During Indexing**
+
+**Test Steps:**
+1. Upload document
+2. During processing, disconnect network (DevTools → Network → Offline)
+3. Wait for timeout
+4. Reconnect network
+
+**Expected Behavior:**
+- ✅ Job marked as failed after timeout
+- ✅ Error message indicates network issue
+- ✅ Retry button works after reconnection
+- ✅ Manual retry completes successfully
+
+---
+
+**Scenario 7: Multiple Failed Documents**
+
+**Test Steps:**
+1. Set invalid API key
+2. Upload 3 documents
+3. All should fail
+4. Set valid API key
+5. Retry each document individually
+
+**Expected Behavior:**
+- ✅ All 3 documents show failed state independently
+- ✅ Each has its own retry button
+- ✅ Retrying one document doesn't affect others
+- ✅ Each can be retried successfully
+- ✅ Documents complete in order of retry clicks
+
+---
+
+### Performance & Cost Monitoring
+
+**Scenario 8: Monitor OpenAI API Costs**
+
+**Test Steps:**
+1. Note OpenAI API usage before testing
+2. Run manual test scenarios above
+3. Check OpenAI dashboard for usage
+
+**Expected Costs:**
+- Single short document (078): ~$0.0002-0.0005
+- All 5 essays: ~$0.002-0.005
+- Failed attempts do NOT incur embedding costs (only during retry)
+
+---
+
+## 14. Next Steps After Completion
 
 After Phase indexing-pipeline is complete, proceed to:
 - **Phase vector-search:** HNSW index creation + vector similarity search + RAG integration with useChat hook

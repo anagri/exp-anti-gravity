@@ -35,8 +35,16 @@ npm run lint         # ESLint with TypeScript
 ### Testing
 ```bash
 npm test             # Run Vitest unit tests
-npm run test:e2e     # Run Playwright e2e tests (builds app first)
+npm run test:e2e     # Run Playwright e2e tests (excludes @live tagged tests)
+npm run test:e2e:live # Run live e2e tests only (hits real OpenAI API, costs money)
 ```
+
+**Live Tests:**
+- Tests tagged with `@live` hit real OpenAI API and cost money
+- Regular `test:e2e` excludes these via `--grep-invert @live`
+- Use `test:e2e:live` to run only live tests via `--grep @live`
+- Live tests use Paul Graham essays from `e2e/fixtures/files/`
+- Example: `test.describe('Indexing Workflow @live', () => { ... })`
 
 #### Running Single Tests
 ```bash
