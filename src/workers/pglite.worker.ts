@@ -121,8 +121,16 @@ async function init(): Promise<{ ready: boolean }> {
     CREATE INDEX IF NOT EXISTS idx_chunks_document ON chunks(document_id);
   `)
 
+  // Create HNSW index on chunks.embedding (Phase hnsw-index)
+  await db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_chunks_embedding_hnsw
+    ON chunks
+    USING hnsw (embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
+  `)
+
   if (import.meta.env.DEV) {
-    console.log('[PGlite Worker] Database initialized with all tables')
+    console.log('[PGlite Worker] Database initialized with all tables and HNSW index')
   }
 
   return { ready: true }

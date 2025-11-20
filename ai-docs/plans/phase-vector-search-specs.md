@@ -1321,11 +1321,12 @@ npm run build                     # TypeScript compilation
 - If tests timeout: Verify index creation doesn't block indefinitely
 
 **5. Update Spec:**
-Document actual implementation in this file:
-- Exact SQL used
-- Index parameters chosen (m=16, ef_construction=64)
-- Init sequence timing (where index creation happens)
-- Any performance impact observed
+**ACTUAL IMPLEMENTATION:**
+- ✅ Exact SQL: `CREATE INDEX IF NOT EXISTS idx_chunks_embedding_hnsw ON chunks USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);`
+- ✅ Index parameters: m=16, ef_construction=64 (as specified)
+- ✅ Init sequence: Index created immediately after chunks table creation (line 124-130 in pglite.worker.ts)
+- ✅ Performance: No observable slowdown in init or existing tests (unit: 1.25s, E2E: 16.3s, live: 13.6s)
+- ✅ Worker logs: Updated to indicate HNSW index creation
 
 **6. Review Diff:**
 ```bash
