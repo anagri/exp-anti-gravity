@@ -73,6 +73,11 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         const indexingEnabled = isFeatureEnabled(FEATURES.INDEXING_ENABLED)
         await worker.setIndexingEnabled(indexingEnabled)
 
+        // Send OpenAI API key to worker (Phase embeddings)
+        // Workers don't have access to localStorage, must pass explicitly
+        const apiKey = localStorage.getItem('openai_api_key')
+        await worker.setOpenAIKey(apiKey)
+
         // Init worker (this starts the queue processor)
         await worker.init()
 
@@ -110,6 +115,22 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener('featureFlagChanged', handleFlagChange)
     return () => window.removeEventListener('featureFlagChanged', handleFlagChange)
+  }, [worker])
+
+  // Listen for API key changes (Phase embeddings)
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'openai_api_key') {
+        worker.setOpenAIKey(event.newValue)
+
+        if (import.meta.env.DEV) {
+          console.log('[VectorDB] OpenAI key', event.newValue ? 'updated' : 'cleared')
+        }
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
   }, [worker])
 
   const refreshDocuments = async () => {

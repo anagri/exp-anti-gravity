@@ -2,14 +2,16 @@ import { PGlite } from '@electric-sql/pglite'
 import { vector } from '@electric-sql/pglite/vector'
 import { v4 as uuidv4 } from 'uuid'
 import * as Comlink from 'comlink'
+import OpenAI from 'openai'
 
 let db: PGlite | null = null
 let indexingEnabled = true // default to enabled (used in Phase db-schema for conditional queue creation)
 let isProcessing = false // queue processor state (Phase queue-processor)
 let progressCallbacks: Array<(progress: IndexingProgress) => void> = [] // Phase queue-processor
+let openaiClient: OpenAI | null = null // Phase embeddings
 
 // Keep TypeScript happy - variables are used
-if (indexingEnabled && !isProcessing && progressCallbacks.length >= 0) {
+if (indexingEnabled && !isProcessing && progressCallbacks.length >= 0 && !openaiClient) {
   // Variables are accessed here to avoid TS6133
 }
 
@@ -221,6 +223,25 @@ function setIndexingEnabled(enabled: boolean): void {
   }
 }
 
+/**
+ * Set OpenAI API key (Phase embeddings)
+ * Workers don't have access to localStorage, so API key must be passed explicitly
+ */
+function setOpenAIKey(apiKey: string | null): void {
+  if (apiKey) {
+    openaiClient = new OpenAI({
+      apiKey,
+      dangerouslyAllowBrowser: true,
+    })
+  } else {
+    openaiClient = null
+  }
+
+  if (import.meta.env.DEV) {
+    console.log('[PGlite Worker] OpenAI client', apiKey ? 'initialized' : 'cleared')
+  }
+}
+
 // ========== Queue Processor (Phase queue-processor) ==========
 
 /**
@@ -287,32 +308,77 @@ function chunkDocument(content: string): Array<{ content: string, heading?: stri
 }
 
 /**
- * Store chunks in database (Phase chunking: embedding = NULL, will be added in Phase embeddings)
+ * Generate embeddings for chunks using OpenAI API (Phase embeddings)
+ * Processes in batches for efficiency
+ */
+async function generateEmbeddings(
+  chunks: Array<{ content: string, heading?: string }>,
+  onBatchProgress: (current: number, total: number) => void
+): Promise<number[][]> {
+  if (!openaiClient) {
+    throw new Error('OpenAI client not initialized. Set API key in application settings.')
+  }
+
+  const BATCH_SIZE = 50
+  const allEmbeddings: number[][] = []
+  const totalBatches = Math.ceil(chunks.length / BATCH_SIZE)
+
+  for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+    const start = batchIndex * BATCH_SIZE
+    const end = Math.min(start + BATCH_SIZE, chunks.length)
+    const batchChunks = chunks.slice(start, end)
+
+    // Call OpenAI API
+    const response = await openaiClient.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: batchChunks.map(c => c.content),
+      dimensions: 1536,
+    })
+
+    // Extract embeddings in order
+    const batchEmbeddings = response.data.map(item => item.embedding)
+    allEmbeddings.push(...batchEmbeddings)
+
+    // Report progress
+    onBatchProgress(batchIndex + 1, totalBatches)
+  }
+
+  return allEmbeddings
+}
+
+/**
+ * Store chunks in database with embeddings (Phase embeddings)
  */
 async function storeChunks(
   documentId: string,
-  chunks: Array<{ content: string, heading?: string }>
+  chunks: Array<{ content: string, heading?: string }>,
+  embeddings: number[][]
 ): Promise<void> {
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i]
+    const embedding = embeddings[i]
     const tokenCount = Math.ceil(chunk.content.length / 4)
+
+    // Convert embedding array to pgvector format
+    const embeddingStr = `[${embedding.join(',')}]`
 
     await db!.query(
       `INSERT INTO chunks (id, document_id, chunk_index, content, heading, embedding, token_count)
-       VALUES ($1, $2, $3, $4, $5, NULL, $6)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
         uuidv4(),
         documentId,
         i,
         chunk.content,
         chunk.heading,
+        embeddingStr,
         tokenCount,
       ]
     )
   }
 
   if (import.meta.env.DEV) {
-    console.log(`[PGlite Worker] Stored ${chunks.length} chunks for document ${documentId}`)
+    console.log(`[PGlite Worker] Stored ${chunks.length} chunks with embeddings for document ${documentId}`)
   }
 }
 
@@ -383,9 +449,17 @@ async function processJob(job: IndexingJob): Promise<void> {
     const chunks = chunkDocument(document.content)
     emitProgress(document_id, 'processing', 30, 'chunking', `Created ${chunks.length} chunks`)
 
-    // Phase chunking: Store chunks (no embeddings yet)
-    emitProgress(document_id, 'processing', 30, 'storing', 'Storing chunks...')
-    await storeChunks(document_id, chunks)
+    // Phase embeddings: Generate embeddings for chunks
+    emitProgress(document_id, 'processing', 30, 'embedding', 'Generating embeddings...')
+    const embeddings = await generateEmbeddings(chunks, (current, total) => {
+      const embeddingProgress = 30 + Math.floor((current / total) * 40)
+      emitProgress(document_id, 'processing', embeddingProgress, 'embedding', `Processing batch ${current}/${total}`)
+    })
+    emitProgress(document_id, 'processing', 70, 'embedding', 'All embeddings generated')
+
+    // Phase embeddings: Store chunks with embeddings
+    emitProgress(document_id, 'processing', 70, 'storing', 'Storing chunks...')
+    await storeChunks(document_id, chunks, embeddings)
     emitProgress(document_id, 'processing', 100, 'storing', 'All chunks stored')
 
     // Mark as completed
@@ -534,6 +608,7 @@ const api = {
   getDocuments,
   deleteDocument,
   setIndexingEnabled,
+  setOpenAIKey,
   onProgress,
   triggerQueueProcessing,
   getWorkerState,
