@@ -1,6 +1,8 @@
-import { FileText, Download, Trash2 } from 'lucide-react';
+import { FileText, Download, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import IndexingStatusBadge from './IndexingStatusBadge';
+import IndexingProgress from './IndexingProgress';
 
 interface Document {
   id: string;
@@ -9,11 +11,22 @@ interface Document {
   file_size: number;
   mime_type: string;
   uploaded_at: string;
+  chunk_count: number | null;
+  indexed_at: string | null;
+  indexing_status: 'pending' | 'processing' | 'completed' | 'failed' | null;
+  error_message: string | null;
+  retry_count: number | null;
 }
 
 interface DocumentCardProps {
   document: Document;
   onDelete: () => void;
+  onRetry?: () => void;
+  indexingProgress?: {
+    progress: number;
+    stage: string;
+    message: string;
+  };
 }
 
 function formatFileSize(bytes: number): string {
@@ -31,7 +44,12 @@ function formatDate(dateString: string): string {
   });
 }
 
-export default function DocumentCard({ document, onDelete }: DocumentCardProps) {
+export default function DocumentCard({
+  document,
+  onDelete,
+  onRetry,
+  indexingProgress,
+}: DocumentCardProps) {
   const handleDownload = () => {
     const blob = new Blob([document.content], { type: document.mime_type });
     const url = URL.createObjectURL(blob);
@@ -48,6 +66,12 @@ export default function DocumentCard({ document, onDelete }: DocumentCardProps) 
     <Card
       className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-all duration-200 group"
       data-testid={`div-doc-item-${document.id}`}
+      data-indexing-status={document.indexing_status}
+      data-indexing-progress={indexingProgress?.progress ?? 0}
+      data-indexing-stage={indexingProgress?.stage ?? document.indexing_status ?? ''}
+      data-chunk-count={document.chunk_count ?? 0}
+      data-error-message={document.error_message ?? ''}
+      data-retry-count={document.retry_count ?? 0}
     >
       <div className="p-4 space-y-3">
         <div className="flex items-start">
@@ -67,6 +91,53 @@ export default function DocumentCard({ document, onDelete }: DocumentCardProps) 
           <span className="font-mono">{formatFileSize(document.file_size)}</span>
           <span>{formatDate(document.uploaded_at)}</span>
         </div>
+
+        {/* Indexing Status Section */}
+        {document.indexing_status && (
+          <div className="space-y-2 pt-2 border-t border-gray-100">
+            <IndexingStatusBadge
+              status={document.indexing_status}
+              retryCount={document.retry_count ?? 0}
+            />
+
+            {/* Progress Bar (only when processing) */}
+            {document.indexing_status === 'processing' && indexingProgress && (
+              <IndexingProgress
+                progress={indexingProgress.progress}
+                stage={indexingProgress.stage}
+                message={indexingProgress.message}
+              />
+            )}
+
+            {/* Chunk Count (when completed) */}
+            {document.indexing_status === 'completed' && document.chunk_count && (
+              <p className="text-xs text-gray-600">
+                {document.chunk_count} chunks indexed
+              </p>
+            )}
+
+            {/* Error Message (when failed) */}
+            {document.indexing_status === 'failed' && document.error_message && (
+              <div className="space-y-2">
+                <p className="text-xs text-red-600 break-words">
+                  ✗ Error: {document.error_message}
+                </p>
+                {onRetry && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onRetry}
+                    data-testid={`btn-retry-${document.id}`}
+                    className="w-full"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                    Retry (Attempt {(document.retry_count ?? 0) + 1})
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
           <Button

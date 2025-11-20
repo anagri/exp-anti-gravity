@@ -18,7 +18,7 @@ type FilterOption = 'all' | 'markdown' | 'text';
 export default function DocumentsPage() {
   const navigate = useNavigate();
   const { clearApiKey } = useApiKey();
-  const { documents, uploadFiles, deleteDocument, initialized } = useVectorDB();
+  const { documents, uploadFiles, deleteDocument, initialized, indexingProgress, retryFailed } = useVectorDB();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<{ id: string; filename: string } | null>(null);
@@ -174,6 +174,8 @@ export default function DocumentsPage() {
                 key={doc.id}
                 document={doc}
                 onDelete={() => handleDeleteClick(doc.id, doc.filename)}
+                onRetry={() => retryFailed(doc.id)}
+                indexingProgress={indexingProgress.get(doc.id)}
               />
             ))}
           </div>

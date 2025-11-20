@@ -24,6 +24,11 @@ interface Document {
   file_size: number
   mime_type: string
   uploaded_at: string
+  chunk_count: number | null
+  indexed_at: string | null
+  indexing_status: 'pending' | 'processing' | 'completed' | 'failed' | null
+  error_message: string | null
+  retry_count: number | null
 }
 
 /**
@@ -95,7 +100,7 @@ async function getDocuments(): Promise<Document[]> {
     throw new Error('Database not initialized. Call init() first.')
   }
 
-  const result = await db.query<Document>(
+  const result = await db.query<Pick<Document, 'id' | 'filename' | 'content' | 'file_size' | 'mime_type' | 'uploaded_at'>>(
     'SELECT * FROM documents ORDER BY uploaded_at DESC'
   )
 
@@ -103,7 +108,15 @@ async function getDocuments(): Promise<Document[]> {
     console.log('[PGlite Worker] Retrieved documents:', result.rows.length)
   }
 
-  return result.rows
+  // Map to full Document interface with null indexing fields (will be populated in Phase db-schema)
+  return result.rows.map(row => ({
+    ...row,
+    chunk_count: null,
+    indexed_at: null,
+    indexing_status: null,
+    error_message: null,
+    retry_count: null,
+  }))
 }
 
 /**

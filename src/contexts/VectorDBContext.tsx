@@ -15,6 +15,22 @@ interface Document {
   file_size: number
   mime_type: string
   uploaded_at: string
+  chunk_count: number | null
+  indexed_at: string | null
+  indexing_status: 'pending' | 'processing' | 'completed' | 'failed' | null
+  error_message: string | null
+  retry_count: number | null
+}
+
+interface IndexingProgress {
+  documentId: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  progress: number
+  stage: string
+  message: string
+  chunkCount?: number
+  errorMessage?: string
+  retryCount?: number
 }
 
 interface VectorDBContextType {
@@ -23,6 +39,8 @@ interface VectorDBContextType {
   uploadFiles: (files: File[]) => Promise<void>
   deleteDocument: (id: string) => Promise<void>
   refreshDocuments: () => Promise<void>
+  indexingProgress: Map<string, IndexingProgress>
+  retryFailed: (documentId: string) => Promise<void>
 }
 
 const VectorDBContext = createContext<VectorDBContextType | undefined>(
@@ -32,6 +50,7 @@ const VectorDBContext = createContext<VectorDBContextType | undefined>(
 export function VectorDBProvider({ children }: { children: ReactNode }) {
   const [initialized, setInitialized] = useState(false)
   const [documents, setDocuments] = useState<Document[]>([])
+  const [indexingProgress, _setIndexingProgress] = useState<Map<string, IndexingProgress>>(new Map())
 
   const worker = getWorkerClient()
 
@@ -144,6 +163,11 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const retryFailed = async (documentId: string) => {
+    // Placeholder for now - will be implemented in later phase
+    console.log('[VectorDB] Retry indexing for document:', documentId)
+  }
+
   return (
     <VectorDBContext.Provider
       value={{
@@ -152,6 +176,8 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         uploadFiles,
         deleteDocument,
         refreshDocuments,
+        indexingProgress,
+        retryFailed,
       }}
     >
       {children}
