@@ -5,6 +5,7 @@ import {
   useEffect,
   ReactNode,
 } from 'react'
+import * as Comlink from 'comlink'
 import { getWorkerClient } from '@/lib/pglite-client'
 import { isFeatureEnabled, FEATURES } from '@/lib/feature-flags'
 
@@ -57,24 +58,31 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function initializeWorker() {
       try {
-        await worker.init()
-
-        // Send initial feature flag state to worker
-        const indexingEnabled = isFeatureEnabled(FEATURES.INDEXING_ENABLED)
-        await worker.setIndexingEnabled(indexingEnabled)
-
-        // Subscribe to worker progress updates (Phase queue-processor)
-        worker.onProgress((progress: IndexingProgress) => {
+        // Subscribe to worker progress updates BEFORE init starts queue processor (Phase queue-processor)
+        // Wrap callback with Comlink.proxy on MAIN thread (not in worker)
+        await worker.onProgress(Comlink.proxy((progress: IndexingProgress) => {
           _setIndexingProgress(prev => new Map(prev).set(progress.documentId, progress))
 
           // Refresh documents to update UI with latest status
           if (progress.status === 'completed' || progress.status === 'failed') {
             refreshDocuments()
           }
-        })
+        }))
+
+        // Send initial feature flag state to worker
+        const indexingEnabled = isFeatureEnabled(FEATURES.INDEXING_ENABLED)
+        await worker.setIndexingEnabled(indexingEnabled)
+
+        // Init worker (this starts the queue processor)
+        await worker.init()
 
         await refreshDocuments()
         setInitialized(true)
+
+        // Expose worker state for debugging (test environment)
+        if (typeof window !== 'undefined') {
+          (window as any).__getWorkerState = () => worker.getWorkerState()
+        }
 
         if (import.meta.env.DEV) {
           console.log('[VectorDB] Context initialized, indexing enabled:', indexingEnabled)
@@ -151,6 +159,9 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
       // Refresh document list
       await refreshDocuments()
+
+      // Trigger queue processing immediately (for better UX)
+      await worker.triggerQueueProcessing()
     } catch (error) {
       console.error('[VectorDB] Error uploading files:', error)
       throw error
