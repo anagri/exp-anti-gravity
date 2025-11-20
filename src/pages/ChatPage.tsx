@@ -12,6 +12,7 @@ import { cn } from '../lib/utils';
 
 import { ModelSelector } from '../components/ModelSelector';
 import FileSelector from '../components/FileSelector';
+import AttachmentBadges from '../components/AttachmentBadges';
 
 export default function ChatPage() {
   const navigate = useNavigate();
@@ -141,6 +142,16 @@ export default function ChatPage() {
 
           {/* Input Area */}
           <div className="p-4 border-t bg-gray-50/50">
+            {/* Attachment Badges (Phase ui-attachments) */}
+            <AttachmentBadges
+              attachedDocuments={attachedDocumentIds.map(id => {
+                const doc = documents.find(d => d.id === id);
+                return { id, filename: doc?.filename || 'Unknown' };
+              })}
+              onRemove={(documentId) => {
+                setAttachedDocumentIds(prev => prev.filter(id => id !== documentId));
+              }}
+            />
             <form onSubmit={handleSend} className="flex gap-2">
               <Button
                 data-testid="btn-attach-files"
