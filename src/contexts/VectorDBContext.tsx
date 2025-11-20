@@ -34,6 +34,16 @@ interface IndexingProgress {
   retryCount?: number
 }
 
+interface SearchResult {
+  chunkId: string
+  documentId: string
+  filename: string
+  heading: string | null
+  content: string
+  chunkIndex: number
+  similarity: number
+}
+
 interface VectorDBContextType {
   initialized: boolean
   documents: Document[]
@@ -42,6 +52,7 @@ interface VectorDBContextType {
   refreshDocuments: () => Promise<void>
   indexingProgress: Map<string, IndexingProgress>
   retryFailed: (documentId: string) => Promise<void>
+  searchVectors: (query: string, documentIds: string[]) => Promise<SearchResult[]>
 }
 
 const VectorDBContext = createContext<VectorDBContextType | undefined>(
@@ -210,6 +221,10 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     console.log('[VectorDB] Retry indexing for document:', documentId)
   }
 
+  const searchVectors = async (query: string, documentIds: string[]): Promise<SearchResult[]> => {
+    return await worker.searchVectors({ query, documentIds })
+  }
+
   return (
     <VectorDBContext.Provider
       value={{
@@ -220,6 +235,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         refreshDocuments,
         indexingProgress,
         retryFailed,
+        searchVectors,
       }}
     >
       {children}
@@ -234,3 +250,5 @@ export function useVectorDB() {
   }
   return context
 }
+
+export type { SearchResult }

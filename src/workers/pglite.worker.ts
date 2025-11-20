@@ -621,6 +621,101 @@ async function getWorkerState(): Promise<{
   }
 }
 
+// ========== Vector Search (Phase search-api) ==========
+
+interface SearchParams {
+  query: string
+  documentIds: string[]
+  topK?: number
+  similarityThreshold?: number
+}
+
+interface SearchResult {
+  chunkId: string
+  documentId: string
+  filename: string
+  heading: string | null
+  content: string
+  chunkIndex: number
+  similarity: number
+}
+
+/**
+ * Search for similar chunks using HNSW vector similarity
+ * Embeds the query and searches only within selected documents
+ */
+async function searchVectors(params: SearchParams): Promise<SearchResult[]> {
+  if (!openaiClient) {
+    throw new Error('OpenAI client not initialized. Set API key in settings.')
+  }
+
+  if (!db) {
+    throw new Error('Database not initialized. Call init() first.')
+  }
+
+  // No documents selected: return empty array
+  if (!params.documentIds || params.documentIds.length === 0) {
+    return []
+  }
+
+  const topK = params.topK ?? 10
+  const similarityThreshold = params.similarityThreshold ?? 0.7
+
+  // Generate query embedding
+  const embeddingResponse = await openaiClient.embeddings.create({
+    model: 'text-embedding-3-small',
+    input: params.query,
+    dimensions: 1536,
+  })
+
+  const queryEmbedding = embeddingResponse.data[0].embedding
+  const embeddingStr = `[${queryEmbedding.join(',')}]`
+
+  // Execute HNSW search with document filtering
+  const result = await db.query<{
+    chunk_id: string
+    document_id: string
+    filename: string
+    heading: string | null
+    content: string
+    chunk_index: number
+    similarity: number
+  }>(
+    `
+    SELECT
+      c.id as chunk_id,
+      c.document_id,
+      c.content,
+      c.heading,
+      c.chunk_index,
+      d.filename,
+      1 - (c.embedding <=> $1::vector) as similarity
+    FROM chunks c
+    JOIN documents d ON c.document_id = d.id
+    WHERE c.document_id = ANY($2::uuid[])
+      AND c.embedding IS NOT NULL
+      AND 1 - (c.embedding <=> $1::vector) >= $3
+    ORDER BY c.embedding <=> $1::vector ASC
+    LIMIT $4
+  `,
+    [embeddingStr, params.documentIds, similarityThreshold, topK]
+  )
+
+  if (import.meta.env.DEV) {
+    console.log(`[PGlite Worker] Vector search returned ${result.rows.length} results`)
+  }
+
+  return result.rows.map(row => ({
+    chunkId: row.chunk_id,
+    documentId: row.document_id,
+    filename: row.filename,
+    heading: row.heading,
+    content: row.content,
+    chunkIndex: row.chunk_index,
+    similarity: row.similarity,
+  }))
+}
+
 // Auto-start queue processor after init (Phase queue-processor)
 const originalInit = init
 async function initWithQueueProcessor(): Promise<{ ready: boolean }> {
@@ -649,6 +744,7 @@ const api = {
   onProgress,
   triggerQueueProcessing,
   getWorkerState,
+  searchVectors,
 }
 
 Comlink.expose(api)
