@@ -1,7 +1,6 @@
 import { renderHook } from '@testing-library/react'
-import { VectorDBProvider, useVectorDB } from './VectorDBContext'
+import { useVectorDB } from './VectorDBContext'
 import { describe, it, expect } from 'vitest'
-import React from 'react'
 
 describe('VectorDBContext', () => {
   it('throws error when used outside provider', () => {

@@ -65,3 +65,49 @@ export async function waitForDocumentCount(page: Page, expectedCount: number) {
     expectedCount
   )
 }
+
+/**
+ * Clear PGlite IndexedDB database
+ */
+export async function clearPGliteDB(page: Page) {
+  await page.goto('/')
+  await page.evaluate(async () => {
+    const databases = await indexedDB.databases();
+    console.log('[clearPGliteDB] Available databases:', databases);
+
+    const promises = databases
+      .filter(db => db.name?.includes('rag') || db.name?.includes('pglite'))
+      .map(db => {
+        return new Promise<void>((resolve) => {
+          if (db.name) {
+            console.log('[clearPGliteDB] Deleting database:', db.name);
+            const request = indexedDB.deleteDatabase(db.name);
+            request.onsuccess = () => resolve();
+            request.onerror = () => resolve();
+            request.onblocked = () => resolve();
+          } else {
+            resolve();
+          }
+        });
+      });
+
+    await Promise.all(promises);
+  });
+}
+
+/**
+ * Navigate to documents page (requires API key to be set)
+ */
+export async function navigateToDocuments(page: Page, apiKey: string = 'sk-test-key-123') {
+  await page.goto('/')
+  await page.getByPlaceholder('sk-...').fill(apiKey)
+  await page.getByRole('button', { name: 'Start Chatting' }).click()
+  await page.waitForURL('/chat')
+  await page.goto('/documents')
+  await page.waitForURL('/documents')
+
+  await page.waitForFunction(() => {
+    const container = document.querySelector('[data-db-initialized]')
+    return container?.getAttribute('data-db-initialized') === 'true'
+  })
+}
