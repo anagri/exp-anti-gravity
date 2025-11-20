@@ -10,6 +10,8 @@ import { Send, LogOut, Bot, User } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 import { ModelSelector } from '../components/ModelSelector';
+import { FileUpload } from '../components/FileUpload';
+import { DocumentList } from '../components/DocumentList';
 
 export default function ChatPage() {
   const navigate = useNavigate();
@@ -70,6 +72,12 @@ export default function ChatPage() {
 
       {/* Chat Area */}
       <main className="flex-1 overflow-hidden p-4 max-w-4xl mx-auto w-full flex flex-col">
+        {/* Document Management Section */}
+        <div className="mb-4 p-4 bg-white rounded-lg shadow-sm border">
+          <FileUpload />
+          <DocumentList />
+        </div>
+
         <Card className="flex-1 flex flex-col overflow-hidden shadow-md bg-white">
           <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
             {messages.length === 0 && (

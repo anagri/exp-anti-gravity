@@ -78,12 +78,30 @@ git commit -m "fix(indexing): handle rate limit errors with exponential backoff"
 
 ### Testing Strategy
 
+**E2E-First Approach (Fewer Tests, More Steps):**
+- E2E tests are expensive to run and maintain
+- Write 2-3 comprehensive tests per phase covering complete workflows
+- Each test should have multiple steps and assertions
+- Example: Single "CRUD workflow" test covers upload → verify → delete → verify
+- Avoid 10+ granular E2E tests - combine related actions
+
+**Unit Tests - Selective:**
+- Only for complex component interaction, state updates, algorithms
+- NOT for: TypeScript types, schema definitions, third-party libraries
+- NOT for: Worker internals (use E2E instead due to Vitest+jsdom+Comlink compatibility issues)
+- Focus on behavior, not implementation details
+
+**Integration Tests:**
+- Component + context interaction
+- Data flow between layers
+- Mock external APIs (OpenAI) using MSW
+
 #### Test Types by Phase
 
 | Phase | Unit Tests | Integration Tests | E2E Tests |
 |-------|-----------|-------------------|-----------|
-| 2. Worker | ✅ Core logic | ✅ DB operations | ❌ |
-| 3. Upload | ✅ Components | ✅ Worker RPC | ✅ Upload flow |
+| 2. Worker + Minimal UI | ✅ Core logic | ✅ Context integration | ✅ Document CRUD |
+| 3. UI Enhancements | ✅ Components | ✅ Enhanced UX | ✅ Upload flow |
 | 4. Indexing | ✅ Chunking/Retry | ✅ API mocking | ✅ Full pipeline |
 | 5. Search | ✅ Query logic | ✅ HNSW queries | ✅ RAG flow |
 | 6. UI | ✅ Components | ✅ Interactions | ✅ UI workflows |
@@ -705,7 +723,9 @@ Don't create "just in case" test infrastructure.
 
 ## Implementation Plan
 
-### Phase 2: PGlite Worker Setup
+### Phase 2: PGlite Worker Setup + Minimal UI
+
+**Goal:** Browser-based PostgreSQL with basic document CRUD + passing E2E tests
 
 **Dependency Installation Requirements:**
 - Install PGlite with pgvector support (@electric-sql/pglite)
@@ -761,133 +781,191 @@ Note: search() will be added in Phase 5 when vector search is implemented.
 - Provide function to terminate worker and clean up references
 - Ensure worker is created with type='module' for ES module support
 
+**Minimal UI Components (NEW - moved from Phase 3):**
+
+*VectorDBContext Requirements:*
+- Purpose: Connect worker to React components, manage document state
+- Create context with type definition:
+  - initialized: boolean (tracks worker ready state)
+  - documents: Document[] (array of uploaded documents)
+  - uploadFiles: (files: File[]) => Promise<void>
+  - deleteDocument: (id: string) => Promise<void>
+  - refreshDocuments: () => Promise<void>
+- Provider implementation:
+  - Get worker instance from singleton on component creation
+  - Initialize worker on mount (call worker.init())
+  - Maintain documents state, refresh on mount
+  - uploadFiles: read file content using FileReader, call worker.uploadDocument(), refresh list
+  - deleteDocument: call worker.deleteDocument(), refresh list
+  - refreshDocuments: call worker.getDocuments(), update state
+- useVectorDB hook: access context, throw error if used outside provider
+
+*FileUpload Component Requirements:*
+- Minimal implementation (no drag-drop, no progress tracking)
+- Plain file input: `<input type="file" accept=".md,.txt" multiple />`
+- Handle onChange: read files, filter valid types (.md, .txt), call uploadFiles from context
+- Reset input value after upload
+- Add data-testid="file-upload-input" for E2E testing
+
+*DocumentList Component Requirements:*
+- Minimal implementation (no cards, no styling, no status badges)
+- Display "No documents" when documents array empty
+- Map over documents: show filename and delete button
+- Each document item has data-testid={`document-${doc.id}`}
+- Filename has data-testid="document-filename"
+- Delete button has data-testid={`delete-${doc.id}`}
+- Call deleteDocument from context on delete click
+
+*ChatPage Integration:*
+- Import FileUpload and DocumentList components
+- Add both components to ChatPage (above chat interface or in sidebar)
+- Wrap with conditional rendering based on initialized state
+
+*App Integration:*
+- Import VectorDBProvider from VectorDBContext
+- Wrap app routes with VectorDBProvider
+- Ensure VectorDBProvider is inside BrowserRouter but outside route definitions
+
 **Test Requirements:**
 
 Write tests after implementing code. Focus on behavior, not implementation details.
 
-*Key Behaviors to Test:*
-- Worker initializes PGlite with documents table
-- Upload document flow works end-to-end
-- Get documents returns uploaded documents
-- Delete document removes from database
-- Worker communication via Comlink works correctly
+*E2E Tests (Playwright) - **PASS IN PHASE 2**:*
+
+**Test 1: Document upload, display, and delete workflow** (single test, 8 steps)
+- Navigate to app, enter API key
+- Verify "No documents" message shown initially
+- Upload test.md file via file input
+- Verify document appears in DocumentList
+- Verify filename displayed correctly
+- Click delete button
+- Verify document removed from list
+- Verify "No documents" shown again
+
+**Test 2: Multiple documents with persistence** (comprehensive workflow)
+- Upload 3 files (doc1.md, doc2.txt, doc3.md) with delays between uploads
+- Verify all 3 documents visible in list
+- Reload page (test IndexedDB persistence)
+- Verify all 3 documents still visible after reload
+- Delete doc2.txt (middle document)
+- Verify only doc1.md and doc3.md remain
+
+**Test 3: Invalid file type rejection**
+- Attempt to upload .pdf file
+- Verify file not added to document list
+- Verify no errors thrown
+
+*Unit Tests (Vitest):*
+- Worker client singleton pattern (same instance on multiple calls, new after termination)
+- VectorDBContext provides expected values (initialized, documents, functions)
+- uploadFiles/deleteDocument call worker correctly
+
+*Integration Tests:*
+- VectorDBContext + worker interaction
+- FileUpload component + context integration
+- DocumentList component + context integration
 
 *Testing Strategy:*
-- Start with integration tests (full workflows)
-- Add unit tests only for complex logic or edge cases
-- Don't test TypeScript configuration or type availability
-- Don't test third-party libraries (PGlite, Comlink)
+- E2E tests prove worker communication works (avoid Vitest+Comlink issues)
+- Unit tests only for non-worker code (singleton, context)
+- Don't test PGlite internals, Comlink internals, TypeScript config
 
 **Phase Completion:**
 - All dependencies installed (PGlite, uuid, Comlink)
 - TypeScript configurations created and validated
-- Project structure directories created (workers/, lib/, types/)
 - PGlite worker file created with all required operations
 - Worker client wrapper created
 - Documents table created for file metadata storage
+- **VectorDBContext and useVectorDB hook created**
+- **FileUpload component created (minimal)**
+- **DocumentList component created (minimal)**
+- **ChatPage updated with FileUpload and DocumentList**
+- **App.tsx updated with VectorDBProvider**
+- **E2E test helpers created (e2e/helpers.ts)**
+- **E2E tests created and PASSING (e2e/documents.spec.ts)**
 - All unit tests passing
 - All integration tests passing
+- Build successful (npm run build)
+- Lint passing (npm run lint)
 - Review changes and commit with appropriate message
 
-### Phase 3: File Upload & Storage
+### Phase 3: UI Enhancements (Optional Polish)
 
-**Storage Decision: Use IndexedDB (via PGlite) Instead of OPFS**
+**Note:** Phase 3 is now focused on UX improvements only. Core functionality (file upload, document CRUD) implemented in Phase 2.
 
-Rationale:
-- Safari compatibility (OPFS has limitations - 252 sync access handle limit)
-- Simpler implementation (files stored in documents.content column)
-- No need for separate OPFS worker
-- Sufficient performance with relaxedDurability mode
+**Goal:** Enhance the minimal UI from Phase 2 with better user experience.
 
-**File Organization:**
+**Enhanced File Upload Component:**
 
-Create components and context as needed:
-- FileUpload component in src/components/
-- VectorDBContext in src/contexts/
-- useVectorDB hook (co-located with context or as separate file)
+*Drag-and-Drop Zone:*
+- Replace plain file input with drag-drop zone
+- Visual feedback on dragover (border color change, highlight)
+- Click-to-select fallback (hidden file input)
+- Centered text: "Drag files here or click to select"
 
-**File Upload Component Requirements:**
-
-*User Interface:*
-- Provide drag-and-drop zone for file selection (border, centered text)
-- Provide hidden file input for click-to-select functionality
-- Accept only .md and .txt files
-- Support multiple file selection
-- Display upload progress for each file with status updates
+*Upload Progress Tracking:*
+- Display progress for each file during upload
 - Show status transitions: "Reading..." → "Uploading..." → "Queued for indexing"
+- Progress bar or percentage indicator
 - Disable interactions during upload
-- Clear progress display after completion
+- Clear progress after completion
 
-*File Handling:*
-- Validate file types before processing (reject non-.md/.txt files)
-- Read file content using FileReader API's text() method
-- Extract filename, content, and MIME type
-- Call uploadFiles function from vector DB hook for each valid file
-- Handle drag events properly (preventDefault on dragOver)
-- Iterate through files sequentially with status updates
+*Enhanced Validation:*
+- Show error messages for invalid file types
+- Visual feedback for rejected files
+- File size warnings (if very large)
 
-**VectorDB Context Requirements:**
+**Enhanced Document List Component:**
 
-**YAGNI Note:** Create context now instead of creating hook first then context later (avoid redundant abstractions).
+*Better Styling:*
+- Card layout for each document (border, padding, shadow)
+- File type icons (markdown vs text)
+- Better typography (filename prominent, metadata subtle)
+- Hover states on delete button
+- Responsive layout
 
-*Context Type Definition:*
-- initialized: boolean (tracks if worker and database are ready)
-- documents: array of documents with metadata
-- uploadFiles: async function to upload multiple files
-- deleteDocument: async function to delete by ID
-- refreshDocuments: async function to reload documents from database
+*Additional Information:*
+- Upload date/time (formatted, locale-aware)
+- File size display (KB/MB formatting)
+- Document status indicator (placeholder for Phase 4 indexing status)
 
-*Provider Implementation:*
-- Accept children (React nodes) and apiKey (from ApiKeyContext)
-- Maintain initialized state (default: false)
-- Maintain documents state (default: empty array)
-- Get worker instance from singleton on component creation
-- On mount/apiKey change:
-  - Initialize worker database
-  - Set OpenAI API key in worker if apiKey provided (note: API key not used until Phase 4)
-  - Refresh documents from database
-  - Mark as initialized
-- Implement refreshDocuments: fetch from worker, update state
-- Implement uploadFiles: upload each file to worker, refresh documents
-- Implement deleteDocument: delete via worker, refresh documents
-- Provide all state and functions via context value
+*User Interaction:*
+- Confirm dialog before delete
+- Loading state during delete operation
+- Smooth animations for add/remove
 
-*useVectorDB Hook:*
-- Access VectorDBContext using useContext
-- Throw error if used outside VectorDBProvider
-- Return context value (all state and functions)
+**Optional Enhancements:**
 
-*App Integration:*
-- Wrap app routes with VectorDBProvider inside ApiKeyProvider
-- Create wrapper component to access apiKey from ApiKeyContext
-- Pass apiKey to VectorDBProvider
-- Ensure VectorDBProvider is inside BrowserRouter and ApiKeyProvider
+*Error Handling:*
+- Toast notifications for errors (replace console.error)
+- Inline error messages
+- Retry mechanisms for failed uploads
+
+*Empty State:*
+- Illustration or icon when no documents
+- Call-to-action text
+- Upload button in empty state
 
 **Test Requirements:**
 
-Write tests for actual behavior after implementing code. Don't specify exhaustive test lists upfront.
+*E2E Tests:*
+- Drag-drop file upload workflow
+- Progress tracking displays correctly
+- Enhanced validation shows error messages
 
-*Key Behaviors to Test:*
-- File upload flow works end-to-end
-- Invalid file types rejected
-- VectorDBContext provides documents to components
-- Upload refreshes document list
-
-*Testing Strategy:*
-- Write integration tests first (full upload flow)
-- Add unit tests only for complex logic or edge cases
-- Use inline test data initially, extract helpers if duplicated 3+ times
+*Unit Tests:*
+- Only if complex UI logic added (e.g., progress calculation)
 
 **Phase Completion:**
-- FileUpload component created with drag-drop and file input
-- VectorDBContext created with upload/delete/refresh operations
-- useVectorDB hook created for accessing context
-- File validation implemented
-- Progress tracking implemented
-- App.tsx updated to include VectorDBProvider
-- Tests written for key behaviors
+- Enhanced FileUpload with drag-drop implemented
+- Progress tracking system implemented
+- Enhanced DocumentList with better styling
+- Error handling improved
+- Tests updated for new features
 - All tests passing
 - Review changes and commit with appropriate message
+
+**This phase can be skipped if minimal UI from Phase 2 is acceptable.**
 
 ### Phase 4: Background Indexing Pipeline
 
