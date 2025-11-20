@@ -18,23 +18,7 @@ test.describe('Indexing Workflow @live', () => {
     await documentsPage.setup(apiKey);
   });
 
-  test('Phase embeddings: upload → queue → chunk → embed → store', async () => {
-    await documentsPage.expectEmptyState();
-
-    await documentsPage.uploadFiles(PG_ESSAYS.EQUITY);
-    await documentsPage.documentList.waitForFileToAppear(EQUITY_FILENAME);
-
-    const fileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
-    if (!fileId) throw new Error('File not found after upload');
-
-    await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
-
-    await documentsPage.documentList.expectIndexingStatus(fileId, 'completed');
-    const chunkCount = await documentsPage.documentList.getChunkCount(fileId);
-    expect(chunkCount).toBeGreaterThan(0);
-  });
-
-  test('Phase persistence: indexing state survives page reload', async ({ page }) => {
+  test('Phase embeddings: upload → queue → chunk → embed → store → persist after reload', async ({ page }) => {
     await documentsPage.expectEmptyState();
 
     await documentsPage.uploadFiles(PG_ESSAYS.EQUITY);
