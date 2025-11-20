@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { DocumentsPage } from './page-objects/DocumentsPage';
-import { navigateToDocuments, clearPGliteDB } from '../helpers';
 import { TEST_FILES, FILE_NAMES } from '../fixtures/test-files';
 import fs from 'fs';
 
@@ -8,9 +7,9 @@ test.describe('Document Lifecycle', () => {
   let documentsPage: DocumentsPage;
 
   test.beforeEach(async ({ page }) => {
-    await clearPGliteDB(page);
-    await navigateToDocuments(page);
     documentsPage = new DocumentsPage(page);
+    await documentsPage.clearDatabase();
+    await documentsPage.setup();
   });
 
   test('upload, verify, download with content check, delete with cancel, delete with confirm, verify empty', async ({ page }) => {

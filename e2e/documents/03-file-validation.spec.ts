@@ -1,15 +1,14 @@
 import { test } from '@playwright/test';
 import { DocumentsPage } from './page-objects/DocumentsPage';
-import { navigateToDocuments, clearPGliteDB } from '../helpers';
 import { TEST_FILES, FILE_NAMES } from '../fixtures/test-files';
 
 test.describe('File Validation', () => {
   let documentsPage: DocumentsPage;
 
   test.beforeEach(async ({ page }) => {
-    await clearPGliteDB(page);
-    await navigateToDocuments(page);
     documentsPage = new DocumentsPage(page);
+    await documentsPage.clearDatabase();
+    await documentsPage.setup();
   });
 
   test('reject invalid file types, accept valid types', async ({ page }) => {

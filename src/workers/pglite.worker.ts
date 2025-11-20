@@ -30,7 +30,6 @@ async function init(): Promise<{ ready: boolean }> {
 
   db = await PGlite.create({
     dataDir: 'idb://rag-vectors',
-    relaxedDurability: true,
     extensions: { vector },
   })
 

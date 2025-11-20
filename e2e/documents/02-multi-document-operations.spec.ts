@@ -1,15 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { DocumentsPage } from './page-objects/DocumentsPage';
-import { navigateToDocuments, clearPGliteDB } from '../helpers';
 import { TEST_FILES, FILE_NAMES } from '../fixtures/test-files';
 
 test.describe('Multi-Document Operations', () => {
   let documentsPage: DocumentsPage;
 
   test.beforeEach(async ({ page }) => {
-    await clearPGliteDB(page);
-    await navigateToDocuments(page);
     documentsPage = new DocumentsPage(page);
+    await documentsPage.clearDatabase();
+    await documentsPage.setup();
   });
 
   test('upload multiple files, search, filter, sort, delete', async () => {

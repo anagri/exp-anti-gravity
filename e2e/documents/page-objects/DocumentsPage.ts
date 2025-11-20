@@ -20,6 +20,46 @@ export class DocumentsPage {
     this.emptyState = new EmptyStateComponent(page);
   }
 
+  async clearDatabase() {
+    await this.page.goto('/');
+    await this.page.evaluate(async () => {
+      const databases = await indexedDB.databases();
+      console.log('[clearPGliteDB] Available databases:', databases);
+
+      const promises = databases
+        .filter(db => db.name?.includes('rag') || db.name?.includes('pglite'))
+        .map(db => {
+          return new Promise<void>((resolve) => {
+            if (db.name) {
+              console.log('[clearPGliteDB] Deleting database:', db.name);
+              const request = indexedDB.deleteDatabase(db.name);
+              request.onsuccess = () => resolve();
+              request.onerror = () => resolve();
+              request.onblocked = () => resolve();
+            } else {
+              resolve();
+            }
+          });
+        });
+
+      await Promise.all(promises);
+    });
+  }
+
+  async setup(apiKey: string = 'sk-test-key-123') {
+    await this.page.goto('/');
+    await this.page.getByPlaceholder('sk-...').fill(apiKey);
+    await this.page.getByRole('button', { name: 'Start Chatting' }).click();
+    await this.page.waitForURL('/chat');
+    await this.page.goto('/documents');
+    await this.page.waitForURL('/documents');
+
+    await this.page.waitForFunction(() => {
+      const container = document.querySelector('[data-db-initialized]');
+      return container?.getAttribute('data-db-initialized') === 'true';
+    });
+  }
+
   async navigateTo() {
     await this.page.goto('/documents');
     await this.page.waitForURL('/documents');
