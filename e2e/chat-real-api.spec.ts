@@ -3,7 +3,7 @@ import { WelcomePage } from './pages/WelcomePage';
 import { ChatPage } from './pages/ChatPage';
 import { loadTestApiKey } from './utils/env';
 
-test.describe('Chat with Real OpenAI API', () => {
+test.describe('Chat with Real OpenAI API @live', () => {
   let apiKey: string;
   const baseUrl = 'http://127.0.0.1:4173';
 
