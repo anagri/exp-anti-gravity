@@ -13,18 +13,18 @@ import { cn } from '../lib/utils';
 import { ModelSelector } from '../components/ModelSelector';
 import FileSelector from '../components/FileSelector';
 import AttachmentBadges from '../components/AttachmentBadges';
+import { SourceCitations } from '../components/SourceCitations';
 
 export default function ChatPage() {
   const navigate = useNavigate();
   const { apiKey, clearApiKey } = useApiKey();
   const { documents, searchVectors } = useVectorDB();
   const [attachedDocumentIds, setAttachedDocumentIds] = useState<string[]>([]);
-  const { messages, isLoading, error, sendMessage, clearChat, models, selectedModel, setSelectedModel, fetchModels } = useChat({
+  const { messages, isLoading, error, sendMessage, clearChat, models, selectedModel, setSelectedModel, fetchModels, sources } = useChat({
     apiKey,
     attachedDocumentIds,
     searchVectors,
   });
-  // isSearching and sources will be used in Phase ui-citations
   const [inputValue, setInputValue] = useState('');
   const [isFileSelectorOpen, setIsFileSelectorOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -123,7 +123,13 @@ export default function ChatPage() {
                   )}
                 >
                   {msg.role !== 'user' && <Bot className="w-4 h-4 mr-2 mt-0.5 shrink-0" />}
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  <div className="flex-1">
+                    {msg.role === 'assistant' && sources.length > 0 && idx === messages.length - 1 ? (
+                      <SourceCitations content={msg.content} sources={sources} />
+                    ) : (
+                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                    )}
+                  </div>
                   {msg.role === 'user' && <User className="w-4 h-4 ml-2 mt-0.5 shrink-0" />}
                 </div>
               </div>

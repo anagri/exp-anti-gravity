@@ -91,10 +91,14 @@ ${result.content}
       if (attachedDocumentIds.length > 0 && searchVectors) {
         setIsSearching(true);
 
-        // Perform vector search
+        // Perform vector search with lower threshold for better recall
         const searchResults = await searchVectors(content, attachedDocumentIds);
         setSources(searchResults);
         setIsSearching(false);
+
+        if (import.meta.env.DEV) {
+          console.log('[useChat] Vector search results:', searchResults.length, 'chunks found');
+        }
 
         // Format context from search results
         const context = formatContext(searchResults);
@@ -119,6 +123,9 @@ Now answer the user's question using the context above. Remember to cite sources
 
         // Prepend system message to conversation
         messagesToSend = [systemMessage, ...messages, newMessage];
+      } else {
+        // Clear sources for normal chat (no attachments)
+        setSources([]);
       }
 
       const stream = await openai.chat.completions.create({

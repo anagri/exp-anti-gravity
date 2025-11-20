@@ -133,6 +133,7 @@ export default function FileSelector({
                 <div
                   key={doc.id}
                   data-testid={`file-selector-item-${doc.id}`}
+                  data-filename={doc.filename}
                   data-indexing-status={doc.indexing_status || 'pending'}
                   data-selected={isSelected}
                   className={`

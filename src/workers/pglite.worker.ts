@@ -659,7 +659,7 @@ async function searchVectors(params: SearchParams): Promise<SearchResult[]> {
   }
 
   const topK = params.topK ?? 10
-  const similarityThreshold = params.similarityThreshold ?? 0.7
+  const similarityThreshold = params.similarityThreshold ?? 0.3
 
   // Generate query embedding
   const embeddingResponse = await openaiClient.embeddings.create({
