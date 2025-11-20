@@ -31,19 +31,22 @@ export function ModelSelector({ models, selectedModel, onSelect, disabled }: Mod
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          className="w-[200px] justify-between"
-        >
-          {selectedModel || "Select model..."}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
+    <div data-models-loaded={models.length > 0 ? 'true' : 'false'}>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            data-testid="btn-chat-model-trigger"
+            data-selected-model={selectedModel}
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            disabled={disabled}
+            className="w-[200px] justify-between"
+          >
+            {selectedModel || "Select model..."}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0">
         <Command>
           <CommandInput placeholder="Search models..." />
@@ -54,6 +57,7 @@ export function ModelSelector({ models, selectedModel, onSelect, disabled }: Mod
                 <CommandItem
                   key={model}
                   value={model}
+                  data-testid={`select-chat-model-item-${model}`}
                   onSelect={(currentValue) => {
                     onSelect(currentValue)
                     setOpen(false)
@@ -73,5 +77,6 @@ export function ModelSelector({ models, selectedModel, onSelect, disabled }: Mod
         </Command>
       </PopoverContent>
     </Popover>
+    </div>
   )
 }

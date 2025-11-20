@@ -73,10 +73,10 @@ export default function ChatPage() {
           />
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={clearChat} disabled={messages.length === 0}>
+          <Button data-testid="btn-chat-clear" variant="outline" size="sm" onClick={clearChat} disabled={messages.length === 0}>
             Clear Chat
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
+          <Button data-testid="btn-chat-logout" variant="ghost" size="sm" onClick={handleLogout}>
             <LogOut className="w-4 h-4 mr-2" />
             Logout
           </Button>
@@ -85,7 +85,7 @@ export default function ChatPage() {
 
       {/* Chat Area */}
       <main className="flex-1 overflow-hidden p-4 max-w-4xl mx-auto w-full flex flex-col">
-        <Card className="flex-1 flex flex-col overflow-hidden shadow-md bg-white">
+        <Card className="flex-1 flex flex-col overflow-hidden shadow-md bg-white" data-test-state={isLoading ? 'loading' : error ? 'error' : 'ready'}>
           <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
             {messages.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-50">
@@ -103,6 +103,7 @@ export default function ChatPage() {
                 )}
               >
                 <div
+                  data-testid={msg.role === 'user' ? 'div-chat-user-msg' : 'div-chat-assistant-msg'}
                   className={cn(
                     "flex max-w-[80%] rounded-lg p-3 text-sm",
                     msg.role === 'user'
@@ -119,7 +120,7 @@ export default function ChatPage() {
 
             {isLoading && (
               <div className="flex justify-start w-full">
-                <div className="bg-gray-100 rounded-lg p-3 text-sm flex items-center">
+                <div data-testid="div-chat-loading" className="bg-gray-100 rounded-lg p-3 text-sm flex items-center">
                   <Bot className="w-4 h-4 mr-2" />
                   <span className="animate-pulse">Thinking...</span>
                 </div>
@@ -127,7 +128,7 @@ export default function ChatPage() {
             )}
 
             {error && (
-              <div className="text-red-600 text-center text-sm p-2 bg-red-50 rounded-md">
+              <div data-testid="div-chat-error" className="text-red-600 text-center text-sm p-2 bg-red-50 rounded-md">
                 {error}
               </div>
             )}
@@ -137,13 +138,14 @@ export default function ChatPage() {
           <div className="p-4 border-t bg-gray-50/50">
             <form onSubmit={handleSend} className="flex gap-2">
               <Input
+                data-testid="inp-chat-message"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Type a message..."
                 disabled={isLoading}
                 className="flex-1"
               />
-              <Button type="submit" disabled={isLoading || !inputValue.trim()}>
+              <Button data-testid="btn-chat-send" type="submit" disabled={isLoading || !inputValue.trim()}>
                 <Send className="w-4 h-4" />
                 <span className="sr-only">Send</span>
               </Button>

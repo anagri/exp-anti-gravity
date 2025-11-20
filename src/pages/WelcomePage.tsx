@@ -36,6 +36,7 @@ export default function WelcomePage() {
         <form onSubmit={handleSubmit}>
           <CardContent>
             <Input
+              data-testid="inp-welcome-apikey"
               type="password"
               placeholder="sk-..."
               value={inputKey}
@@ -45,7 +46,7 @@ export default function WelcomePage() {
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full">
+            <Button data-testid="btn-welcome-start" type="submit" className="w-full">
               Start Chatting
             </Button>
           </CardFooter>
