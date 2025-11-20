@@ -48,6 +48,58 @@ Implement background job queue that automatically chunks uploaded documents, gen
 
 ---
 
+## Current Codebase State
+
+**Foundation Exists:**
+- **VectorDBContext** (`src/contexts/VectorDBContext.tsx`): Context with documents state, uploadFiles, deleteDocument, refreshDocuments
+- **DocumentCard** (`src/pages/documents/components/DocumentCard.tsx`): Basic card with filename, size, date, download/delete buttons
+- **Worker** (`src/workers/pglite.worker.ts`): PGlite worker with init(), uploadDocument(), getDocuments(), deleteDocument(), setIndexingEnabled()
+- **ApiKeyContext** (`src/contexts/ApiKeyContext.tsx`): Manages OpenAI API key in localStorage (key: 'openai_api_key')
+- **Feature Toggle System**: Runtime localStorage toggles, Settings UI, test integration (FEATURE_INDEXING_ENABLED)
+- **Test Infrastructure**: Page Object Model pattern, component-based test structure, globalSetup fixture
+- **PG Essays**: Test data fixtures at `e2e/fixtures/pg-essays.ts` (5 essays)
+- **pgvector Extension**: Already enabled in worker (`CREATE EXTENSION IF NOT EXISTS vector`)
+
+**To Be Implemented:**
+- IndexingStatusBadge, IndexingProgress components
+- Indexing props on DocumentCard
+- Indexing state in VectorDBContext (indexingProgress Map, retryFailed)
+- Database tables: indexing_queue, chunks
+- Database schema extensions: documents.chunk_count, documents.indexed_at
+- Chunking/embedding/queue processing logic
+- Worker methods: onProgress, startIndexing, retryFailed
+- Indexing test files
+
+---
+
+## PGlite Capabilities Verification
+
+**pgvector Extension Support:**
+- ✅ PGlite includes pgvector in main package
+- ✅ Import via: `import { vector } from '@electric-sql/pglite/vector'`
+- ✅ Already enabled in worker
+
+**vector(1536) Data Type:**
+- ✅ pgvector supports vectors up to 2000 dimensions
+- ✅ 1536 dimensions (OpenAI text-embedding-3-small) fully supported
+- ✅ No size limitations for specified use case
+
+**HNSW Index Support:**
+- ✅ PGlite supports pgvector's HNSW indexes via WASM
+- ✅ Syntax: `CREATE INDEX ON chunks USING hnsw (embedding vector_l2_ops)`
+- ✅ Supports vector_ip_ops (inner product), vector_cosine_ops (cosine), vector_l2_ops (Euclidean)
+- ✅ HNSW_MAX_DIM = 2000 (1536 dimensions supported)
+
+**Distance Functions:**
+- ✅ L2 distance (Euclidean): `<->` operator
+- ✅ Inner product: `<#>` operator
+- ✅ Cosine distance: `<=>` operator
+- ✅ L1, Hamming, Jaccard also available
+
+**Conclusion:** All features specified in this phase are supported by PGlite/pgvector.
+
+---
+
 ## 1. UI Components (BUILD FIRST - TDD Step 1)
 
 **Note:** Application uses existing ApiKeyContext for OpenAI API key management. No separate API key input needed for indexing.
@@ -157,7 +209,7 @@ data-testid="btn-retry-{documentId}"  // Retry button
 
 **Location:** `src/contexts/VectorDBContext.tsx` (EXTEND EXISTING)
 
-**Note:** Worker reads OpenAI API key from existing ApiKeyContext (via localStorage 'openai-api-key'). No separate API key management needed.
+**Note:** Worker reads OpenAI API key from existing ApiKeyContext (via localStorage 'openai_api_key'). No separate API key management needed.
 
 **Add State:**
 ```typescript
@@ -437,7 +489,7 @@ async function getDocuments(): Promise<DocumentWithStatus[]> {
 
 ### 6.2 New Worker Methods
 
-**Note:** Worker reads OpenAI API key from localStorage ('openai-api-key') on init(). No separate setOpenAIKey() method needed.
+**Note:** Worker reads OpenAI API key from localStorage ('openai_api_key') on init(). No separate setOpenAIKey() method needed.
 
 **Worker init() extension:**
 ```typescript
@@ -445,7 +497,7 @@ async function init() {
   // ... existing db init
 
   // Initialize OpenAI client from existing ApiKeyContext
-  const apiKey = localStorage.getItem('openai-api-key')
+  const apiKey = localStorage.getItem('openai_api_key')
   if (apiKey) {
     openaiClient = new OpenAI({
       apiKey,
@@ -506,298 +558,229 @@ interface IndexingProgress {
 
 ### 7.2 Queue Processor
 
-```typescript
-async function processQueue() {
-  if (isProcessing) return
-  isProcessing = true
+**Requirements:**
+- Poll `indexing_queue` for jobs with status='pending'
+- Process oldest job first (ORDER BY created_at ASC)
+- Process one job at a time to avoid race conditions
+- Continue until no pending jobs remain
+- Prevent concurrent processing (single-threaded queue)
 
-  try {
-    while (true) {
-      // Get next pending job
-      const result = await db.query(`
-        SELECT * FROM indexing_queue
-        WHERE status = 'pending'
-        ORDER BY created_at ASC
-        LIMIT 1
-      `)
+**Auto-Start Behavior:**
+- Start queue processor on worker init
+- Poll periodically for new jobs (recommended: every few seconds)
+- Consider brief delays between jobs to avoid CPU thrashing
 
-      if (result.rows.length === 0) break
-
-      const job = result.rows[0]
-      await processJob(job)
-
-      await sleep(100) // Brief delay between jobs
-    }
-  } finally {
-    isProcessing = false
-  }
-}
-
-// Auto-start on worker init
-init().then(() => {
-  processQueue()
-  setInterval(processQueue, 5000) // Poll every 5 seconds
-})
-```
+**Implementation Notes:**
+- Use flag (`isProcessing`) to serialize queue access
+- Query: `SELECT * FROM indexing_queue WHERE status='pending' ORDER BY created_at ASC LIMIT 1`
+- Exit loop when no pending jobs found
+- Handle errors gracefully without stopping queue processor
 
 ### 7.3 Job Processing
 
-```typescript
-async function processJob(job: IndexingJob) {
-  const { id: jobId, document_id } = job
+**Job Lifecycle:**
+1. **Start:** Update indexing_queue: status='processing', started_at=CURRENT_TIMESTAMP
+2. **Chunk:** Split document content into chunks (emit progress updates)
+3. **Embed:** Generate embeddings for all chunks (emit progress updates)
+4. **Store:** Save chunks with embeddings to database (emit progress updates)
+5. **Complete:** Update indexing_queue: status='completed', completed_at=CURRENT_TIMESTAMP
+6. **Finalize:** Update documents: chunk_count, indexed_at=CURRENT_TIMESTAMP
 
-  try {
-    // Mark as processing
-    await db.query(
-      `UPDATE indexing_queue
-       SET status = 'processing', started_at = CURRENT_TIMESTAMP
-       WHERE id = $1`,
-      [jobId]
-    )
+**Progress Stages:**
+- **Chunking** (0-30%): Text splitting phase
+- **Embedding** (30-70%): OpenAI API calls phase
+- **Storing** (70-100%): Database writes phase
+- **Completed** (100%): Job finished successfully
 
-    // Get document content
-    const docResult = await db.query(
-      'SELECT content, filename FROM documents WHERE id = $1',
-      [document_id]
-    )
-    const document = docResult.rows[0]
+**State Transitions:**
+- Success: `pending → processing → completed`
+- Failure: `pending → processing → failed` (or back to `pending` if retry available)
 
-    // Stage 1: Chunking (10-30%)
-    emitProgress(document_id, 'chunking', 10, 'Splitting document into chunks...')
-    const chunks = await chunkDocument(document.content)
-    emitProgress(document_id, 'chunking', 30, `Created ${chunks.length} chunks`)
+**Error Handling:**
+- Catch all errors during processing
+- Delegate to error handler with retry logic
+- Ensure queue entry updated even on failure
 
-    // Stage 2: Embedding (30-70%)
-    emitProgress(document_id, 'embedding', 30, 'Generating embeddings...')
-    const embeddings = await generateEmbeddings(document_id, chunks)
-    emitProgress(document_id, 'embedding', 70, `Generated ${embeddings.length} embeddings`)
-
-    // Stage 3: Storing (70-100%)
-    emitProgress(document_id, 'storing', 70, 'Storing chunks in database...')
-    await storeChunks(document_id, chunks, embeddings)
-    emitProgress(document_id, 'storing', 100, 'All chunks stored')
-
-    // Mark as completed
-    await db.query(
-      `UPDATE indexing_queue
-       SET status = 'completed', completed_at = CURRENT_TIMESTAMP
-       WHERE id = $1`,
-      [jobId]
-    )
-
-    await db.query(
-      `UPDATE documents
-       SET chunk_count = $1, indexed_at = CURRENT_TIMESTAMP
-       WHERE id = $2`,
-      [chunks.length, document_id]
-    )
-
-    emitProgress(document_id, 'completed', 100, 'Indexing completed successfully')
-
-  } catch (error) {
-    await handleJobError(jobId, document_id, job.retry_count, error)
-  }
-}
-```
+**Implementation Notes:**
+- Emit progress at meaningful milestones for smooth UX
+- Balance progress update frequency vs performance overhead
+- Consider progress percentages as guidelines, not strict requirements
+- Include human-readable messages with each progress update
 
 ### 7.4 Chunking with LangChain
 
+**Requirements:**
+- Use LangChain `RecursiveCharacterTextSplitter` for intelligent text splitting
+- Configure for markdown content (respects headings, code blocks, paragraphs)
+- Chunk size: 500-1500 characters (balance between context and granularity)
+- Overlap: 10-20% of chunk size (maintains context across boundaries)
+- Return chunks with optional heading extraction for better context
+
+**Dependency:**
+```bash
+npm install @langchain/textsplitters
+```
+
+**Import:**
 ```typescript
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
-
-async function chunkDocument(content: string): Promise<Array<{ content: string, heading?: string }>> {
-  const splitter = RecursiveCharacterTextSplitter.fromLanguage('markdown', {
-    chunkSize: 1000,
-    chunkOverlap: 200,
-  })
-
-  const documents = await splitter.createDocuments([content])
-
-  return documents.map(doc => ({
-    content: doc.pageContent,
-    heading: extractHeading(doc.pageContent), // Optional: extract ## headings
-  }))
-}
-
-function extractHeading(content: string): string | undefined {
-  const match = content.match(/^##?\s+(.+)$/m)
-  return match ? match[1] : undefined
-}
 ```
+
+**Return Type:**
+```typescript
+Array<{ content: string, heading?: string }>
+```
+
+**Implementation Notes:**
+- Use `.fromLanguage('markdown')` for markdown-aware splitting
+- Extract heading from chunk content using regex: `/^##?\s+(.+)$/m`
+- Heading extraction is optional but improves chunk context
+- Test with Paul Graham essays to tune chunk size for semantic coherence
 
 ### 7.5 OpenAI Embeddings with Batching
 
+**Requirements:**
+- Generate embeddings using OpenAI `text-embedding-3-small` model
+- Dimensions: 1536 (compatible with PGlite pgvector)
+- Process chunks in batches to handle large documents efficiently
+- Emit progress updates after each batch
+- Handle rate limits with exponential backoff retry
+
+**API Configuration:**
 ```typescript
-async function generateEmbeddings(
-  documentId: string,
-  chunks: Array<{ content: string }>
-): Promise<number[][]> {
-  if (!openaiClient) {
-    throw new Error('OpenAI client not initialized. Set API key in application settings.')
-  }
-
-  const allEmbeddings: number[][] = []
-  const batchSize = 100
-
-  for (let i = 0; i < chunks.length; i += batchSize) {
-    const batch = chunks.slice(i, i + batchSize)
-    const inputs = batch.map(c => c.content)
-
-    const embeddings = await generateEmbeddingBatchWithRetry(inputs)
-    allEmbeddings.push(...embeddings)
-
-    const progress = 30 + ((i + batch.length) / chunks.length) * 40
-    emitProgress(
-      documentId,
-      'embedding',
-      Math.round(progress),
-      `Embedded batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(chunks.length / batchSize)}`
-    )
-  }
-
-  return allEmbeddings
-}
-
-async function generateEmbeddingBatchWithRetry(
-  inputs: string[],
-  retries = 3
-): Promise<number[][]> {
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      const response = await openaiClient!.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: inputs,
-        dimensions: 1536,
-      })
-
-      return response.data.map(d => d.embedding)
-
-    } catch (error: any) {
-      if (error.status === 429 && attempt < retries - 1) {
-        // Rate limit - exponential backoff
-        const delay = Math.pow(2, attempt) * 1000 // 1s, 2s, 4s
-        await sleep(delay)
-        continue
-      }
-      throw error
-    }
-  }
-
-  throw new Error('Failed to generate embeddings after retries')
-}
+model: 'text-embedding-3-small'
+dimensions: 1536
+input: string[] // batch of chunk contents
 ```
+
+**Batching Strategy:**
+- Batch size: 50-100 chunks per API call (balance cost vs latency)
+- Process batches sequentially to simplify progress tracking
+- Return: `number[][]` (array of 1536-dimension vectors)
+
+**Rate Limit Handling:**
+- Detect HTTP 429 (rate limit) errors
+- Retry with exponential backoff (e.g., 1s, 2s, 4s, 8s)
+- Max retries: 3-5 attempts recommended
+- Only retry transient errors (429), not auth/validation failures
+
+**Error Messages:**
+- No API key: "OpenAI client not initialized. Set API key in application settings."
+- Rate limit: Include retry attempt info in progress message
+- Other errors: Propagate to job error handler
+
+**Implementation Notes:**
+- OpenAI client already initialized in worker (from ApiKeyContext)
+- Progress updates: emit after each batch with current batch number and total batches
+- Consider batch size vs API limits (check OpenAI docs for current limits)
 
 ### 7.6 Chunk Storage
 
-```typescript
-async function storeChunks(
-  documentId: string,
-  chunks: Array<{ content: string, heading?: string }>,
-  embeddings: number[][]
-) {
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i]
-    const embedding = embeddings[i]
-    const tokenCount = Math.ceil(chunk.content.length / 4)
+**Requirements:**
+- Store chunks and embeddings in `chunks` table
+- Each chunk: UUID, document_id, chunk_index (0-based), content, heading (optional), embedding, token_count
+- Emit progress updates periodically during storage
+- Insert chunks in order to maintain chunk_index consistency
 
-    await db.query(
-      `INSERT INTO chunks (id, document_id, chunk_index, content, heading, embedding, token_count)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        uuidv4(),
-        documentId,
-        i,
-        chunk.content,
-        chunk.heading,
-        `[${embedding.join(',')}]`, // pgvector format
-        tokenCount,
-      ]
-    )
-
-    if (i % 10 === 0) {
-      const progress = 70 + ((i / chunks.length) * 30)
-      emitProgress(
-        documentId,
-        'storing',
-        Math.round(progress),
-        `Stored ${i + 1} of ${chunks.length} chunks`
-      )
-    }
-  }
-}
+**Database Insert:**
+```sql
+INSERT INTO chunks (id, document_id, chunk_index, content, heading, embedding, token_count)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 ```
+
+**Field Values:**
+- `id`: Generated UUID (use uuidv4())
+- `document_id`: From job
+- `chunk_index`: 0-based position (array index)
+- `content`: Chunk text
+- `heading`: Optional heading extracted during chunking
+- `embedding`: Vector in pgvector format: `[${embedding.join(',')}]`
+- `token_count`: Rough estimate (e.g., `Math.ceil(content.length / 4)`)
+
+**Progress Updates:**
+- Emit periodically (e.g., every 10-20 chunks) to balance UX vs performance
+- Include: chunks stored count, total chunks
+- Stage: 'storing', percentage: 70-100%
+
+**Implementation Notes:**
+- Process chunks sequentially to maintain order
+- Consider batch inserts for better performance (trade-off: simpler progress tracking vs speed)
+- Rough token counting is sufficient for display purposes
 
 ### 7.7 Error Handling
 
-```typescript
-async function handleJobError(
-  jobId: string,
-  documentId: string,
-  currentRetryCount: number,
-  error: any
-) {
-  const errorMessage = error.message || String(error)
-  const nextRetryCount = currentRetryCount + 1
-  const maxRetries = 3
+**Requirements:**
+- Catch all errors during job processing
+- Implement automatic retry logic with configurable max retries
+- Update queue status and error message in database
+- Emit progress update with error information
+- Distinguish between retryable and permanent failures
 
-  if (nextRetryCount >= maxRetries) {
-    // Mark as failed
-    await db.query(
-      `UPDATE indexing_queue
-       SET status = 'failed', error_message = $1, completed_at = CURRENT_TIMESTAMP
-       WHERE id = $2`,
-      [errorMessage, jobId]
-    )
+**Retry Logic:**
+- Max retries: 3-5 attempts recommended
+- If retry_count < max_retries: Set status='pending', increment retry_count, store error_message
+- If retry_count >= max_retries: Set status='failed', completed_at=CURRENT_TIMESTAMP
 
-    emitProgress(documentId, 'failed', 0, `Failed: ${errorMessage}`)
-  } else {
-    // Retry
-    await db.query(
-      `UPDATE indexing_queue
-       SET status = 'pending', retry_count = $1, error_message = $2
-       WHERE id = $3`,
-      [nextRetryCount, errorMessage, jobId]
-    )
+**Database Updates:**
 
-    emitProgress(
-      documentId,
-      'failed',
-      0,
-      `Retry ${nextRetryCount}/${maxRetries}: ${errorMessage}`
-    )
-  }
-}
+**For Retry:**
+```sql
+UPDATE indexing_queue
+SET status = 'pending', retry_count = $1, error_message = $2
+WHERE id = $3
 ```
+
+**For Permanent Failure:**
+```sql
+UPDATE indexing_queue
+SET status = 'failed', error_message = $1, completed_at = CURRENT_TIMESTAMP
+WHERE id = $2
+```
+
+**Error Messages:**
+- Extract: `error.message || String(error)`
+- Include retry count in progress update: `Retry ${count}/${maxRetries}: ${message}`
+- Permanent failure: `Failed: ${message}`
+
+**Implementation Notes:**
+- Emit progress with stage='failed', progress=0
+- Store error_message for display in UI
+- Auto-retry happens on next queue poll (no immediate retry)
+- Consider different handling for auth errors (don't retry) vs rate limits (retry with backoff)
 
 ### 7.8 Progress Emission
 
+**Requirements:**
+- Emit progress updates to all registered callbacks (VectorDBContext)
+- Include: documentId, stage, progress (0-100), human-readable message
+- Handle callback errors gracefully (don't crash worker)
+- Log progress in development mode for debugging
+
+**Progress Data Structure:**
 ```typescript
-function emitProgress(
-  documentId: string,
-  stage: IndexingProgress['stage'],
-  progress: number,
+interface IndexingProgress {
+  documentId: string
+  stage: 'chunking' | 'embedding' | 'storing' | 'completed' | 'failed'
+  progress: number // 0-100
   message: string
-) {
-  const progressData: IndexingProgress = {
-    documentId,
-    stage,
-    progress,
-    message,
-  }
-
-  progressCallbacks.forEach(callback => {
-    try {
-      callback(progressData)
-    } catch (error) {
-      console.error('[Worker] Progress callback error:', error)
-    }
-  })
-
-  if (import.meta.env.DEV) {
-    console.log(`[Worker] ${documentId}: ${stage} ${progress}% - ${message}`)
-  }
 }
 ```
+
+**Callback Management:**
+- Store callbacks in array: `progressCallbacks: Array<(progress: IndexingProgress) => void>`
+- Use Comlink.proxy() when registering callbacks to enable cross-worker communication
+- Iterate all callbacks on progress update
+- Catch and log callback errors to prevent worker crash
+
+**Development Logging:**
+- Log progress in DEV environment only
+- Format: `[Worker] ${documentId}: ${stage} ${progress}% - ${message}`
+- Use console.log for info, console.error for callback failures
+
+**Implementation Notes:**
+- Call emitProgress() at meaningful milestones throughout job processing
+- Balance update frequency for smooth UX without performance overhead
+- Messages should be user-friendly and descriptive
 
 ---
 
@@ -904,7 +887,7 @@ export class DocumentListComponent {
 }
 ```
 
-### 8.3 E2E Test Files
+### 8.3 E2E Test Files & Pattern
 
 **Test Files Structure:**
 ```
@@ -915,37 +898,90 @@ e2e/
 └── indexing-workflow-multi.spec.ts       (NEW @live - multiple files, parallel indexing)
 ```
 
+**Test Pattern: Follow documents-upload.spec.ts**
+
+Like `documents-upload.spec.ts`, each test file contains **ONE comprehensive test with multiple scenarios** that build on each other:
+
+```typescript
+// indexing-workflow-basic.spec.ts @live
+test('indexing workflow: queue → chunk → embed → complete → persist', async ({ page }) => {
+  // Scenario 1: Queue creation (Phase db-schema)
+  await documentsPage.uploadFilesAndWait(PG_ESSAYS.EQUITY, PG_ESSAY_NAMES.EQUITY);
+  await documentsPage.expectIndexingStatus(PG_ESSAY_NAMES.EQUITY, 'pending');
+
+  // Scenario 2: Status transitions (Phase queue-processor)
+  await documentsPage.waitForIndexingStatus(PG_ESSAY_NAMES.EQUITY, 'processing', { timeout: 5000 });
+  await documentsPage.expectProgressVisible(PG_ESSAY_NAMES.EQUITY);
+
+  // Scenario 3: Chunking complete (Phase chunking)
+  await documentsPage.waitForIndexingStatus(PG_ESSAY_NAMES.EQUITY, 'completed', { timeout: 30000 });
+  const chunkCount = await documentsPage.getChunkCount(PG_ESSAY_NAMES.EQUITY);
+  expect(chunkCount).toBeGreaterThan(0);
+
+  // Scenario 4: Embeddings stored (Phase embeddings)
+  const hasEmbeddings = await documentsPage.queryDatabase(
+    'SELECT COUNT(*) FROM chunks WHERE document_id = $1 AND embedding IS NOT NULL'
+  );
+  expect(hasEmbeddings).toBeGreaterThan(0);
+
+  // Scenario 5: Persistence (Phase persistence)
+  const chunkCountBeforeReload = chunkCount;
+  await page.reload();
+  await documentsPage.waitForDBInitialized();
+
+  await documentsPage.expectIndexingStatus(PG_ESSAY_NAMES.EQUITY, 'completed');
+  const chunkCountAfterReload = await documentsPage.getChunkCount(PG_ESSAY_NAMES.EQUITY);
+  expect(chunkCountAfterReload).toBe(chunkCountBeforeReload);
+})
+```
+
+**Key Pattern Elements:**
+- ✅ **Single test, multiple scenarios**: One comprehensive workflow per test file
+- ✅ **Scenarios build on each other**: State flows naturally (upload → queue → process → persist)
+- ✅ **No separate setup/teardown**: Earlier scenarios create state for later scenarios
+- ✅ **Extended incrementally**: Add new scenarios as phases are implemented
+- ✅ **Data attribute assertions**: Wait for observable state changes (`data-indexing-status`, etc.)
+
 **Live Test Strategy:**
 - All indexing tests tagged with `@live` (exclude from regular test:e2e)
 - Use real Paul Graham essays from `e2e/fixtures/files/`
-- Each test = comprehensive workflow with multiple phases/assertions
 - Tests hit real OpenAI API (acceptable cost for realistic testing)
 - Run via `npm run test:e2e:live`
-- Error/retry implementation included but not tested (manual verification)
-
-**Paul Graham Essays for Testing:**
-- `078_the_equity_equation.md` (1,142 words) - SHORT: Mathematical ← **Used in basic test**
-- `049_inequality_and_risk.md` (2,854 words) - MEDIUM-SHORT: Economic ← **Used in multi test**
-- `182_the_lesson_to_unlearn.md` (4,059 words) - MEDIUM: Educational
-- `018_a_plan_for_spam.md` (5,374 words) - LONG: Technical, code
-- `021_why_nerds_are_unpopular.md` (5,727 words) - LONGEST: Narrative
+- Error/retry implementation included but not tested (manual verification only)
 
 **Test Essay Selection:**
-- Basic workflow test: Use shortest essay (078) to minimize cost & execution time
-- Multi file test: Use 2 shortest essays (078 + 049) for efficient parallel testing
-- All essays available for manual testing & future expansion
+- `078_the_equity_equation.md` (1,142 words) - **SHORT** ← Used in basic test
+- `049_inequality_and_risk.md` (2,854 words) - **MEDIUM-SHORT** ← Used in multi test
+- `182_the_lesson_to_unlearn.md` (4,059 words) - MEDIUM
+- `018_a_plan_for_spam.md` (5,374 words) - LONG
+- `021_why_nerds_are_unpopular.md` (5,727 words) - LONGEST
 
-**Tests written incrementally per phase** (details in section 9)
+**Incremental Test Development:**
+- Tests extended incrementally across phases (not all written upfront)
+- Each phase adds new scenarios to existing test file
+- Early phases: stub/mock assertions (UI visible, queue created)
+- Later phases: full end-to-end assertions (embeddings stored, persistence works)
 
 ---
 
 ## 9. Incremental TDD Workflow (8 Phases)
 
-Each phase: Build → Test (incrementally) → Pass → Move to next phase
+**Vertical Slice Approach:**
+Each phase (after ui-components foundation) builds a complete vertical slice: **UI + DB + Logic + Tests**. Every phase delivers independently testable value.
 
-**Prerequisite:** Feature toggle system must be complete (feature-flags.spec.ts passing)
+**Workflow per Phase:**
+1. Build: Implement UI updates, database changes, business logic together
+2. Test: Extend existing test file with new scenarios (not new test files)
+3. Pass: All tests pass at phase completion
+4. Move: Next phase builds on working foundation
 
-**Test Strategy:** Write 3 comprehensive workflow tests incrementally across phases, not 8 separate files
+**Prerequisite:** Feature toggle system complete (feature-flags.spec.ts passing)
+
+**Test Strategy:**
+- ONE test file per workflow (`indexing-workflow-basic.spec.ts`, `indexing-workflow-multi.spec.ts`)
+- ONE comprehensive test per file with multiple scenarios (like documents-upload.spec.ts)
+- Extend tests incrementally as phases progress
+- Each scenario tests what was built in that phase
 
 ---
 
@@ -1040,9 +1076,9 @@ Each phase: Build → Test (incrementally) → Pass → Move to next phase
 **Goal:** Generate real embeddings via OpenAI API, store with chunks
 
 **Build:**
-- Worker reads API key from localStorage ('openai-api-key') on init
-- Implement `generateEmbeddings()` with batching (100 chunks/batch)
-- Implement `generateEmbeddingBatchWithRetry()` with exponential backoff
+- Worker reads API key from localStorage ('openai_api_key') on init
+- Implement `generateEmbeddings()` with batching (batch size: implementation choice)
+- Implement retry logic with exponential backoff for rate limits
 - Update `storeChunks()` to include embeddings
 - Update `documents.indexed_at` timestamp
 
@@ -1072,10 +1108,10 @@ test('complete indexing: upload → chunk → embed → complete', async ({ page
 
 **Build:**
 - Implement `emitProgress()` function
-- Add progress emission in `processJob()` at each stage (chunking 10-30%, embedding 30-70%, storing 70-100%)
+- Add progress emission in `processJob()` at each stage (chunking/embedding/storing)
 - Implement `onProgress()` worker method
 - Connect VectorDBContext to worker progress events
-- Update DocumentCard to display progress
+- Update DocumentCard to display progress bar and stage messages
 
 **Test:** Create `e2e/indexing-workflow-multi.spec.ts @live`
 ```typescript
@@ -1103,11 +1139,11 @@ test('progress tracking across multiple files', async ({ page }) => {
 **Goal:** Failed jobs retry automatically, manual retry button works
 
 **Build:**
-- Implement `handleJobError()` with retry logic (max 3 retries)
+- Implement `handleJobError()` with retry logic (max retries: implementation choice)
 - Implement `retryFailed()` worker method
 - Connect `context.retryFailed()` to worker
 - Add retry button to DocumentCard UI
-- Handle rate limit errors with exponential backoff (1s, 2s, 4s)
+- Rate limit errors already handled in embeddings phase
 
 **Test:** No dedicated E2E test (manual verification recommended)
 
@@ -1344,7 +1380,7 @@ While automated E2E tests cover the happy path workflows, certain error scenario
 1. Start application: `npm run dev`
 2. Navigate to Documents page
 3. Open browser DevTools → Application → Local Storage
-4. Set invalid API key: `localStorage.setItem('openai-api-key', 'sk-invalid-key-12345')`
+4. Set invalid API key: `localStorage.setItem('openai_api_key', 'sk-invalid-key-12345')`
 5. Reload page
 
 **Test Steps:**
@@ -1361,7 +1397,7 @@ While automated E2E tests cover the happy path workflows, certain error scenario
 
 **Manual Retry Test:**
 1. Open DevTools → Application → Local Storage
-2. Set valid API key: `localStorage.setItem('openai-api-key', 'YOUR_VALID_KEY')`
+2. Set valid API key: `localStorage.setItem('openai_api_key', 'YOUR_VALID_KEY')`
 3. Click retry button on failed document card
 4. Observe status changes: pending → processing → completed
 
