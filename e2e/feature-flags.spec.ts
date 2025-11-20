@@ -1,5 +1,5 @@
-import { test, expect } from '../fixtures/globalSetup';
-import { DocumentPage } from '../pages/DocumentPage';
+import { test, expect } from './fixtures/globalSetup';
+import { DocumentPage } from './pages/DocumentPage';
 
 test.describe('Feature Flags', () => {
   let documentsPage: DocumentPage;
