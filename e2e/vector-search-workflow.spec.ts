@@ -151,12 +151,14 @@ test.describe('Vector Search & RAG Workflow @live', () => {
     await chatPage.sendMessage(normalQuery);
     await chatPage.waitForAssistantResponse();
 
-    // Verify NO citations in normal chat
-    const normalCitationCount = await chatPage.getCitationCount();
-    expect(normalCitationCount).toBe(0);
+    // Verify NO citations in the last message (normal chat without attachments)
+    // Note: Previous messages will still have their citations (per-message sources)
+    const lastAssistantMsg = page.locator('[data-testid="div-chat-assistant-msg"]').last();
+    const lastMsgCitations = await lastAssistantMsg.locator('[data-citation-index]').count();
+    expect(lastMsgCitations).toBe(0);
 
-    // Verify NO sources footer
-    const normalSourcesCount = await chatPage.getSourcesCount();
-    expect(normalSourcesCount).toBe(0);
+    // Verify NO sources footer in the last message
+    const lastMsgSources = await lastAssistantMsg.locator('[data-source-index]').count();
+    expect(lastMsgSources).toBe(0);
   });
 });
