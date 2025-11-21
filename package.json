@@ -7,7 +7,8 @@
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "test": "vitest run",
     "test:e2e": "playwright test --headed --grep-invert @live",
-    "test:e2e:live": "playwright test --headed --grep @live"
+    "test:e2e:live": "playwright test --headed --grep @live",
+    "test:e2e:all": "playwright test --headed"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.14",
@@ -44,6 +45,8 @@
     "msw": "^2.12.2",
     "typescript": "^5.9.3",
     "vite": "^7.2.2",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.5.0",
     "vitest": "^4.0.10"
   },
   "msw": {

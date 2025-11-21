@@ -21,7 +21,7 @@ export class WelcomePage extends BasePage {
   async submitApiKey(apiKey: string) {
     await this.fillApiKey(apiKey);
     await this.clickStartChat();
-    await this.page.waitForURL('/chat');
+    await this.waitForPath('/chat');
   }
 
   async expectWelcomePageVisible() {
@@ -33,6 +33,6 @@ export class WelcomePage extends BasePage {
   }
 
   async expectAtWelcomePage() {
-    await this.page.waitForURL('/');
+    await this.waitForPath('/');
   }
 }

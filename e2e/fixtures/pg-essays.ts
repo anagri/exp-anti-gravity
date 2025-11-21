@@ -10,6 +10,7 @@ export const PG_ESSAYS = {
   LESSON: path.resolve(__dirname, './files/182_the_lesson_to_unlearn.md'),
   SPAM: path.resolve(__dirname, './files/018_a_plan_for_spam.md'),
   NERDS: path.resolve(__dirname, './files/021_why_nerds_are_unpopular.md'),
+  STARTUP: path.resolve(__dirname, './files/039_how_to_start_a_startup.md'),
 };
 
 export const PG_ESSAY_NAMES = {
@@ -18,6 +19,7 @@ export const PG_ESSAY_NAMES = {
   LESSON: '182_the_lesson_to_unlearn.md',
   SPAM: '018_a_plan_for_spam.md',
   NERDS: '021_why_nerds_are_unpopular.md',
+  STARTUP: '039_how_to_start_a_startup.md',
 };
 
 export const PG_ESSAY_STATS = {
@@ -26,4 +28,5 @@ export const PG_ESSAY_STATS = {
   LESSON: { words: 4059, chars: 23683, topic: 'Education system critique' },
   SPAM: { words: 5374, chars: 33244, topic: 'Bayesian spam filtering' },
   NERDS: { words: 5727, chars: 33517, topic: 'Social dynamics in schools' },
+  STARTUP: { words: 9841, chars: 56256, topic: 'How to start a startup' },
 };

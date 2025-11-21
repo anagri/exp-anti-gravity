@@ -8,6 +8,7 @@ import {
 import * as Comlink from 'comlink'
 import { getWorkerClient } from '@/lib/pglite-client'
 import { isFeatureEnabled, FEATURES } from '@/lib/feature-flags'
+import { useApiKey } from './ApiKeyContext'
 
 interface Document {
   id: string
@@ -60,6 +61,7 @@ const VectorDBContext = createContext<VectorDBContextType | undefined>(
 )
 
 export function VectorDBProvider({ children }: { children: ReactNode }) {
+  const { apiKey } = useApiKey()
   const [initialized, setInitialized] = useState(false)
   const [documents, setDocuments] = useState<Document[]>([])
   const [indexingProgress, _setIndexingProgress] = useState<Map<string, IndexingProgress>>(new Map())
@@ -68,43 +70,74 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function initializeWorker() {
-      try {
-        // Subscribe to worker progress updates BEFORE init starts queue processor (Phase queue-processor)
-        // Wrap callback with Comlink.proxy on MAIN thread (not in worker)
-        await worker.onProgress(Comlink.proxy((progress: IndexingProgress) => {
-          _setIndexingProgress(prev => new Map(prev).set(progress.documentId, progress))
+      const MAX_RETRIES = 3
+      let retryCount = 0
 
-          // Refresh documents to update UI with latest status
-          if (progress.status === 'completed' || progress.status === 'failed') {
-            refreshDocuments()
+      while (retryCount < MAX_RETRIES) {
+        try {
+          // Subscribe to worker progress updates BEFORE init starts queue processor (Phase queue-processor)
+          // Wrap callback with Comlink.proxy on MAIN thread (not in worker)
+          await worker.onProgress(Comlink.proxy((progress: IndexingProgress) => {
+            _setIndexingProgress(prev => new Map(prev).set(progress.documentId, progress))
+
+            // Refresh documents to update UI with latest status
+            if (progress.status === 'completed' || progress.status === 'failed') {
+              refreshDocuments()
+            }
+          }))
+
+          // Send initial feature flag state to worker
+          const indexingEnabled = isFeatureEnabled(FEATURES.INDEXING_ENABLED)
+          await worker.setIndexingEnabled(indexingEnabled)
+
+          // Send OpenAI API key to worker (Phase embeddings)
+          // Workers don't have access to localStorage/context, must pass explicitly
+          await worker.setOpenAIKey(apiKey)
+
+          // Init worker (this starts the queue processor)
+          await worker.init()
+
+          await refreshDocuments()
+          setInitialized(true)
+
+          // Expose worker state for debugging (test environment)
+          if (typeof window !== 'undefined') {
+            (window as any).__getWorkerState = () => worker.getWorkerState()
           }
-        }))
 
-        // Send initial feature flag state to worker
-        const indexingEnabled = isFeatureEnabled(FEATURES.INDEXING_ENABLED)
-        await worker.setIndexingEnabled(indexingEnabled)
+          if (import.meta.env.DEV) {
+            console.log('[VectorDB] Context initialized, indexing enabled:', indexingEnabled)
+          }
 
-        // Send OpenAI API key to worker (Phase embeddings)
-        // Workers don't have access to localStorage, must pass explicitly
-        const apiKey = localStorage.getItem('openai_api_key')
-        await worker.setOpenAIKey(apiKey)
+          break // Success - exit retry loop
+        } catch (error) {
+          retryCount++
+          console.error(`[VectorDB] Initialization error (attempt ${retryCount}/${MAX_RETRIES}):`, error)
 
-        // Init worker (this starts the queue processor)
-        await worker.init()
+          // Check for WASM-specific errors
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          if (errorMessage.includes('WebAssembly') || errorMessage.includes('magic word')) {
+            console.error('[VectorDB] WebAssembly compilation error detected. This may be due to:')
+            console.error('  - WASM files not being served with correct MIME type')
+            console.error('  - Browser cache corruption')
+            console.error('  - Race condition in worker initialization')
+            console.error('  Try: Clear browser cache, hard reload (Cmd+Shift+R), or restart browser')
+          }
 
-        await refreshDocuments()
-        setInitialized(true)
+          if (errorMessage.includes('IndexedDB')) {
+            console.error('[VectorDB] IndexedDB error detected. Try clearing IndexedDB storage:')
+            console.error('  - Open DevTools > Application > Storage > IndexedDB')
+            console.error('  - Delete "rag-vectors" database')
+          }
 
-        // Expose worker state for debugging (test environment)
-        if (typeof window !== 'undefined') {
-          (window as any).__getWorkerState = () => worker.getWorkerState()
+          if (retryCount >= MAX_RETRIES) {
+            console.error('[VectorDB] Failed to initialize after max retries. App may not function correctly.')
+            // Could set an error state here to show user a recovery UI
+          } else {
+            console.log(`[VectorDB] Retrying initialization in ${retryCount}s...`)
+            await new Promise(resolve => setTimeout(resolve, retryCount * 1000))
+          }
         }
-
-        if (import.meta.env.DEV) {
-          console.log('[VectorDB] Context initialized, indexing enabled:', indexingEnabled)
-        }
-      } catch (error) {
-        console.error('[VectorDB] Initialization error:', error)
       }
     }
 
@@ -128,21 +161,16 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('featureFlagChanged', handleFlagChange)
   }, [worker])
 
-  // Listen for API key changes (Phase embeddings)
+  // Sync API key to worker whenever it changes (Phase embeddings)
   useEffect(() => {
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'openai_api_key') {
-        worker.setOpenAIKey(event.newValue)
+    if (initialized) {
+      worker.setOpenAIKey(apiKey)
 
-        if (import.meta.env.DEV) {
-          console.log('[VectorDB] OpenAI key', event.newValue ? 'updated' : 'cleared')
-        }
+      if (import.meta.env.DEV) {
+        console.log('[VectorDB] OpenAI key', apiKey ? 'updated' : 'cleared')
       }
     }
-
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
-  }, [worker])
+  }, [apiKey, initialized, worker])
 
   const refreshDocuments = async () => {
     try {

@@ -290,11 +290,27 @@ function extractHeading(content: string): string | undefined {
 }
 
 /**
+ * Split oversized paragraph into smaller chunks by token count
+ */
+function splitOversizedParagraph(paragraph: string, maxTokens: number): string[] {
+  const tokens = tokenizer!.encode(paragraph)
+  const pieces: string[] = []
+
+  for (let i = 0; i < tokens.length; i += maxTokens) {
+    const chunkTokens = tokens.slice(i, i + maxTokens)
+    const chunkText = tokenizer!.decode(chunkTokens)
+    pieces.push(chunkText)
+  }
+
+  return pieces
+}
+
+/**
  * Token-aware text chunker using tiktoken (Phase chunking - token-based)
  * Splits text into chunks respecting token limits (8192 for text-embedding-3-small)
  */
 function chunkDocument(content: string): Array<{ content: string, heading?: string }> {
-  const MAX_CHUNK_TOKENS = 6000 // Safe margin under 8192 limit
+  const MAX_CHUNK_TOKENS = 2000 // Reduced to fit within context window for RAG
   const MAX_OVERLAP_TOKENS = 200 // Token-based overlap
 
   // Initialize tokenizer
@@ -311,6 +327,31 @@ function chunkDocument(content: string): Array<{ content: string, heading?: stri
     if (!trimmedParagraph) continue
 
     const paragraphTokens = countTokens(trimmedParagraph)
+
+    // If single paragraph exceeds max tokens, split it further
+    if (paragraphTokens > MAX_CHUNK_TOKENS) {
+      // Save current chunk first if not empty
+      if (currentChunk) {
+        chunks.push({
+          content: currentChunk.trim(),
+          heading: extractHeading(currentChunk),
+        })
+        currentChunk = ''
+        currentTokens = 0
+      }
+
+      // Split oversized paragraph into smaller pieces
+      const pieces = splitOversizedParagraph(trimmedParagraph, MAX_CHUNK_TOKENS)
+      for (const piece of pieces) {
+        chunks.push({
+          content: piece,
+          heading: extractHeading(piece),
+        })
+      }
+
+      continue
+    }
+
     const separatorTokens = currentChunk ? countTokens('\n\n') : 0
 
     // If adding this paragraph would exceed chunk size
@@ -745,7 +786,7 @@ async function searchVectors(params: SearchParams): Promise<SearchResult[]> {
     return []
   }
 
-  const topK = params.topK ?? 10
+  const topK = params.topK ?? 3
   const similarityThreshold = params.similarityThreshold ?? 0.3
 
   // Generate query embedding

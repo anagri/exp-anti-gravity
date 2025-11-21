@@ -1,18 +1,20 @@
 import { Page } from '@playwright/test';
+import { BasePage } from './BasePage';
 import { UploadZoneComponent } from './documents/UploadZoneComponent';
 import { DocumentListComponent } from './documents/DocumentListComponent';
 import { DeleteModalComponent } from './documents/DeleteModalComponent';
 import { ToolbarComponent } from './documents/ToolbarComponent';
 import { EmptyStateComponent } from './documents/EmptyStateComponent';
 
-export class DocumentPage {
+export class DocumentPage extends BasePage {
   readonly uploadZone: UploadZoneComponent;
   readonly documentList: DocumentListComponent;
   readonly deleteModal: DeleteModalComponent;
   readonly toolbar: ToolbarComponent;
   readonly emptyState: EmptyStateComponent;
 
-  constructor(private page: Page) {
+  constructor(page: Page, baseUrl: string = 'http://127.0.0.1:4173') {
+    super(page, baseUrl);
     this.uploadZone = new UploadZoneComponent(page);
     this.documentList = new DocumentListComponent(page);
     this.deleteModal = new DeleteModalComponent(page);
@@ -21,12 +23,12 @@ export class DocumentPage {
   }
 
   async setup(apiKey: string = 'sk-test-key-123') {
-    await this.page.goto('/');
+    await this.navigateTo('/');
     await this.page.getByPlaceholder('sk-...').fill(apiKey);
     await this.page.getByRole('button', { name: 'Start Chatting' }).click();
-    await this.page.waitForURL('/chat');
-    await this.page.goto('/documents');
-    await this.page.waitForURL('/documents');
+    await this.waitForPath('/chat');
+    await this.navigateTo('/documents');
+    await this.waitForPath('/documents');
 
     await this.page.waitForFunction(() => {
       const container = document.querySelector('[data-db-initialized]');
@@ -34,13 +36,13 @@ export class DocumentPage {
     });
   }
 
-  async navigateTo() {
-    await this.page.goto('/documents');
-    await this.page.waitForURL('/documents');
+  async navigate() {
+    await this.navigateTo('/documents');
+    await this.waitForPath('/documents');
   }
 
   async navigateToAndWait() {
-    await this.navigateTo();
+    await this.navigate();
     await this.waitForDBInitialized();
   }
 
