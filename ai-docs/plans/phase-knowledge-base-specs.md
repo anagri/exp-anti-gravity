@@ -1,14 +1,23 @@
 # Phase: Knowledge Base Organization - Implementation Specifications
 
-**Status:** In Progress (Phase kb-schema ✅ COMPLETE, Phase kb-management ✅ COMPLETE)
+**Status:** In Progress (Phase kb-schema ✅ COMPLETE, Phase kb-management ✅ COMPLETE, Phase kb-filtering 🔄 PARTIAL)
 **Dependencies:** Phase indexing-pipeline ✅ COMPLETE, Phase vector-search ✅ COMPLETE
 **Goal:** Organize documents into named Knowledge Bases for better multi-project/domain management
+
+**Test Status (as of 2025-11-21):**
+- ✅ Unit tests: 37/37 passing (100%)
+- ✅ E2E tests: 4/5 passing (80%)
+- ❌ `documents-upload.spec.ts` failing (expected - will fix in Phase kb-upload)
+- Overall: 41/42 tests passing (97.6%)
+- **Analysis:** See `ai-docs/test-analysis-kb-phases.md` for detailed breakdown
 
 **Implementation Notes:**
 - Added `chunk_max_tokens` (default: 2000) and `chunk_overlap_tokens` (default: 200) to KB schema
 - Fixed SQL injection issues by using parameterized queries throughout CRUD operations
 - Fixed React state synchronization bug in createKnowledgeBase - query DB directly instead of relying on state
+- Implemented KB expansion/collapse with URL query param sync (?kb={id})
 - E2E tests: 01-kb-crud.spec.ts ✅ 3/3 passing
+- **Known Issue:** `documents-upload.spec.ts` needs update for KB-aware upload flow (Phase kb-upload)
 
 ---
 
