@@ -38,6 +38,10 @@ interface KnowledgeBase {
   embedding_model: string // e.g., 'text-embedding-3-small'
   embedding_dimensions: number // e.g., 768
 
+  // Chunking Configuration
+  chunk_max_tokens: number // max tokens per chunk, default 2000
+  chunk_overlap_tokens: number // overlap between chunks, default 200
+
   // Hybrid Search Configuration
   vector_top_k: number // 1-20, default 3
   similarity_threshold: number // 0-1, default 0.3
@@ -55,6 +59,10 @@ interface KnowledgeBaseConfig {
   // Vector Config
   embedding_model?: string
   embedding_dimensions?: number
+
+  // Chunking Config
+  chunk_max_tokens?: number
+  chunk_overlap_tokens?: number
 
   // Search Config
   vector_top_k?: number
@@ -437,6 +445,8 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             embedding_model TEXT NOT NULL DEFAULT 'text-embedding-3-small',
             embedding_dimensions INTEGER NOT NULL DEFAULT 768,
+            chunk_max_tokens INTEGER NOT NULL DEFAULT 2000,
+            chunk_overlap_tokens INTEGER NOT NULL DEFAULT 200,
             vector_top_k INTEGER NOT NULL DEFAULT ${defaultVectorTopK},
             similarity_threshold REAL NOT NULL DEFAULT ${defaultSimilarityThreshold},
             bm25_limit INTEGER NOT NULL DEFAULT ${defaultBm25Limit},
@@ -648,6 +658,8 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
           kb.updated_at,
           kb.embedding_model,
           kb.embedding_dimensions,
+          kb.chunk_max_tokens,
+          kb.chunk_overlap_tokens,
           kb.vector_top_k,
           kb.similarity_threshold,
           kb.bm25_limit,
@@ -711,6 +723,8 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     const config = params.config || {}
     const embeddingModel = config.embedding_model || 'text-embedding-3-small'
     const embeddingDimensions = config.embedding_dimensions || 768
+    const chunkMaxTokens = config.chunk_max_tokens || 2000
+    const chunkOverlapTokens = config.chunk_overlap_tokens || 200
     const vectorTopK = config.vector_top_k ?? getSearchSetting('VECTOR_TOP_K')
     const similarityThreshold = config.similarity_threshold ?? getSearchSetting('SIMILARITY_THRESHOLD')
     const bm25Limit = config.bm25_limit ?? getSearchSetting('BM25_LIMIT')
@@ -720,33 +734,69 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
     const kbId = uuidv4()
 
-    // Insert KB record
-    await dbGlobal.exec(`
-      INSERT INTO knowledge_bases (
+    // Insert KB record using parameterized query
+    await dbGlobal.query(
+      `INSERT INTO knowledge_bases (
         id, name, description, color,
         embedding_model, embedding_dimensions,
+        chunk_max_tokens, chunk_overlap_tokens,
         vector_top_k, similarity_threshold, bm25_limit,
         hnsw_m, hnsw_ef_construction, rrf_k
-      ) VALUES (
-        '${kbId}', '${trimmedName.replace(/'/g, "''")}',
-        ${params.description ? `'${params.description.replace(/'/g, "''")}'` : 'NULL'},
-        ${params.color ? `'${params.color}'` : 'NULL'},
-        '${embeddingModel}', ${embeddingDimensions},
-        ${vectorTopK}, ${similarityThreshold}, ${bm25Limit},
-        ${hnswM}, ${hnswEfConstruction}, ${rrfK}
-      )
-    `)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+      [
+        kbId,
+        trimmedName,
+        params.description || null,
+        params.color || null,
+        embeddingModel,
+        embeddingDimensions,
+        chunkMaxTokens,
+        chunkOverlapTokens,
+        vectorTopK,
+        similarityThreshold,
+        bm25Limit,
+        hnswM,
+        hnswEfConstruction,
+        rrfK,
+      ]
+    )
 
     // Create KB-specific chunks table
     await createKBChunksTable(kbId, embeddingDimensions, hnswM, hnswEfConstruction)
 
-    // Refresh KB list
-    await refreshKnowledgeBases()
+    // Query the newly created KB directly
+    const result = await dbGlobal.query<KnowledgeBase>(
+      `SELECT
+        kb.id,
+        kb.name,
+        kb.description,
+        kb.color,
+        kb.created_at,
+        kb.updated_at,
+        kb.embedding_model,
+        kb.embedding_dimensions,
+        kb.chunk_max_tokens,
+        kb.chunk_overlap_tokens,
+        kb.vector_top_k,
+        kb.similarity_threshold,
+        kb.bm25_limit,
+        kb.hnsw_m,
+        kb.hnsw_ef_construction,
+        kb.rrf_k,
+        0 as document_count,
+        0 as chunk_count
+      FROM knowledge_bases kb
+      WHERE kb.id = $1`,
+      [kbId]
+    )
 
-    const newKB = knowledgeBases.find(kb => kb.id === kbId)
+    const newKB = result.rows[0]
     if (!newKB) {
       throw new Error('Failed to create knowledge base')
     }
+
+    // Refresh KB list in background
+    refreshKnowledgeBases()
 
     if (import.meta.env.DEV) {
       console.log(`[VectorDB] Created knowledge base: ${trimmedName} (${kbId})`)
@@ -800,6 +850,8 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     const requiresReindex =
       (config.embedding_model && config.embedding_model !== current.embedding_model) ||
       (config.embedding_dimensions && config.embedding_dimensions !== current.embedding_dimensions) ||
+      (config.chunk_max_tokens && config.chunk_max_tokens !== current.chunk_max_tokens) ||
+      (config.chunk_overlap_tokens && config.chunk_overlap_tokens !== current.chunk_overlap_tokens) ||
       (config.hnsw_m && config.hnsw_m !== current.hnsw_m) ||
       (config.hnsw_ef_construction && config.hnsw_ef_construction !== current.hnsw_ef_construction)
 
@@ -812,28 +864,56 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
       return { requiresReindex: true, affectedDocCount: docResult.rows[0]?.count || 0 }
     }
 
-    // Build UPDATE statement
+    // Build UPDATE statement using parameterized query
     const setClauses: string[] = []
-    if (updates.name) setClauses.push(`name = '${updates.name.trim().replace(/'/g, "''")}'`)
+    const params: any[] = []
+    let paramIndex = 1
+
+    if (updates.name) {
+      setClauses.push(`name = $${paramIndex++}`)
+      params.push(updates.name.trim())
+    }
     if (updates.description !== undefined) {
-      setClauses.push(updates.description ? `description = '${updates.description.replace(/'/g, "''")}'` : 'description = NULL')
+      setClauses.push(`description = $${paramIndex++}`)
+      params.push(updates.description)
     }
     if (updates.color !== undefined) {
-      setClauses.push(updates.color ? `color = '${updates.color}'` : 'color = NULL')
+      setClauses.push(`color = $${paramIndex++}`)
+      params.push(updates.color)
     }
-    if (config.vector_top_k !== undefined) setClauses.push(`vector_top_k = ${config.vector_top_k}`)
-    if (config.similarity_threshold !== undefined) setClauses.push(`similarity_threshold = ${config.similarity_threshold}`)
-    if (config.bm25_limit !== undefined) setClauses.push(`bm25_limit = ${config.bm25_limit}`)
-    if (config.rrf_k !== undefined) setClauses.push(`rrf_k = ${config.rrf_k}`)
+    if (config.chunk_max_tokens !== undefined) {
+      setClauses.push(`chunk_max_tokens = $${paramIndex++}`)
+      params.push(config.chunk_max_tokens)
+    }
+    if (config.chunk_overlap_tokens !== undefined) {
+      setClauses.push(`chunk_overlap_tokens = $${paramIndex++}`)
+      params.push(config.chunk_overlap_tokens)
+    }
+    if (config.vector_top_k !== undefined) {
+      setClauses.push(`vector_top_k = $${paramIndex++}`)
+      params.push(config.vector_top_k)
+    }
+    if (config.similarity_threshold !== undefined) {
+      setClauses.push(`similarity_threshold = $${paramIndex++}`)
+      params.push(config.similarity_threshold)
+    }
+    if (config.bm25_limit !== undefined) {
+      setClauses.push(`bm25_limit = $${paramIndex++}`)
+      params.push(config.bm25_limit)
+    }
+    if (config.rrf_k !== undefined) {
+      setClauses.push(`rrf_k = $${paramIndex++}`)
+      params.push(config.rrf_k)
+    }
 
     setClauses.push('updated_at = CURRENT_TIMESTAMP')
 
-    if (setClauses.length > 0) {
-      await dbGlobal.exec(`
-        UPDATE knowledge_bases
-        SET ${setClauses.join(', ')}
-        WHERE id = '${id}'
-      `)
+    if (setClauses.length > 1) { // More than just updated_at
+      params.push(id)
+      await dbGlobal.query(
+        `UPDATE knowledge_bases SET ${setClauses.join(', ')} WHERE id = $${paramIndex}`,
+        params
+      )
     }
 
     await refreshKnowledgeBases()
@@ -851,7 +931,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     }
 
     // Delete KB (CASCADE will delete documents and indexing_queue entries)
-    await dbGlobal.exec(`DELETE FROM knowledge_bases WHERE id = '${id}'`)
+    await dbGlobal.query('DELETE FROM knowledge_bases WHERE id = $1', [id])
 
     // Drop KB-specific chunks table
     const tableName = `kb_${id.replace(/-/g, '_')}_chunks`

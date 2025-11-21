@@ -55,7 +55,7 @@ test.describe('Knowledge Base CRUD', () => {
     await expect(kbCard).toBeVisible();
 
     // Verify KB name is displayed
-    await expect(kbCard.getByText('React Documentation')).toBeVisible();
+    await expect(kbCard.getByRole('heading', { name: 'React Documentation' })).toBeVisible();
 
     // Verify stats (should be 0 documents and 0 chunks initially)
     await expect(kbCard.locator('[data-doc-count="0"]')).toBeVisible();
