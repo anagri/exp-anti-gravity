@@ -107,6 +107,12 @@ export function SourceCitations({ content, sources }: SourceCitationsProps) {
               <div
                 key={source.chunkId}
                 data-source-index={idx + 1}
+                data-chunk-id={source.chunkId}
+                data-vector-score={source.vectorScore ?? 0}
+                data-bm25-score={source.bm25Score ?? 0}
+                data-fused-score={source.fusedScore ?? 0}
+                data-vector-rank={source.vectorRank ?? 0}
+                data-bm25-rank={source.bm25Rank ?? 0}
                 data-source-filename={source.filename}
                 className="text-xs text-gray-600"
               >

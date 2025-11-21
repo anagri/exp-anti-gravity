@@ -3,10 +3,21 @@ import OpenAI from 'openai';
 import type { SearchResult } from '@/contexts/VectorDBContext';
 import { getOpenAIConfig } from '@/lib/feature-flags';
 
+export interface MessageMetadata {
+  chunkIds: string[];
+  vectorScores: number[];
+  bm25Scores: number[];
+  fusedScores: number[];
+  vectorRanks: number[];
+  bm25Ranks: number[];
+  filenames: string[];
+}
+
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   sources?: SearchResult[];
+  metadata?: MessageMetadata;
 }
 
 interface UseChatParams {
@@ -70,6 +81,7 @@ ${result.content}
 
       let messagesToSend: Message[] = [...messages, newMessage];
       let currentMessageSources: SearchResult[] | undefined = undefined;
+      let currentMessageMetadata: MessageMetadata | undefined = undefined;
 
       // RAG flow: Check if documents are attached (Phase rag-integration)
       if (attachedDocumentIds.length > 0 && (searchHybrid || searchVectors)) {
@@ -83,6 +95,19 @@ ${result.content}
 
         if (import.meta.env.DEV) {
           console.log('[useChat] Search results:', searchResults.length, 'chunks found');
+        }
+
+        // Build metadata from search results (Phase test-metadata)
+        if (searchResults.length > 0) {
+          currentMessageMetadata = {
+            chunkIds: searchResults.map(r => r.chunkId),
+            vectorScores: searchResults.map(r => r.vectorScore ?? 0),
+            bm25Scores: searchResults.map(r => r.bm25Score ?? 0),
+            fusedScores: searchResults.map(r => r.fusedScore ?? 0),
+            vectorRanks: searchResults.map(r => r.vectorRank ?? 0),
+            bm25Ranks: searchResults.map(r => r.bm25Rank ?? 0),
+            filenames: searchResults.map(r => r.filename),
+          };
         }
 
         // Format context from search results
@@ -117,14 +142,14 @@ Now answer the user's question using the context above. Remember to cite sources
       });
 
       let assistantContent = '';
-      setMessages(prev => [...prev, { role: 'assistant', content: '', sources: currentMessageSources }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: '', sources: currentMessageSources, metadata: currentMessageMetadata }]);
 
       for await (const chunk of stream) {
         const content = chunk.choices[0]?.delta?.content || '';
         assistantContent += content;
         setMessages(prev => {
           const newMsgs = [...prev];
-          newMsgs[newMsgs.length - 1] = { role: 'assistant', content: assistantContent, sources: currentMessageSources };
+          newMsgs[newMsgs.length - 1] = { role: 'assistant', content: assistantContent, sources: currentMessageSources, metadata: currentMessageMetadata };
           return newMsgs;
         });
       }

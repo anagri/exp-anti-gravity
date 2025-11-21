@@ -155,4 +155,69 @@ export class ChatPage extends BasePage {
     await this.clickTestId(`btn-remove-attachment-${id}`);
   }
 
+  async getMessageMetadata(messageIndex: number): Promise<{
+    chunkIds: string[];
+    vectorScores: number[];
+    bm25Scores: number[];
+    fusedScores: number[];
+    vectorRanks: number[];
+    bm25Ranks: number[];
+    filenames: string[];
+  } | null> {
+    const messageDiv = this.page.locator('[data-testid="div-chat-assistant-msg"]').nth(messageIndex);
+    const metadataDiv = messageDiv.locator('[data-test-metadata]');
+    const metadataCount = await metadataDiv.count();
+
+    if (metadataCount === 0) {
+      return null;
+    }
+
+    const metadataText = await metadataDiv.textContent();
+    if (!metadataText) {
+      return null;
+    }
+
+    return JSON.parse(metadataText);
+  }
+
+  async getSourceScores(messageIndex: number): Promise<{
+    vectorScores: number[];
+    bm25Scores: number[];
+    fusedScores: number[];
+  }> {
+    const messageDiv = this.page.locator('[data-testid="div-chat-assistant-msg"]').nth(messageIndex);
+    const sources = await messageDiv.locator('[data-source-index]').all();
+
+    const vectorScores: number[] = [];
+    const bm25Scores: number[] = [];
+    const fusedScores: number[] = [];
+
+    for (const source of sources) {
+      const vectorScore = await source.getAttribute('data-vector-score');
+      const bm25Score = await source.getAttribute('data-bm25-score');
+      const fusedScore = await source.getAttribute('data-fused-score');
+
+      vectorScores.push(parseFloat(vectorScore || '0'));
+      bm25Scores.push(parseFloat(bm25Score || '0'));
+      fusedScores.push(parseFloat(fusedScore || '0'));
+    }
+
+    return { vectorScores, bm25Scores, fusedScores };
+  }
+
+  async verifyScoreOrdering(messageIndex: number, scoreType: 'fused' | 'vector' | 'bm25'): Promise<boolean> {
+    const scores = await this.getSourceScores(messageIndex);
+    const scoreArray = scoreType === 'fused' ? scores.fusedScores :
+                       scoreType === 'vector' ? scores.vectorScores :
+                       scores.bm25Scores;
+
+    for (let i = 1; i < scoreArray.length; i++) {
+      if (scoreArray[i] > scoreArray[i - 1]) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
 }

@@ -100,5 +100,34 @@ test.describe('Hybrid Search @live', () => {
     expect(finalFirstMsgSources).toBe(firstMsgSources);
     expect(finalSecondMsgSources).toBe(secondMsgSources);
     console.log(`Historical sources preserved after non-RAG query`);
+
+    // Step 8: Verify metadata is exposed (Phase test-metadata)
+    const firstMetadata = await chatPage.getMessageMetadata(0);
+    expect(firstMetadata).not.toBeNull();
+    expect(firstMetadata?.chunkIds.length).toBe(firstMsgSources);
+    expect(firstMetadata?.vectorScores.length).toBe(firstMsgSources);
+    expect(firstMetadata?.bm25Scores.length).toBe(firstMsgSources);
+    expect(firstMetadata?.fusedScores.length).toBe(firstMsgSources);
+    console.log(`First message metadata: ${firstMetadata?.chunkIds.length} chunks with scores`);
+
+    // Step 9: Verify data attributes on sources
+    const firstMsgDiv = page.locator('[data-testid="div-chat-assistant-msg"]').nth(0);
+    const firstSource = firstMsgDiv.locator('[data-source-index="1"]');
+
+    const chunkId = await firstSource.getAttribute('data-chunk-id');
+    const vectorScore = await firstSource.getAttribute('data-vector-score');
+    const bm25Score = await firstSource.getAttribute('data-bm25-score');
+    const fusedScore = await firstSource.getAttribute('data-fused-score');
+
+    expect(chunkId).toBeTruthy();
+    expect(parseFloat(vectorScore || '0')).toBeGreaterThanOrEqual(0);
+    expect(parseFloat(bm25Score || '0')).toBeGreaterThanOrEqual(0);
+    expect(parseFloat(fusedScore || '0')).toBeGreaterThan(0);
+    console.log(`Source attributes verified: chunkId=${chunkId}, fusedScore=${fusedScore}`);
+
+    // Step 10: Verify fused scores are in descending order
+    const scoresOrdered = await chatPage.verifyScoreOrdering(0, 'fused');
+    expect(scoresOrdered).toBe(true);
+    console.log(`Fused scores correctly ordered in descending order`);
   });
 });

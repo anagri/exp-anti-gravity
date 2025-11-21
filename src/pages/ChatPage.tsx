@@ -91,6 +91,15 @@ export default function ChatPage() {
                     ) : (
                       <div className="whitespace-pre-wrap">{msg.content}</div>
                     )}
+                    {msg.role === 'assistant' && msg.metadata && (
+                      <div
+                        data-test-metadata
+                        className="hidden"
+                        aria-hidden="true"
+                      >
+                        {JSON.stringify(msg.metadata)}
+                      </div>
+                    )}
                   </div>
                   {msg.role === 'user' && <User className="w-4 h-4 ml-2 mt-0.5 shrink-0" />}
                 </div>
