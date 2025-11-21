@@ -1,14 +1,20 @@
-import { useState } from 'react'
-import { Settings, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Settings, X, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ModelCombobox } from '@/components/ui/model-combobox'
+import OpenAI from 'openai'
 import {
   getAllFeatureFlags,
   setFeatureFlag,
   getAllSearchSettings,
   setSearchSetting,
   SearchSettings,
+  getAllOpenAIConfig,
+  setOpenAIConfig,
+  getOpenAIConfig,
 } from '@/lib/feature-flags'
+import { useApiKey } from '@/contexts/ApiKeyContext'
 
 interface SettingsDialogProps {
   isOpen: boolean
@@ -71,10 +77,55 @@ const SEARCH_SETTING_CONFIGS: SearchSettingConfig[] = [
 ]
 
 export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
+  const { apiKey, setApiKey: setApiKeyContext } = useApiKey()
   const [featureFlags, setFeatureFlagsState] = useState(getAllFeatureFlags())
   const [searchSettings, setSearchSettingsState] = useState(getAllSearchSettings())
   const [hasFeatureFlagChanges, setHasFeatureFlagChanges] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // OpenAI Configuration state
+  const [openaiConfig, setOpenaiConfigState] = useState(getAllOpenAIConfig())
+  const [localApiKey, setLocalApiKey] = useState(apiKey || '')
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [models, setModels] = useState<string[]>([])
+  const [isLoadingModels, setIsLoadingModels] = useState(false)
+  const [embeddingModelWarning, setEmbeddingModelWarning] = useState(false)
+
+  // Refresh config state when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setOpenaiConfigState(getAllOpenAIConfig())
+      setLocalApiKey(apiKey || '')
+      setSearchSettingsState(getAllSearchSettings())
+      setFeatureFlagsState(getAllFeatureFlags())
+      setEmbeddingModelWarning(false)
+    }
+  }, [isOpen, apiKey])
+
+  const fetchModels = async () => {
+    if (!apiKey) {
+      alert('Please set your API key first')
+      return
+    }
+
+    setIsLoadingModels(true)
+    try {
+      const baseURL = getOpenAIConfig('BASE_URL')
+      const openai = new OpenAI({
+        apiKey: apiKey,
+        baseURL: baseURL || undefined,
+        dangerouslyAllowBrowser: true,
+      })
+      const list = await openai.models.list()
+      const modelIds = list.data.map(m => m.id).sort()
+      setModels(modelIds)
+    } catch (err) {
+      console.error('Failed to fetch models', err)
+      alert('Failed to fetch models. Check your API key and base URL.')
+    } finally {
+      setIsLoadingModels(false)
+    }
+  }
 
   if (!isOpen) return null
 
@@ -108,6 +159,26 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
     setErrors(newErrors)
   }
 
+  const handleSaveApiKey = () => {
+    setApiKeyContext(localApiKey)
+  }
+
+  const handleBaseURLChange = (value: string) => {
+    setOpenAIConfig('BASE_URL', value || undefined)
+    setOpenaiConfigState({ ...openaiConfig, BASE_URL: value || undefined })
+  }
+
+  const handleChatModelChange = (value: string) => {
+    setOpenAIConfig('CHAT_MODEL', value)
+    setOpenaiConfigState({ ...openaiConfig, CHAT_MODEL: value })
+  }
+
+  const handleEmbeddingModelChange = (value: string) => {
+    setOpenAIConfig('EMBEDDING_MODEL', value)
+    setOpenaiConfigState({ ...openaiConfig, EMBEDDING_MODEL: value })
+    setEmbeddingModelWarning(true)
+  }
+
   const handleReload = () => {
     window.location.reload()
   }
@@ -135,6 +206,143 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
           >
             <X className="h-4 w-4" />
           </Button>
+        </div>
+
+        {/* OpenAI Configuration Section */}
+        <div className="mb-8">
+          <h3 className="text-sm font-medium text-gray-700 mb-3">OpenAI Configuration</h3>
+          <p className="text-xs text-gray-600 mb-4">
+            Configure your OpenAI API settings (also editable on welcome page)
+          </p>
+
+          <div className="space-y-4">
+            {/* API Key */}
+            <div className="grid grid-cols-2 gap-4 items-start">
+              <div>
+                <label htmlFor="api-key" className="text-sm font-medium text-gray-900 block mb-1">
+                  API Key
+                </label>
+                <p className="text-xs text-gray-600">Your OpenAI API key</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    id="api-key"
+                    type={showApiKey ? 'text' : 'password'}
+                    value={localApiKey}
+                    onChange={(e) => setLocalApiKey(e.target.value)}
+                    data-testid="input-openai-api-key"
+                    placeholder="sk-..."
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="px-3"
+                    data-testid="btn-toggle-api-key-visibility"
+                  >
+                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveApiKey}
+                  data-testid="btn-save-api-key"
+                  disabled={localApiKey === apiKey}
+                >
+                  Save API Key
+                </Button>
+              </div>
+            </div>
+
+            {/* Base URL */}
+            <div className="grid grid-cols-2 gap-4 items-start">
+              <div>
+                <label htmlFor="base-url" className="text-sm font-medium text-gray-900 block mb-1">
+                  Base URL (Optional)
+                </label>
+                <p className="text-xs text-gray-600">For Azure OpenAI or proxy endpoints</p>
+              </div>
+              <Input
+                id="base-url"
+                type="text"
+                value={openaiConfig.BASE_URL || ''}
+                onChange={(e) => handleBaseURLChange(e.target.value)}
+                data-testid="input-openai-base-url"
+                placeholder="https://api.openai.com/v1 (default)"
+              />
+            </div>
+
+            {/* Refresh Models Button */}
+            <div className="grid grid-cols-2 gap-4 items-start">
+              <div>
+                <label className="text-sm font-medium text-gray-900 block mb-1">
+                  Available Models
+                </label>
+                <p className="text-xs text-gray-600">Fetch models from OpenAI API</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchModels}
+                disabled={isLoadingModels || !apiKey}
+                data-testid="btn-refresh-models"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingModels ? 'animate-spin' : ''}`} />
+                {isLoadingModels ? 'Loading...' : 'Refresh Models'}
+              </Button>
+            </div>
+
+            {/* Chat Model */}
+            {models.length > 0 && (
+              <div className="grid grid-cols-2 gap-4 items-start">
+                <div>
+                  <label htmlFor="chat-model" className="text-sm font-medium text-gray-900 block mb-1">
+                    Chat Model
+                  </label>
+                  <p className="text-xs text-gray-600">Model for chat completions</p>
+                </div>
+                <ModelCombobox
+                  models={models}
+                  value={openaiConfig.CHAT_MODEL}
+                  onValueChange={handleChatModelChange}
+                  placeholder="Select chat model..."
+                  testId="select-chat-model"
+                />
+              </div>
+            )}
+
+            {/* Embeddings Model */}
+            {models.length > 0 && (
+              <div className="grid grid-cols-2 gap-4 items-start">
+                <div>
+                  <label htmlFor="embedding-model" className="text-sm font-medium text-gray-900 block mb-1">
+                    Embeddings Model
+                  </label>
+                  <p className="text-xs text-gray-600">Model for document embeddings</p>
+                </div>
+                <div className="space-y-2">
+                  <ModelCombobox
+                    models={models}
+                    value={openaiConfig.EMBEDDING_MODEL}
+                    onValueChange={handleEmbeddingModelChange}
+                    placeholder="Select embedding model..."
+                    testId="select-embedding-model"
+                  />
+                  {embeddingModelWarning && (
+                    <div
+                      className="p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800"
+                      data-testid="div-embedding-model-warning"
+                    >
+                      ⚠ Changing embeddings model requires re-indexing all documents.
+                      Existing vectors will be incompatible.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Feature Flags Section */}

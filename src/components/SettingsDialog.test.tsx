@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import SettingsDialog from './SettingsDialog'
 import { setSearchSetting } from '@/lib/feature-flags'
+import { ApiKeyProvider } from '@/contexts/ApiKeyContext'
 
 const renderSettingsDialog = (props = {}) => {
   const defaultProps = {
@@ -11,7 +12,9 @@ const renderSettingsDialog = (props = {}) => {
   }
   return render(
     <BrowserRouter>
-      <SettingsDialog {...defaultProps} {...props} />
+      <ApiKeyProvider>
+        <SettingsDialog {...defaultProps} {...props} />
+      </ApiKeyProvider>
     </BrowserRouter>
   )
 }
@@ -25,7 +28,9 @@ describe('SettingsDialog', () => {
   it('does not render when isOpen is false', () => {
     render(
       <BrowserRouter>
-        <SettingsDialog isOpen={false} onClose={vi.fn()} />
+        <ApiKeyProvider>
+          <SettingsDialog isOpen={false} onClose={vi.fn()} />
+        </ApiKeyProvider>
       </BrowserRouter>
     )
 
