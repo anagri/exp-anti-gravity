@@ -7,6 +7,7 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
+  base: '/exp-anti-gravity/',
   plugins: [
     react(),
     tailwindcss(),
