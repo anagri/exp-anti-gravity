@@ -16,6 +16,7 @@ import { useApiKey } from './ApiKeyContext'
 
 // Global instance to prevent re-initialization in React StrictMode
 let dbGlobal: PGlite | undefined
+let isInitializing = false // Prevent concurrent initialization in StrictMode
 
 // Global state
 let indexingEnabled = true
@@ -303,6 +304,18 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
   }
 
   const initializeDatabase = async () => {
+    // Prevent concurrent initialization attempts (StrictMode double-mount)
+    if (isInitializing || dbGlobal) {
+      if (import.meta.env.DEV) {
+        console.log('[VectorDB] Skipping initialization - already initialized or in progress')
+      }
+      if (dbGlobal) {
+        setInitialized(true)
+      }
+      return
+    }
+
+    isInitializing = true
     const MAX_RETRIES = 3
     let retryCount = 0
 
@@ -414,6 +427,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
           console.log('[VectorDB] Context initialized, indexing enabled:', indexingEnabled)
         }
 
+        isInitializing = false // Reset flag on success
         break // Success - exit retry loop
       } catch (error) {
         retryCount++
@@ -432,6 +446,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
             canRetry: true,
           })
           console.error('[VectorDB] Failed to initialize after max retries.')
+          isInitializing = false // Reset flag on failure
         } else {
           console.log(`[VectorDB] Retrying initialization in ${retryCount}s...`)
           await sleep(retryCount * 1000)
@@ -443,8 +458,9 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
   const retryInitialization = async () => {
     setInitError(null)
     setInitialized(false)
-    // Reset global instance to force fresh initialization
+    // Reset global instance and flag to force fresh initialization
     dbGlobal = undefined
+    isInitializing = false
     await initializeDatabase()
   }
 
