@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid'
 import OpenAI from 'openai'
 import { Tiktoken, encodingForModel } from 'js-tiktoken'
 import lunr from 'lunr'
-import { isFeatureEnabled, FEATURES, getSearchSetting } from '@/lib/feature-flags'
+import { isFeatureEnabled, FEATURES, getSearchSetting, getOpenAIConfig } from '@/lib/feature-flags'
 import { useApiKey } from './ApiKeyContext'
 
 // Global instance to prevent re-initialization in React StrictMode
@@ -95,7 +95,8 @@ function sleep(ms: number): Promise<void> {
 
 function initializeTokenizer(): void {
   if (!tokenizer) {
-    tokenizer = encodingForModel('text-embedding-3-small')
+    const embeddingModel = getOpenAIConfig('EMBEDDING_MODEL') as any
+    tokenizer = encodingForModel(embeddingModel)
   }
 }
 
@@ -250,8 +251,9 @@ async function generateEmbeddings(
     const end = Math.min(start + BATCH_SIZE, chunks.length)
     const batchChunks = chunks.slice(start, end)
 
+    const embeddingModel = getOpenAIConfig('EMBEDDING_MODEL')
     const response = await openaiClient.embeddings.create({
-      model: 'text-embedding-3-small',
+      model: embeddingModel,
       input: batchChunks.map(c => c.content),
       dimensions: 1536,
     })
@@ -404,8 +406,10 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
         // Initialize OpenAI client
         if (apiKey) {
+          const baseURL = getOpenAIConfig('BASE_URL');
           openaiClient = new OpenAI({
             apiKey,
+            baseURL: baseURL || undefined,
             dangerouslyAllowBrowser: true,
           })
         }
@@ -473,8 +477,10 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
   // Sync API key to OpenAI client
   useEffect(() => {
     if (apiKey) {
+      const baseURL = getOpenAIConfig('BASE_URL');
       openaiClient = new OpenAI({
         apiKey,
+        baseURL: baseURL || undefined,
         dangerouslyAllowBrowser: true,
       })
     } else {
@@ -935,8 +941,9 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     const topK = getSearchSetting('VECTOR_TOP_K')
     const similarityThreshold = getSearchSetting('SIMILARITY_THRESHOLD')
 
+    const embeddingModel = getOpenAIConfig('EMBEDDING_MODEL')
     const embeddingResponse = await openaiClient.embeddings.create({
-      model: 'text-embedding-3-small',
+      model: embeddingModel,
       input: query,
       dimensions: 1536,
     })
