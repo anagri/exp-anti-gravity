@@ -129,5 +129,27 @@ test.describe('Hybrid Search @live', () => {
     const scoresOrdered = await chatPage.verifyScoreOrdering(0, 'fused');
     expect(scoresOrdered).toBe(true);
     console.log(`Fused scores correctly ordered in descending order`);
+
+    // Step 11: Verify prompt is exposed (Phase prompt-exposure)
+    const firstPrompt = await chatPage.getMessagePrompt(0);
+    expect(firstPrompt).not.toBeNull();
+    expect(firstPrompt).toContain('[SYSTEM]');
+    expect(firstPrompt).toContain('CONTEXT:');
+    expect(firstPrompt).toContain(EQUITY_FILENAME);
+    expect(firstPrompt).toContain('What is equity compensation in startups?');
+    expect(firstPrompt).toContain('[1]'); // Citation markers in context
+    console.log(`First message prompt exposed with system message and context`);
+
+    // Step 12: Verify second prompt contains conversation history
+    const secondPrompt = await chatPage.getMessagePrompt(1);
+    expect(secondPrompt).not.toBeNull();
+    expect(secondPrompt).toContain('What is equity compensation in startups?'); // Previous user query in history
+    expect(secondPrompt).toContain('Tell me about founder equity dilution'); // Current user query
+    console.log(`Second message prompt includes conversation history`);
+
+    // Step 13: Verify non-RAG message has no prompt
+    const thirdPrompt = await chatPage.getMessagePrompt(2);
+    expect(thirdPrompt).toBeNull();
+    console.log(`Non-RAG message correctly has no prompt`);
   });
 });

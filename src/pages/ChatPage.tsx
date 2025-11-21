@@ -100,6 +100,15 @@ export default function ChatPage() {
                         {JSON.stringify(msg.metadata)}
                       </div>
                     )}
+                    {msg.role === 'assistant' && msg.prompt && (
+                      <pre
+                        data-test-prompt
+                        className="hidden"
+                        aria-hidden="true"
+                      >
+                        {msg.prompt}
+                      </pre>
+                    )}
                   </div>
                   {msg.role === 'user' && <User className="w-4 h-4 ml-2 mt-0.5 shrink-0" />}
                 </div>

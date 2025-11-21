@@ -18,6 +18,7 @@ export interface Message {
   content: string;
   sources?: SearchResult[];
   metadata?: MessageMetadata;
+  prompt?: string;
 }
 
 interface UseChatParams {
@@ -82,6 +83,7 @@ ${result.content}
       let messagesToSend: Message[] = [...messages, newMessage];
       let currentMessageSources: SearchResult[] | undefined = undefined;
       let currentMessageMetadata: MessageMetadata | undefined = undefined;
+      let currentMessagePrompt: string | undefined = undefined;
 
       // RAG flow: Check if documents are attached (Phase rag-integration)
       if (attachedDocumentIds.length > 0 && (searchHybrid || searchVectors)) {
@@ -133,6 +135,11 @@ Now answer the user's question using the context above. Remember to cite sources
 
         // Prepend system message to conversation
         messagesToSend = [systemMessage, ...messages, newMessage];
+
+        // Capture full prompt for testing (Phase prompt-exposure)
+        currentMessagePrompt = messagesToSend
+          .map(m => `[${m.role.toUpperCase()}]\n${m.content}`)
+          .join('\n\n---\n\n');
       }
 
       const stream = await openai.chat.completions.create({
@@ -142,14 +149,14 @@ Now answer the user's question using the context above. Remember to cite sources
       });
 
       let assistantContent = '';
-      setMessages(prev => [...prev, { role: 'assistant', content: '', sources: currentMessageSources, metadata: currentMessageMetadata }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: '', sources: currentMessageSources, metadata: currentMessageMetadata, prompt: currentMessagePrompt }]);
 
       for await (const chunk of stream) {
         const content = chunk.choices[0]?.delta?.content || '';
         assistantContent += content;
         setMessages(prev => {
           const newMsgs = [...prev];
-          newMsgs[newMsgs.length - 1] = { role: 'assistant', content: assistantContent, sources: currentMessageSources, metadata: currentMessageMetadata };
+          newMsgs[newMsgs.length - 1] = { role: 'assistant', content: assistantContent, sources: currentMessageSources, metadata: currentMessageMetadata, prompt: currentMessagePrompt };
           return newMsgs;
         });
       }

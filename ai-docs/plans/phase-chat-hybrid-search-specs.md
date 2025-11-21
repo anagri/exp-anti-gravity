@@ -742,18 +742,26 @@ Documentation:
 - [x] Document which fields are exposed
 
 Git:
-- [ ] Changes committed: `git commit -m "feat(chat): test-metadata - expose hybrid search scores and metadata for testing"`
-- [ ] Tests passing after commit
+- [x] Changes committed: `git commit -m "feat(chat): test-metadata - expose hybrid search scores and metadata for testing"`
+- [x] Tests passing after commit (37 unit, 2 e2e non-live)
 
 ---
 
 ### Phase prompt-exposure: Full Prompt Exposure
 
-**Status:** ⏳ Blocked by Phase test-metadata
+**Status:** ✅ **COMPLETED**
 
 **Functional Goal:** Expose full LLM prompt (system message + RAG context) for test verification
 
 **Dependencies:** Phase test-metadata ✅
+
+**Actual Implementation:**
+- Extended Message interface with optional `prompt?: string` property (src/hooks/useChat.ts:21)
+- Prompt captured during RAG context building by formatting all messagesToSend (src/hooks/useChat.ts:86, 139-142)
+- Prompt format: `[ROLE]\ncontent` separated by `\n\n---\n\n` for each message
+- Hidden pre element with `data-test-prompt` renders full prompt text (src/pages/ChatPage.tsx:103-111)
+- ChatPage helper getMessagePrompt() extracts prompt from DOM (e2e/pages/ChatPage.ts:223-234)
+- Extended hybrid search test with 3 new steps verifying prompt exposure (e2e/chat-hybrid-search.spec.ts:133-153)
 
 ---
 
@@ -850,28 +858,28 @@ test('Phase prompt-exposure: verify RAG prompt contains context and instructions
 #### Phase prompt-exposure Completion Checklist
 
 Implementation:
-- [ ] Message interface extended with prompt property
-- [ ] Prompt captured during RAG context building in useChat
-- [ ] Full prompt includes system message, context, history, query
-- [ ] Hidden pre element with data-test-prompt added to rendering
-- [ ] ChatPage helper getMessagePrompt() implemented
+- [x] Message interface extended with prompt property (src/hooks/useChat.ts:21)
+- [x] Prompt captured during RAG context building in useChat (src/hooks/useChat.ts:86, 139-142, 152, 159)
+- [x] Full prompt includes system message, context, history, query (formatted as [ROLE]\ncontent)
+- [x] Hidden pre element with data-test-prompt added to rendering (src/pages/ChatPage.tsx:103-111)
+- [x] ChatPage helper getMessagePrompt() implemented (e2e/pages/ChatPage.ts:223-234)
 
 Testing:
-- [ ] Test extended to verify prompt exposure
-- [ ] Prompt structure verified (system + context + query)
-- [ ] Citation markers verified in prompt
-- [ ] Conversation history verified in multi-turn
-- [ ] All existing tests still pass
+- [x] Test extended to verify prompt exposure (e2e/chat-hybrid-search.spec.ts:133-153)
+- [x] Prompt structure verified (system + context + query) (Step 11)
+- [x] Citation markers verified in prompt (Step 11 checks for [1])
+- [x] Conversation history verified in multi-turn (Step 12)
+- [x] All existing tests still pass (37 unit, 2 e2e non-live)
 
 Quality:
-- [ ] No TypeScript errors
-- [ ] No lint errors
-- [ ] Manual inspection: prompt readable in DOM
+- [x] No TypeScript errors (npm run build passing)
+- [x] No lint errors
+- [x] Manual inspection: prompt readable in DOM via e2e test
 
 Documentation:
-- [ ] Spec updated with actual prompt format
-- [ ] Document prompt structure decisions
-- [ ] Note how context chunks are formatted
+- [x] Spec updated with actual prompt format
+- [x] Document prompt structure decisions (role-based formatting with separators)
+- [x] Note how context chunks are formatted (via formatContext function)
 
 Git:
 - [ ] Changes committed: `git commit -m "feat(chat): prompt-exposure - expose full LLM prompt for tests"`

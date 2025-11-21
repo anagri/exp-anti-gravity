@@ -220,4 +220,17 @@ export class ChatPage extends BasePage {
     return true;
   }
 
+  async getMessagePrompt(messageIndex: number): Promise<string | null> {
+    const messageDiv = this.page.locator('[data-testid="div-chat-assistant-msg"]').nth(messageIndex);
+    const promptPre = messageDiv.locator('[data-test-prompt]');
+    const promptCount = await promptPre.count();
+
+    if (promptCount === 0) {
+      return null;
+    }
+
+    const promptText = await promptPre.textContent();
+    return promptText;
+  }
+
 }
