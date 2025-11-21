@@ -1,5 +1,6 @@
 const STORAGE_PREFIX = 'feature-flag-'
 const SEARCH_SETTINGS_PREFIX = 'search-setting-'
+const OPENAI_CONFIG_PREFIX = 'openai-config-'
 
 export function isFeatureEnabled(flag: string): boolean {
   const key = `${STORAGE_PREFIX}${flag}`
@@ -97,5 +98,74 @@ export function getAllSearchSettings(): SearchSettings {
     BM25_LIMIT: getSearchSetting('BM25_LIMIT'),
     HNSW_M: getSearchSetting('HNSW_M'),
     HNSW_EF_CONSTRUCTION: getSearchSetting('HNSW_EF_CONSTRUCTION')
+  }
+}
+
+// OpenAI Configuration
+export const OPENAI_CONFIG = {
+  BASE_URL: 'BASE_URL',
+  CHAT_MODEL: 'CHAT_MODEL',
+  EMBEDDING_MODEL: 'EMBEDDING_MODEL'
+} as const
+
+export interface OpenAIConfig {
+  BASE_URL?: string
+  CHAT_MODEL: string
+  EMBEDDING_MODEL: string
+}
+
+const DEFAULT_OPENAI_CONFIG: OpenAIConfig = {
+  BASE_URL: undefined,
+  CHAT_MODEL: 'gpt-3.5-turbo',
+  EMBEDDING_MODEL: 'text-embedding-3-small'
+}
+
+/**
+ * Get an OpenAI config value with type safety
+ * Returns default if not set
+ */
+export function getOpenAIConfig<T extends keyof OpenAIConfig>(
+  key: T
+): OpenAIConfig[T] {
+  const storageKey = `${OPENAI_CONFIG_PREFIX}${key}`
+  const value = localStorage.getItem(storageKey)
+
+  if (value === null || value === '') {
+    return DEFAULT_OPENAI_CONFIG[key]
+  }
+
+  return value as OpenAIConfig[T]
+}
+
+/**
+ * Set an OpenAI config value
+ * Dispatches openaiConfigChanged event for listeners
+ */
+export function setOpenAIConfig<T extends keyof OpenAIConfig>(
+  key: T,
+  value: string | undefined
+): void {
+  const storageKey = `${OPENAI_CONFIG_PREFIX}${key}`
+
+  if (value === undefined || value === '') {
+    localStorage.removeItem(storageKey)
+  } else {
+    localStorage.setItem(storageKey, value)
+  }
+
+  // Dispatch custom event for listeners
+  window.dispatchEvent(new CustomEvent('openaiConfigChanged', {
+    detail: { config: key, value }
+  }))
+}
+
+/**
+ * Get all OpenAI config with current or default values
+ */
+export function getAllOpenAIConfig(): OpenAIConfig {
+  return {
+    BASE_URL: getOpenAIConfig('BASE_URL'),
+    CHAT_MODEL: getOpenAIConfig('CHAT_MODEL'),
+    EMBEDDING_MODEL: getOpenAIConfig('EMBEDDING_MODEL')
   }
 }
