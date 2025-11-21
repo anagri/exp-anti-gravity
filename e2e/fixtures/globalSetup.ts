@@ -3,7 +3,7 @@ import { test as base } from '@playwright/test';
 export const test = base.extend<{ globalSetup: void }>({
   globalSetup: [
     async ({ page }, use) => {
-      await page.goto('/');
+      await page.goto('/exp-anti-gravity/');
 
       await page.evaluate(async () => {
         localStorage.clear();

@@ -1,15 +1,23 @@
 import { Page, expect } from '@playwright/test';
 
 export class BasePage {
+  protected readonly basename = '/exp-anti-gravity';
+
   constructor(protected page: Page, protected baseUrl: string) {}
 
   async navigateTo(path: string) {
-    await this.page.goto(`${this.baseUrl}${path}`);
+    await this.page.goto(`${this.baseUrl}${this.basename}${path}`);
+  }
+
+  async waitForPath(path: string) {
+    const expectedPath = path === '/' ? this.basename : `${this.basename}${path}`;
+    await this.page.waitForURL(url => url.pathname === expectedPath);
   }
 
   async expectCurrentPath(pathname: string) {
     const url = new URL(this.page.url());
-    expect(url.pathname).toBe(pathname);
+    const expectedPath = pathname === '/' ? this.basename : `${this.basename}${pathname}`;
+    expect(url.pathname).toBe(expectedPath);
   }
 
   async clickTestId(testId: string) {

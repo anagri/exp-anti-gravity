@@ -52,12 +52,13 @@ export class ChatPage extends BasePage {
   }
 
   async expectChatPageLoaded() {
-    await this.page.waitForURL('/chat');
+    await this.waitForPath('/chat');
   }
 
   async logout() {
     await this.clickTestId('btn-chat-logout');
-    await this.page.waitForURL('/');
+    // Wait for welcome page to appear
+    await expect(this.page.getByText('Welcome to AI Chat')).toBeVisible({ timeout: 10000 });
   }
 
   async clearChat() {
@@ -83,7 +84,7 @@ export class ChatPage extends BasePage {
   }
 
   async navigate() {
-    await this.page.goto('/chat');
+    await this.navigateTo('/chat');
     await this.expectChatPageLoaded();
   }
 

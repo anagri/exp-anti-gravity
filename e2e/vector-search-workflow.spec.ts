@@ -4,7 +4,7 @@ import { ChatPage } from './pages/ChatPage';
 import { PG_ESSAYS, PG_ESSAY_NAMES } from './fixtures/pg-essays';
 import { loadTestApiKey } from './utils/env';
 
-const EQUITY_FILENAME = PG_ESSAY_NAMES.EQUITY;
+const STARTUP_FILENAME = PG_ESSAY_NAMES.STARTUP;
 const INEQUALITY_FILENAME = PG_ESSAY_NAMES.INEQUALITY;
 
 test.describe('Vector Search & RAG Workflow @live', () => {
@@ -24,15 +24,15 @@ test.describe('Vector Search & RAG Workflow @live', () => {
 
   test('RAG workflow: upload → index → attach → search → cite → selective attachment', async ({ page }) => {
     // ─────────────────────────────────────────────────────────
-    // PHASE 1: Upload & Index Two Essays
+    // PHASE 1: Upload & Index Two Essays (including large file)
     // ─────────────────────────────────────────────────────────
     await documentsPage.expectEmptyState();
 
-    // Upload 078_the_equity_equation.md
-    await documentsPage.uploadFiles(PG_ESSAYS.EQUITY);
-    await documentsPage.documentList.waitForFileToAppear(EQUITY_FILENAME);
-    const equityFileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
-    if (!equityFileId) throw new Error('Equity file not found after upload');
+    // Upload 039_how_to_start_a_startup.md (large file - 56KB, tests chunking)
+    await documentsPage.uploadFiles(PG_ESSAYS.STARTUP);
+    await documentsPage.documentList.waitForFileToAppear(STARTUP_FILENAME);
+    const startupFileId = await documentsPage.documentList.findFileByName(STARTUP_FILENAME);
+    if (!startupFileId) throw new Error('Startup file not found after upload');
 
     // Upload 049_inequality_and_risk.md
     await documentsPage.uploadFiles(PG_ESSAYS.INEQUALITY);
@@ -41,13 +41,13 @@ test.describe('Vector Search & RAG Workflow @live', () => {
     if (!inequalityFileId) throw new Error('Inequality file not found after upload');
 
     // Wait for both files to complete indexing
-    await documentsPage.documentList.waitForIndexingStatus(equityFileId, 'completed');
+    await documentsPage.documentList.waitForIndexingStatus(startupFileId, 'completed');
     await documentsPage.documentList.waitForIndexingStatus(inequalityFileId, 'completed');
 
     // Verify chunk counts > 0
-    const equityChunkCount = await documentsPage.documentList.getChunkCount(equityFileId);
+    const startupChunkCount = await documentsPage.documentList.getChunkCount(startupFileId);
     const inequalityChunkCount = await documentsPage.documentList.getChunkCount(inequalityFileId);
-    expect(equityChunkCount).toBeGreaterThan(0);
+    expect(startupChunkCount).toBeGreaterThan(0);
     expect(inequalityChunkCount).toBeGreaterThan(0);
 
     // ─────────────────────────────────────────────────────────
@@ -63,15 +63,15 @@ test.describe('Vector Search & RAG Workflow @live', () => {
     await chatPage.fileSelector.expectOpen();
 
     // Verify both files appear in selector
-    await chatPage.fileSelector.expectFileVisible(EQUITY_FILENAME);
+    await chatPage.fileSelector.expectFileVisible(STARTUP_FILENAME);
     await chatPage.fileSelector.expectFileVisible(INEQUALITY_FILENAME);
 
     // Verify both files have "completed" status (indexed)
-    await chatPage.fileSelector.expectFileIndexed(EQUITY_FILENAME, true);
+    await chatPage.fileSelector.expectFileIndexed(STARTUP_FILENAME, true);
     await chatPage.fileSelector.expectFileIndexed(INEQUALITY_FILENAME, true);
 
     // Select both files
-    await chatPage.fileSelector.selectFile(EQUITY_FILENAME);
+    await chatPage.fileSelector.selectFile(STARTUP_FILENAME);
     await chatPage.fileSelector.selectFile(INEQUALITY_FILENAME);
 
     // Confirm selection
@@ -79,13 +79,13 @@ test.describe('Vector Search & RAG Workflow @live', () => {
 
     // Verify attachment badges appear (count=2)
     await chatPage.expectAttachmentBadges(2);
-    await chatPage.expectAttachmentBadgeVisible(EQUITY_FILENAME);
+    await chatPage.expectAttachmentBadgeVisible(STARTUP_FILENAME);
     await chatPage.expectAttachmentBadgeVisible(INEQUALITY_FILENAME);
 
     // ─────────────────────────────────────────────────────────
     // PHASE 3: Submit RAG Query
     // ─────────────────────────────────────────────────────────
-    const ragQuery = 'What does Paul Graham say about equity and risk?';
+    const ragQuery = 'What does Paul Graham say about starting a startup and dealing with investors?';
     await chatPage.sendMessage(ragQuery);
 
     // Wait for response to complete
@@ -110,8 +110,8 @@ test.describe('Vector Search & RAG Workflow @live', () => {
     // ─────────────────────────────────────────────────────────
     // PHASE 5: Test Selective Attachment
     // ─────────────────────────────────────────────────────────
-    // Remove equity file
-    await chatPage.removeAttachment(EQUITY_FILENAME);
+    // Remove startup file
+    await chatPage.removeAttachment(STARTUP_FILENAME);
 
     // Verify only 1 badge remains
     await chatPage.expectAttachmentBadges(1);
