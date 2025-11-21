@@ -352,6 +352,35 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         // Enable pgvector extension
         await db.query('CREATE EXTENSION IF NOT EXISTS vector')
 
+        // Create knowledge_bases table
+        const defaultVectorTopK = getSearchSetting('VECTOR_TOP_K')
+        const defaultSimilarityThreshold = getSearchSetting('SIMILARITY_THRESHOLD')
+        const defaultBm25Limit = getSearchSetting('BM25_LIMIT')
+        const defaultHnswM = getSearchSetting('HNSW_M')
+        const defaultHnswEfConstruction = getSearchSetting('HNSW_EF_CONSTRUCTION')
+        const defaultRrfK = getSearchSetting('RRF_K')
+
+        await db.exec(`
+          CREATE TABLE IF NOT EXISTS knowledge_bases (
+            id UUID PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE CHECK (length(name) <= 50 AND length(trim(name)) > 0),
+            description TEXT CHECK (description IS NULL OR length(description) <= 500),
+            color TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            embedding_model TEXT NOT NULL DEFAULT 'text-embedding-3-small',
+            embedding_dimensions INTEGER NOT NULL DEFAULT 768,
+            vector_top_k INTEGER NOT NULL DEFAULT ${defaultVectorTopK},
+            similarity_threshold REAL NOT NULL DEFAULT ${defaultSimilarityThreshold},
+            bm25_limit INTEGER NOT NULL DEFAULT ${defaultBm25Limit},
+            hnsw_m INTEGER NOT NULL DEFAULT ${defaultHnswM},
+            hnsw_ef_construction INTEGER NOT NULL DEFAULT ${defaultHnswEfConstruction},
+            rrf_k REAL NOT NULL DEFAULT ${defaultRrfK}
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_knowledge_bases_name ON knowledge_bases(name);
+        `)
+
         // Create documents table
         await db.exec(`
           CREATE TABLE IF NOT EXISTS documents (
@@ -368,6 +397,13 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         await db.exec(`
           ALTER TABLE documents ADD COLUMN IF NOT EXISTS chunk_count INTEGER;
           ALTER TABLE documents ADD COLUMN IF NOT EXISTS indexed_at TIMESTAMP;
+        `)
+
+        // Add knowledge_base_id FK to documents table
+        await db.exec(`
+          ALTER TABLE documents ADD COLUMN IF NOT EXISTS knowledge_base_id UUID REFERENCES knowledge_bases(id) ON DELETE CASCADE;
+
+          CREATE INDEX IF NOT EXISTS idx_documents_knowledge_base_id ON documents(knowledge_base_id);
         `)
 
         // Create indexing_queue table
@@ -486,6 +522,50 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     dbGlobal = undefined
     isInitializing = false
     await initializeDatabase()
+  }
+
+  // Helper method for creating KB-specific chunks tables (used in Phase kb-management)
+  // @ts-expect-error - Will be used when implementing createKnowledgeBase in Phase kb-management
+  const createKBChunksTable = async (
+    kbId: string,
+    dimensions: number,
+    hnswM: number,
+    hnswEfConstruction: number
+  ) => {
+    if (!dbGlobal) {
+      throw new Error('Database not initialized')
+    }
+
+    const tableName = `kb_${kbId.replace(/-/g, '_')}_chunks`
+
+    // Create chunks table for this KB
+    await dbGlobal.exec(`
+      CREATE TABLE IF NOT EXISTS ${tableName} (
+        id UUID PRIMARY KEY,
+        document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+        chunk_index INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        heading TEXT,
+        embedding vector(${dimensions}),
+        token_count INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (document_id, chunk_index)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_${tableName}_document ON ${tableName}(document_id);
+    `)
+
+    // Create HNSW index with KB-specific parameters
+    await dbGlobal.exec(`
+      CREATE INDEX IF NOT EXISTS idx_${tableName}_embedding_hnsw
+      ON ${tableName}
+      USING hnsw (embedding vector_cosine_ops)
+      WITH (m = ${hnswM}, ef_construction = ${hnswEfConstruction});
+    `)
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] Created chunks table for KB ${kbId}: ${tableName} (dimensions: ${dimensions}, hnsw_m: ${hnswM}, hnsw_ef: ${hnswEfConstruction})`)
+    }
   }
 
   useEffect(() => {
