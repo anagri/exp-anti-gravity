@@ -1,8 +1,14 @@
 # Phase: Knowledge Base Organization - Implementation Specifications
 
-**Status:** Planning
+**Status:** In Progress (Phase kb-schema ✅ COMPLETE, Phase kb-management ✅ COMPLETE)
 **Dependencies:** Phase indexing-pipeline ✅ COMPLETE, Phase vector-search ✅ COMPLETE
 **Goal:** Organize documents into named Knowledge Bases for better multi-project/domain management
+
+**Implementation Notes:**
+- Added `chunk_max_tokens` (default: 2000) and `chunk_overlap_tokens` (default: 200) to KB schema
+- Fixed SQL injection issues by using parameterized queries throughout CRUD operations
+- Fixed React state synchronization bug in createKnowledgeBase - query DB directly instead of relying on state
+- E2E tests: 01-kb-crud.spec.ts ✅ 3/3 passing
 
 ---
 
