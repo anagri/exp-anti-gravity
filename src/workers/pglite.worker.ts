@@ -3,15 +3,17 @@ import { vector } from '@electric-sql/pglite/vector'
 import { v4 as uuidv4 } from 'uuid'
 import * as Comlink from 'comlink'
 import OpenAI from 'openai'
+import { Tiktoken, encodingForModel } from 'js-tiktoken'
 
 let db: PGlite | null = null
 let indexingEnabled = true // default to enabled (used in Phase db-schema for conditional queue creation)
 let isProcessing = false // queue processor state (Phase queue-processor)
 let progressCallbacks: Array<(progress: IndexingProgress) => void> = [] // Phase queue-processor
 let openaiClient: OpenAI | null = null // Phase embeddings
+let tokenizer: Tiktoken | null = null // Tokenizer for counting tokens
 
 // Keep TypeScript happy - variables are used
-if (indexingEnabled && !isProcessing && progressCallbacks.length >= 0 && !openaiClient) {
+if (indexingEnabled && !isProcessing && progressCallbacks.length >= 0 && !openaiClient && !tokenizer) {
   // Variables are accessed here to avoid TS6133
 }
 
@@ -260,6 +262,26 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Initialize tokenizer for token counting
+ */
+function initializeTokenizer(): void {
+  if (!tokenizer) {
+    // Use cl100k_base encoding (same as GPT-3.5, GPT-4, and text-embedding-3-small)
+    tokenizer = encodingForModel('text-embedding-3-small')
+  }
+}
+
+/**
+ * Count tokens in text using tiktoken
+ */
+function countTokens(text: string): number {
+  if (!tokenizer) {
+    initializeTokenizer()
+  }
+  return tokenizer!.encode(text).length
+}
+
+/**
  * Extract heading from chunk content (Phase chunking)
  */
 function extractHeading(content: string): string | undefined {
@@ -268,24 +290,31 @@ function extractHeading(content: string): string | undefined {
 }
 
 /**
- * Simple browser-compatible text chunker (Phase chunking)
- * Splits text into chunks respecting word boundaries
+ * Token-aware text chunker using tiktoken (Phase chunking - token-based)
+ * Splits text into chunks respecting token limits (8192 for text-embedding-3-small)
  */
 function chunkDocument(content: string): Array<{ content: string, heading?: string }> {
-  const chunkSize = 1000
-  const chunkOverlap = 200
+  const MAX_CHUNK_TOKENS = 6000 // Safe margin under 8192 limit
+  const MAX_OVERLAP_TOKENS = 200 // Token-based overlap
+
+  // Initialize tokenizer
+  initializeTokenizer()
 
   // Split on paragraph breaks first (double newline)
   const paragraphs = content.split(/\n\n+/)
   const chunks: Array<{ content: string, heading?: string }> = []
   let currentChunk = ''
+  let currentTokens = 0
 
   for (const paragraph of paragraphs) {
     const trimmedParagraph = paragraph.trim()
     if (!trimmedParagraph) continue
 
+    const paragraphTokens = countTokens(trimmedParagraph)
+    const separatorTokens = currentChunk ? countTokens('\n\n') : 0
+
     // If adding this paragraph would exceed chunk size
-    if (currentChunk.length + trimmedParagraph.length + 2 > chunkSize) {
+    if (currentTokens + paragraphTokens + separatorTokens > MAX_CHUNK_TOKENS) {
       // Save current chunk if not empty
       if (currentChunk) {
         chunks.push({
@@ -294,14 +323,29 @@ function chunkDocument(content: string): Array<{ content: string, heading?: stri
         })
 
         // Start new chunk with overlap from end of previous chunk
+        // Extract last N tokens worth of text for overlap
         const words = currentChunk.split(/\s+/)
-        const overlapWords = words.slice(-Math.floor(chunkOverlap / 5)) // rough estimate
-        currentChunk = overlapWords.join(' ') + '\n\n'
+        let overlapText = ''
+        let overlapTokens = 0
+
+        // Build overlap from end, going backwards
+        for (let i = words.length - 1; i >= 0 && overlapTokens < MAX_OVERLAP_TOKENS; i--) {
+          const word = words[i]
+          const testOverlap = word + (overlapText ? ' ' : '') + overlapText
+          const testTokens = countTokens(testOverlap)
+          if (testTokens > MAX_OVERLAP_TOKENS) break
+          overlapText = testOverlap
+          overlapTokens = testTokens
+        }
+
+        currentChunk = overlapText ? overlapText + '\n\n' : ''
+        currentTokens = overlapTokens + (overlapText ? separatorTokens : 0)
       }
     }
 
     // Add paragraph to current chunk
     currentChunk += (currentChunk ? '\n\n' : '') + trimmedParagraph
+    currentTokens = countTokens(currentChunk)
   }
 
   // Add final chunk
@@ -312,12 +356,20 @@ function chunkDocument(content: string): Array<{ content: string, heading?: stri
     })
   }
 
-  return chunks.length > 0 ? chunks : [{ content: content.substring(0, chunkSize), heading: extractHeading(content) }]
+  // Fallback if no chunks created: split content by tokens
+  if (chunks.length === 0 && content.trim()) {
+    const tokens = tokenizer!.encode(content)
+    const chunkTokens = tokens.slice(0, MAX_CHUNK_TOKENS)
+    const chunkContent = tokenizer!.decode(chunkTokens)
+    return [{ content: chunkContent, heading: extractHeading(chunkContent) }]
+  }
+
+  return chunks
 }
 
 /**
  * Generate embeddings for chunks using OpenAI API (Phase embeddings)
- * Processes in batches for efficiency
+ * Processes in batches for efficiency with token validation
  */
 async function generateEmbeddings(
   chunks: Array<{ content: string, heading?: string }>,
@@ -325,6 +377,30 @@ async function generateEmbeddings(
 ): Promise<number[][]> {
   if (!openaiClient) {
     throw new Error('OpenAI client not initialized. Set API key in application settings.')
+  }
+
+  // Validate all chunks before processing
+  const MAX_EMBEDDING_TOKENS = 8191 // OpenAI limit for text-embedding-3-small
+  const WARN_THRESHOLD = 5000 // Warn if chunk is large
+
+  initializeTokenizer()
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i]
+    const tokenCount = countTokens(chunk.content)
+
+    if (tokenCount > MAX_EMBEDDING_TOKENS) {
+      throw new Error(
+        `Chunk ${i} exceeds token limit: ${tokenCount} tokens (max: ${MAX_EMBEDDING_TOKENS}). ` +
+        `This should not happen with proper chunking. Chunk preview: ${chunk.content.substring(0, 100)}...`
+      )
+    }
+
+    if (tokenCount > WARN_THRESHOLD && import.meta.env.DEV) {
+      console.warn(
+        `[PGlite Worker] Large chunk detected: ${tokenCount} tokens (chunk ${i}/${chunks.length})`
+      )
+    }
   }
 
   const BATCH_SIZE = 50
@@ -351,6 +427,15 @@ async function generateEmbeddings(
     onBatchProgress(batchIndex + 1, totalBatches)
   }
 
+  if (import.meta.env.DEV) {
+    const avgTokens = chunks.reduce((sum, c) => sum + countTokens(c.content), 0) / chunks.length
+    const maxTokens = Math.max(...chunks.map(c => countTokens(c.content)))
+    console.log(
+      `[PGlite Worker] Embedding stats: ${chunks.length} chunks, ` +
+      `avg: ${Math.round(avgTokens)} tokens, max: ${maxTokens} tokens`
+    )
+  }
+
   return allEmbeddings
 }
 
@@ -362,10 +447,12 @@ async function storeChunks(
   chunks: Array<{ content: string, heading?: string }>,
   embeddings: number[][]
 ): Promise<void> {
+  initializeTokenizer()
+
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i]
     const embedding = embeddings[i]
-    const tokenCount = Math.ceil(chunk.content.length / 4)
+    const tokenCount = countTokens(chunk.content) // Use actual token counting
 
     // Convert embedding array to pgvector format
     const embeddingStr = `[${embedding.join(',')}]`
