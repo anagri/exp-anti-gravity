@@ -135,7 +135,7 @@ interface VectorDBContextType {
   initError: { message: string; canRetry: boolean } | null
   documents: Document[]
   knowledgeBases: KnowledgeBase[]
-  uploadFiles: (files: File[]) => Promise<void>
+  uploadFiles: (files: File[], kbId?: string) => Promise<void>
   deleteDocument: (id: string) => Promise<void>
   refreshDocuments: () => Promise<void>
   indexingProgress: Map<string, IndexingProgress>
@@ -1024,9 +1024,14 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
           d.*,
           iq.status as indexing_status,
           iq.error_message,
-          iq.retry_count
+          iq.retry_count,
+          kb.name as kb_name,
+          kb.color as kb_color,
+          kb.embedding_model as kb_embedding_model,
+          kb.embedding_dimensions as kb_embedding_dimensions
         FROM documents d
         LEFT JOIN indexing_queue iq ON d.id = iq.document_id
+        LEFT JOIN knowledge_bases kb ON d.knowledge_base_id = kb.id
         ORDER BY d.uploaded_at DESC
       `)
 
@@ -1041,7 +1046,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const uploadFiles = async (files: File[]) => {
+  const uploadFiles = async (files: File[], kbId?: string) => {
     if (!dbGlobal) {
       throw new Error('Database not initialized')
     }
@@ -1063,9 +1068,9 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         const fileSize = new Blob([content]).size
 
         await dbGlobal.query(
-          `INSERT INTO documents (id, filename, content, file_size, mime_type)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [id, file.name, content, fileSize, mimeType]
+          `INSERT INTO documents (id, filename, content, file_size, mime_type, knowledge_base_id)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [id, file.name, content, fileSize, mimeType, kbId || null]
         )
 
         if (indexingEnabled) {

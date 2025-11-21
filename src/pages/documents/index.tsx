@@ -6,6 +6,7 @@ import KBCard from './components/KBCard';
 import CreateKBModal from './components/CreateKBModal';
 import DeleteKBModal from './components/DeleteKBModal';
 import DocumentCard from './components/DocumentCard';
+import UploadZone from './components/UploadZone';
 import TopBar from '@/components/TopBar';
 import { useSearchParams } from 'react-router-dom';
 
@@ -17,6 +18,7 @@ export default function DocumentsPage() {
     refreshKnowledgeBases,
     refreshDocuments,
     deleteDocument,
+    uploadFiles,
     retryFailed,
     indexingProgress,
     initialized,
@@ -28,6 +30,7 @@ export default function DocumentsPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [kbToDelete, setKbToDelete] = useState<{ id: string; name: string; documentCount: number; chunkCount: number } | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Expanded KB state synced with URL
   const expandedKBId = searchParams.get('kb') || null;
@@ -84,6 +87,23 @@ export default function DocumentsPage() {
   const visibleDocuments = expandedKBId
     ? documents.filter((doc) => doc.knowledge_base_id === expandedKBId)
     : [];
+
+  const handleFilesSelected = async (files: File[]) => {
+    if (!expandedKBId) {
+      console.error('[DocumentsPage] Cannot upload without expanded KB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      await uploadFiles(files, expandedKBId);
+      // refreshDocuments is called inside uploadFiles
+    } catch (error) {
+      console.error('[DocumentsPage] Upload error:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col h-screen bg-gray-50" data-testid="page-knowledge-bases" data-db-initialized={initialized}>
@@ -165,9 +185,23 @@ export default function DocumentsPage() {
                       onDelete={() => handleDeleteClick(kb)}
                     />
 
-                    {/* Show documents when KB is expanded */}
+                    {/* Show upload zone and documents when KB is expanded */}
                     {isExpanded && (
                       <div className="mt-4 ml-4 border-l-4 border-blue-500 pl-6">
+                        {/* Upload Zone */}
+                        <div className="mb-6" data-uploading={isUploading}>
+                          <div className="mb-2">
+                            <p className="text-sm font-medium text-gray-700">
+                              Upload documents to: <span className="text-blue-600">{kb.name}</span>
+                            </p>
+                          </div>
+                          <UploadZone
+                            onFilesSelected={handleFilesSelected}
+                            disabled={!initialized || isUploading}
+                          />
+                        </div>
+
+                        {/* Documents List */}
                         {visibleDocuments.length === 0 ? (
                           <p className="text-gray-500 text-sm py-4">
                             No documents in this knowledge base yet
