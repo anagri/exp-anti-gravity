@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import OpenAI from 'openai';
 import type { SearchResult } from '@/contexts/VectorDBContext';
+import { getOpenAIConfig } from '@/lib/feature-flags';
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -24,31 +25,9 @@ export function useChat(params: UseChatParams | string | null) {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sources, setSources] = useState<SearchResult[]>([]);
-  const [models, setModels] = useState<string[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>(() => {
-    return localStorage.getItem('openai_selected_model') || 'gpt-3.5-turbo';
-  });
 
-  useEffect(() => {
-    if (selectedModel) {
-      localStorage.setItem('openai_selected_model', selectedModel);
-    }
-  }, [selectedModel]);
-
-  const fetchModels = async () => {
-    if (!apiKey) return;
-    try {
-      const openai = new OpenAI({
-        apiKey: apiKey,
-        dangerouslyAllowBrowser: true,
-      });
-      const list = await openai.models.list();
-      const modelIds = list.data.map(m => m.id);
-      setModels(modelIds);
-    } catch (err) {
-      console.error('Failed to fetch models', err);
-    }
-  };
+  // Get chat model from config
+  const chatModel = getOpenAIConfig('CHAT_MODEL');
 
   // Format search results into context for LLM (Phase rag-integration)
   const formatContext = (results: SearchResult[]): string => {
@@ -80,8 +59,10 @@ ${result.content}
     setError(null);
 
     try {
+      const baseURL = getOpenAIConfig('BASE_URL');
       const openai = new OpenAI({
         apiKey: apiKey,
+        baseURL: baseURL || undefined,
         dangerouslyAllowBrowser: true,
       });
 
@@ -130,7 +111,7 @@ Now answer the user's question using the context above. Remember to cite sources
 
       const stream = await openai.chat.completions.create({
         messages: messagesToSend.map(m => ({ role: m.role, content: m.content })),
-        model: selectedModel,
+        model: chatModel,
         stream: true,
       });
 
@@ -167,10 +148,6 @@ Now answer the user's question using the context above. Remember to cite sources
     error,
     sendMessage,
     clearChat,
-    models,
-    selectedModel,
-    setSelectedModel,
-    fetchModels,
     sources,
   };
 }
