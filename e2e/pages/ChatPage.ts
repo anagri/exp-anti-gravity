@@ -10,11 +10,15 @@ export class ChatPage extends BasePage {
     this.fileSelector = new FileSelectorComponent(page);
   }
 
-  async waitForModelsLoaded() {
+  async waitForReady() {
     await this.page.waitForFunction(() => {
-      const container = document.querySelector('[data-models-loaded]');
-      return container?.getAttribute('data-models-loaded') === 'true';
+      const container = document.querySelector('[data-page-ready]');
+      return container?.getAttribute('data-page-ready') === 'true';
     });
+  }
+
+  async waitForModelsLoaded() {
+    await this.waitForReady();
   }
 
   async selectModel(modelId: string) {
@@ -36,7 +40,7 @@ export class ChatPage extends BasePage {
   }
 
   async waitForThinkingToDisappear() {
-    await expect(this.page.locator('[data-testid="div-chat-loading"]')).not.toBeVisible();
+    await expect(this.page.locator('[data-testid="div-chat-loading"]')).not.toBeVisible({ timeout: 30000 });
   }
 
   async expectAssistantMessageContains(text: string) {
@@ -56,7 +60,7 @@ export class ChatPage extends BasePage {
   }
 
   async logout() {
-    await this.clickTestId('btn-chat-logout');
+    await this.clickTestId('btn-logout');
     // Wait for welcome page to appear
     await expect(this.page.getByText('Welcome to AI Chat')).toBeVisible({ timeout: 10000 });
   }

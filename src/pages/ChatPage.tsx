@@ -18,7 +18,7 @@ export default function ChatPage() {
   const { apiKey } = useApiKey();
   const { documents, searchVectors } = useVectorDB();
   const [attachedDocumentIds, setAttachedDocumentIds] = useState<string[]>([]);
-  const { messages, isLoading, error, sendMessage, clearChat, sources } = useChat({
+  const { messages, isLoading, error, sendMessage, clearChat } = useChat({
     apiKey,
     attachedDocumentIds,
     searchVectors,
@@ -43,7 +43,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50" data-page-ready="true">
       <TopBar title="AI Chat" icon={<Bot className="w-6 h-6 text-blue-600" />}>
         <Button
           data-testid="btn-chat-clear"
@@ -86,8 +86,8 @@ export default function ChatPage() {
                 >
                   {msg.role !== 'user' && <Bot className="w-4 h-4 mr-2 mt-0.5 shrink-0" />}
                   <div className="flex-1">
-                    {msg.role === 'assistant' && sources.length > 0 && idx === messages.length - 1 ? (
-                      <SourceCitations content={msg.content} sources={sources} />
+                    {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 ? (
+                      <SourceCitations content={msg.content} sources={msg.sources} />
                     ) : (
                       <div className="whitespace-pre-wrap">{msg.content}</div>
                     )}

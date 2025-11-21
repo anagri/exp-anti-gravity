@@ -6,6 +6,7 @@ import { getOpenAIConfig } from '@/lib/feature-flags';
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  sources?: SearchResult[];
 }
 
 interface UseChatParams {
@@ -24,7 +25,6 @@ export function useChat(params: UseChatParams | string | null) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sources, setSources] = useState<SearchResult[]>([]);
 
   // Get chat model from config
   const chatModel = getOpenAIConfig('CHAT_MODEL');
@@ -67,6 +67,7 @@ ${result.content}
       });
 
       let messagesToSend: Message[] = [...messages, newMessage];
+      let currentMessageSources: SearchResult[] | undefined = undefined;
 
       // RAG flow: Check if documents are attached (Phase rag-integration)
       if (attachedDocumentIds.length > 0 && searchVectors) {
@@ -74,7 +75,7 @@ ${result.content}
 
         // Perform vector search with lower threshold for better recall
         const searchResults = await searchVectors(content, attachedDocumentIds);
-        setSources(searchResults);
+        currentMessageSources = searchResults;
         setIsSearching(false);
 
         if (import.meta.env.DEV) {
@@ -104,9 +105,6 @@ Now answer the user's question using the context above. Remember to cite sources
 
         // Prepend system message to conversation
         messagesToSend = [systemMessage, ...messages, newMessage];
-      } else {
-        // Clear sources for normal chat (no attachments)
-        setSources([]);
       }
 
       const stream = await openai.chat.completions.create({
@@ -116,14 +114,14 @@ Now answer the user's question using the context above. Remember to cite sources
       });
 
       let assistantContent = '';
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: '', sources: currentMessageSources }]);
 
       for await (const chunk of stream) {
         const content = chunk.choices[0]?.delta?.content || '';
         assistantContent += content;
         setMessages(prev => {
           const newMsgs = [...prev];
-          newMsgs[newMsgs.length - 1] = { role: 'assistant', content: assistantContent };
+          newMsgs[newMsgs.length - 1] = { role: 'assistant', content: assistantContent, sources: currentMessageSources };
           return newMsgs;
         });
       }
@@ -140,6 +138,10 @@ Now answer the user's question using the context above. Remember to cite sources
     setMessages([]);
     setError(null);
   };
+
+  // Get sources from the last assistant message for backward compatibility
+  const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant');
+  const sources = lastAssistantMessage?.sources || [];
 
   return {
     messages,
