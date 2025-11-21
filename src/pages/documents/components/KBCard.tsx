@@ -9,6 +9,8 @@ interface KBCardProps {
   documentCount: number
   chunkCount: number
   createdAt: string
+  isExpanded?: boolean
+  onClick?: () => void
   onEdit: () => void
   onDelete: () => void
 }
@@ -20,6 +22,8 @@ export default function KBCard({
   documentCount,
   chunkCount,
   createdAt,
+  isExpanded = false,
+  onClick,
   onEdit,
   onDelete,
 }: KBCardProps) {
@@ -35,10 +39,22 @@ export default function KBCard({
 
   return (
     <div
-      className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow relative"
+      className={`bg-white rounded-lg border p-6 transition-all relative ${
+        isExpanded
+          ? 'border-blue-500 shadow-lg'
+          : 'border-gray-200 hover:shadow-md cursor-pointer'
+      }`}
       data-testid={`kb-card-${id}`}
       data-kb-name={name}
-      data-expanded="false"
+      data-expanded={isExpanded}
+      onClick={(e) => {
+        // Don't trigger expand when clicking menu buttons
+        if (e.target instanceof HTMLElement &&
+            (e.target.closest('button') || e.target.closest('[role="button"]'))) {
+          return;
+        }
+        onClick?.();
+      }}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">

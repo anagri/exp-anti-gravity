@@ -5,13 +5,32 @@ import { Button } from '@/components/ui/button';
 import KBCard from './components/KBCard';
 import CreateKBModal from './components/CreateKBModal';
 import DeleteKBModal from './components/DeleteKBModal';
+import DocumentCard from './components/DocumentCard';
 import TopBar from '@/components/TopBar';
+import { useSearchParams } from 'react-router-dom';
 
 export default function DocumentsPage() {
-  const { knowledgeBases, deleteKnowledgeBase, refreshKnowledgeBases, initialized, initError, retryInitialization } = useVectorDB();
+  const {
+    knowledgeBases,
+    documents,
+    deleteKnowledgeBase,
+    refreshKnowledgeBases,
+    refreshDocuments,
+    deleteDocument,
+    retryFailed,
+    indexingProgress,
+    initialized,
+    initError,
+    retryInitialization,
+  } = useVectorDB();
+
+  const [searchParams, setSearchParams] = useSearchParams();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [kbToDelete, setKbToDelete] = useState<{ id: string; name: string; documentCount: number; chunkCount: number } | null>(null);
+
+  // Expanded KB state synced with URL
+  const expandedKBId = searchParams.get('kb') || null;
 
   // Load KBs on mount and after initialization
   useEffect(() => {
@@ -19,6 +38,13 @@ export default function DocumentsPage() {
       refreshKnowledgeBases();
     }
   }, [initialized]);
+
+  // Load documents when KB is expanded
+  useEffect(() => {
+    if (initialized && expandedKBId) {
+      refreshDocuments();
+    }
+  }, [initialized, expandedKBId]);
 
   const handleDeleteClick = (kb: { id: string; name: string; document_count: number; chunk_count: number }) => {
     setKbToDelete({
@@ -42,6 +68,22 @@ export default function DocumentsPage() {
     setDeleteModalOpen(false);
     setKbToDelete(null);
   };
+
+  const handleKBClick = (kbId: string) => {
+    if (expandedKBId === kbId) {
+      // Collapse if already expanded
+      searchParams.delete('kb');
+      setSearchParams(searchParams);
+    } else {
+      // Expand new KB (collapses previous)
+      setSearchParams({ kb: kbId });
+    }
+  };
+
+  // Filter documents to only show those in expanded KB
+  const visibleDocuments = expandedKBId
+    ? documents.filter((doc) => doc.knowledge_base_id === expandedKBId)
+    : [];
 
   return (
     <div className="flex flex-col h-screen bg-gray-50" data-testid="page-knowledge-bases" data-db-initialized={initialized}>
@@ -102,23 +144,58 @@ export default function DocumentsPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {knowledgeBases.map(kb => (
-                <KBCard
-                  key={kb.id}
-                  id={kb.id}
-                  name={kb.name}
-                  description={kb.description}
-                  documentCount={kb.document_count}
-                  chunkCount={kb.chunk_count}
-                  createdAt={kb.created_at}
-                  onEdit={() => {
-                    // TODO: Implement edit in next iteration
-                    console.log('Edit KB:', kb.id);
-                  }}
-                  onDelete={() => handleDeleteClick(kb)}
-                />
-              ))}
+            <div className="space-y-6">
+              {knowledgeBases.map(kb => {
+                const isExpanded = expandedKBId === kb.id;
+                return (
+                  <div key={kb.id}>
+                    <KBCard
+                      id={kb.id}
+                      name={kb.name}
+                      description={kb.description}
+                      documentCount={kb.document_count}
+                      chunkCount={kb.chunk_count}
+                      createdAt={kb.created_at}
+                      isExpanded={isExpanded}
+                      onClick={() => handleKBClick(kb.id)}
+                      onEdit={() => {
+                        // TODO: Implement edit in next iteration
+                        console.log('Edit KB:', kb.id);
+                      }}
+                      onDelete={() => handleDeleteClick(kb)}
+                    />
+
+                    {/* Show documents when KB is expanded */}
+                    {isExpanded && (
+                      <div className="mt-4 ml-4 border-l-4 border-blue-500 pl-6">
+                        {visibleDocuments.length === 0 ? (
+                          <p className="text-gray-500 text-sm py-4">
+                            No documents in this knowledge base yet
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {visibleDocuments.map(doc => (
+                              <DocumentCard
+                                key={doc.id}
+                                document={doc}
+                                onDelete={() => {
+                                  deleteDocument(doc.id);
+                                }}
+                                onRetry={
+                                  doc.indexing_status === 'failed'
+                                    ? () => retryFailed(doc.id)
+                                    : undefined
+                                }
+                                indexingProgress={indexingProgress.get(doc.id)}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
