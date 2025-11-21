@@ -1,104 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useVectorDB } from '@/contexts/VectorDBContext';
-import { FileText } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import UploadZone from './components/UploadZone';
-import DocumentCard from './components/DocumentCard';
-import DeleteModal from './components/DeleteModal';
-import DocumentToolbar from './components/DocumentToolbar';
-import EmptyState from './components/EmptyState';
+import KBCard from './components/KBCard';
+import CreateKBModal from './components/CreateKBModal';
+import DeleteKBModal from './components/DeleteKBModal';
 import TopBar from '@/components/TopBar';
 
-type SortOption = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'size-asc' | 'size-desc';
-type FilterOption = 'all' | 'markdown' | 'text';
-
 export default function DocumentsPage() {
-  const { documents, uploadFiles, deleteDocument, initialized, initError, indexingProgress, retryFailed, retryInitialization } = useVectorDB();
+  const { knowledgeBases, deleteKnowledgeBase, refreshKnowledgeBases, initialized, initError, retryInitialization } = useVectorDB();
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [documentToDelete, setDocumentToDelete] = useState<{ id: string; filename: string } | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortOption, setSortOption] = useState<SortOption>('date-desc');
-  const [filterOption, setFilterOption] = useState<FilterOption>('all');
-  const [isUploading, setIsUploading] = useState(false);
+  const [kbToDelete, setKbToDelete] = useState<{ id: string; name: string; documentCount: number; chunkCount: number } | null>(null);
 
-  const handleFilesSelected = async (files: File[]) => {
-    const validFiles = files.filter(file => {
-      const ext = file.name.toLowerCase().split('.').pop();
-      return ext === 'md' || ext === 'txt';
+  // Load KBs on mount and after initialization
+  useEffect(() => {
+    if (initialized) {
+      refreshKnowledgeBases();
+    }
+  }, [initialized]);
+
+  const handleDeleteClick = (kb: { id: string; name: string; document_count: number; chunk_count: number }) => {
+    setKbToDelete({
+      id: kb.id,
+      name: kb.name,
+      documentCount: kb.document_count,
+      chunkCount: kb.chunk_count,
     });
-
-    if (validFiles.length === 0) {
-      return;
-    }
-
-    setIsUploading(true);
-    try {
-      await uploadFiles(validFiles);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleDeleteClick = (id: string, filename: string) => {
-    setDocumentToDelete({ id, filename });
     setDeleteModalOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!documentToDelete) return;
+    if (!kbToDelete) return;
 
-    await deleteDocument(documentToDelete.id);
+    await deleteKnowledgeBase(kbToDelete.id);
     setDeleteModalOpen(false);
-    setDocumentToDelete(null);
+    setKbToDelete(null);
   };
 
   const handleDeleteCancel = () => {
     setDeleteModalOpen(false);
-    setDocumentToDelete(null);
+    setKbToDelete(null);
   };
 
-  const filteredDocuments = documents
-    .filter(doc => {
-      if (searchQuery) {
-        return doc.filename.toLowerCase().includes(searchQuery.toLowerCase());
-      }
-      return true;
-    })
-    .filter(doc => {
-      if (filterOption === 'all') return true;
-      const ext = doc.filename.toLowerCase().split('.').pop();
-      if (filterOption === 'markdown') return ext === 'md';
-      if (filterOption === 'text') return ext === 'txt';
-      return true;
-    })
-    .sort((a, b) => {
-      switch (sortOption) {
-        case 'date-desc':
-          return new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime();
-        case 'date-asc':
-          return new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime();
-        case 'name-asc':
-          return a.filename.localeCompare(b.filename);
-        case 'name-desc':
-          return b.filename.localeCompare(a.filename);
-        case 'size-asc':
-          return a.file_size - b.file_size;
-        case 'size-desc':
-          return b.file_size - a.file_size;
-        default:
-          return 0;
-      }
-    });
-
   return (
-    <div className="flex flex-col h-screen bg-gray-50" data-db-initialized={initialized} data-uploading={isUploading}>
-      <TopBar title="Documents" icon={<FileText className="w-6 h-6 text-blue-600" />} />
+    <div className="flex flex-col h-screen bg-gray-50" data-testid="page-knowledge-bases" data-db-initialized={initialized}>
+      <TopBar title="Knowledge Bases" icon={<BookOpen className="w-6 h-6 text-blue-600" />}>
+        <Button
+          onClick={() => setCreateModalOpen(true)}
+          disabled={!initialized || !!initError}
+          data-testid="btn-create-kb"
+        >
+          New Knowledge Base
+        </Button>
+      </TopBar>
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-7xl mx-auto">
           {!initialized && !initError && (
-            <p className="text-sm text-gray-500 mb-4" data-testid="div-doc-loading">
+            <p className="text-sm text-gray-500 mb-4">
               Initializing database...
             </p>
           )}
@@ -126,46 +87,58 @@ export default function DocumentsPage() {
               )}
             </div>
           )}
-          {isUploading && (
-            <p className="text-sm text-gray-500 mb-4" data-testid="div-doc-uploading">
-              Uploading...
-            </p>
+
+          {/* Knowledge Bases Grid */}
+          {knowledgeBases.length === 0 ? (
+            <div className="text-center py-12">
+              <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No knowledge bases yet</h3>
+              <p className="text-gray-600 mb-6">Create your first knowledge base to get started</p>
+              <Button
+                onClick={() => setCreateModalOpen(true)}
+                disabled={!initialized || !!initError}
+              >
+                Create Knowledge Base
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {knowledgeBases.map(kb => (
+                <KBCard
+                  key={kb.id}
+                  id={kb.id}
+                  name={kb.name}
+                  description={kb.description}
+                  documentCount={kb.document_count}
+                  chunkCount={kb.chunk_count}
+                  createdAt={kb.created_at}
+                  onEdit={() => {
+                    // TODO: Implement edit in next iteration
+                    console.log('Edit KB:', kb.id);
+                  }}
+                  onDelete={() => handleDeleteClick(kb)}
+                />
+              ))}
+            </div>
           )}
 
-        <UploadZone onFilesSelected={handleFilesSelected} disabled={isUploading || !initialized || !!initError} />
+          {/* Modals */}
+          {createModalOpen && (
+            <CreateKBModal
+              onClose={() => setCreateModalOpen(false)}
+              onSuccess={() => refreshKnowledgeBases()}
+            />
+          )}
 
-        <DocumentToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          sortOption={sortOption}
-          onSortChange={setSortOption}
-          filterOption={filterOption}
-          onFilterChange={setFilterOption}
-        />
-
-        {filteredDocuments.length === 0 && !searchQuery && !isUploading ? (
-          <EmptyState />
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredDocuments.map(doc => (
-              <DocumentCard
-                key={doc.id}
-                document={doc}
-                onDelete={() => handleDeleteClick(doc.id, doc.filename)}
-                onRetry={() => retryFailed(doc.id)}
-                indexingProgress={indexingProgress.get(doc.id)}
-              />
-            ))}
-          </div>
-        )}
-
-        {deleteModalOpen && documentToDelete && (
-          <DeleteModal
-            filename={documentToDelete.filename}
-            onConfirm={handleDeleteConfirm}
-            onCancel={handleDeleteCancel}
-          />
-        )}
+          {deleteModalOpen && kbToDelete && (
+            <DeleteKBModal
+              kbName={kbToDelete.name}
+              documentCount={kbToDelete.documentCount}
+              chunkCount={kbToDelete.chunkCount}
+              onConfirm={handleDeleteConfirm}
+              onCancel={handleDeleteCancel}
+            />
+          )}
         </div>
       </div>
     </div>
