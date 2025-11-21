@@ -63,7 +63,7 @@ function CitationMarker({ index, source }: CitationMarkerProps) {
           )}
           <div className="text-gray-200 line-clamp-3">{source.content}</div>
           <div className="text-gray-400 mt-1 text-xs">
-            Similarity: {(source.similarity * 100).toFixed(1)}%
+            Similarity: {((source.similarity || 0) * 100).toFixed(1)}%
           </div>
           <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900" />
         </div>
@@ -116,7 +116,7 @@ export function SourceCitations({ content, sources }: SourceCitationsProps) {
                   <span className="text-gray-500"> - {source.heading}</span>
                 )}
                 <span className="text-gray-400 ml-2">
-                  ({(source.similarity * 100).toFixed(0)}% match)
+                  ({((source.similarity || 0) * 100).toFixed(0)}% match)
                 </span>
               </div>
             ))}

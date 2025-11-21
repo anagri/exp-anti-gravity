@@ -5,6 +5,7 @@ import { VectorDBProvider } from './contexts/VectorDBContext';
 import WelcomePage from './pages/WelcomePage';
 import ChatPage from './pages/ChatPage';
 import DocumentsPage from './pages/documents';
+import SearchPage from './pages/SearchPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { apiKey } = useApiKey();
@@ -31,6 +32,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <DocumentsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/search"
+        element={
+          <ProtectedRoute>
+            <SearchPage />
           </ProtectedRoute>
         }
       />

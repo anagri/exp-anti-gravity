@@ -10,6 +10,7 @@ import { vector } from '@electric-sql/pglite/vector'
 import { v4 as uuidv4 } from 'uuid'
 import OpenAI from 'openai'
 import { Tiktoken, encodingForModel } from 'js-tiktoken'
+import lunr from 'lunr'
 import { isFeatureEnabled, FEATURES } from '@/lib/feature-flags'
 import { useApiKey } from './ApiKeyContext'
 
@@ -21,6 +22,7 @@ let indexingEnabled = true
 let isProcessing = false
 let openaiClient: OpenAI | null = null
 let tokenizer: Tiktoken | null = null
+let lunrIndex: lunr.Index | null = null
 
 interface Document {
   id: string
@@ -54,7 +56,8 @@ interface SearchResult {
   heading: string | null
   content: string
   chunkIndex: number
-  similarity: number
+  similarity?: number
+  score?: number
 }
 
 interface IndexingJob {
@@ -77,6 +80,7 @@ interface VectorDBContextType {
   retryFailed: (documentId: string) => Promise<void>
   retryInitialization: () => Promise<void>
   searchVectors: (query: string, documentIds: string[]) => Promise<SearchResult[]>
+  searchBM25: (query: string, limit?: number) => Promise<SearchResult[]>
 }
 
 const VectorDBContext = createContext<VectorDBContextType | undefined>(
@@ -391,6 +395,13 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
           })
         }
 
+        // Build Lunr index if chunks exist
+        const chunkCountResult = await db.query<{ count: number }>('SELECT COUNT(*) as count FROM chunks')
+        const chunkCount = parseInt(chunkCountResult.rows[0]?.count?.toString() || '0')
+        if (chunkCount > 0) {
+          await buildLunrIndex()
+        }
+
         // Start queue processor
         processQueue()
         setInterval(() => processQueue(), 2000)
@@ -666,6 +677,9 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         [chunks.length, document_id]
       )
 
+      // Rebuild Lunr index after adding new chunks
+      await buildLunrIndex()
+
       emitProgress(document_id, 'completed', 100, 'completed', 'Indexing completed successfully')
 
       await refreshDocuments()
@@ -744,8 +758,122 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const buildLunrIndex = async () => {
+    if (!dbGlobal) {
+      throw new Error('Database not initialized')
+    }
+
+    if (import.meta.env.DEV) {
+      console.log('[VectorDB] Building Lunr index...')
+    }
+
+    const result = await dbGlobal.query<{
+      id: string
+      content: string
+      heading: string | null
+      document_id: string
+    }>(`
+      SELECT id, content, heading, document_id
+      FROM chunks
+      WHERE content IS NOT NULL
+      ORDER BY document_id, chunk_index
+    `)
+
+    lunrIndex = lunr(function() {
+      this.ref('id')
+      this.field('content')
+      this.field('heading')
+
+      result.rows.forEach(chunk => {
+        this.add({
+          id: chunk.id,
+          content: chunk.content,
+          heading: chunk.heading || ''
+        })
+      })
+    })
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] Lunr index built with ${result.rows.length} chunks`)
+    }
+  }
+
   const retryFailed = async (documentId: string) => {
     console.log('[VectorDB] Retry indexing for document:', documentId)
+  }
+
+  const searchBM25 = async (query: string, limit?: number): Promise<SearchResult[]> => {
+    if (!dbGlobal) {
+      throw new Error('Database not initialized')
+    }
+
+    if (!lunrIndex) {
+      await buildLunrIndex()
+    }
+
+    if (!lunrIndex) {
+      return []
+    }
+
+    const resultLimit = limit || 10
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] BM25 search for: "${query}"`)
+    }
+
+    const lunrResults = lunrIndex.search(query)
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] Lunr returned ${lunrResults.length} results`)
+    }
+
+    const chunkIds = lunrResults.slice(0, resultLimit).map(r => r.ref)
+
+    if (chunkIds.length === 0) {
+      return []
+    }
+
+    const result = await dbGlobal.query<{
+      id: string
+      document_id: string
+      content: string
+      heading: string | null
+      chunk_index: number
+      filename: string
+    }>(`
+      SELECT
+        c.id,
+        c.document_id,
+        c.content,
+        c.heading,
+        c.chunk_index,
+        d.filename
+      FROM chunks c
+      JOIN documents d ON c.document_id = d.id
+      WHERE c.id = ANY($1::uuid[])
+    `, [chunkIds])
+
+    const scoreMap = new Map(lunrResults.map(r => [r.ref, r.score]))
+    const resultsMap = new Map(result.rows.map(row => [row.id, row]))
+
+    const results: SearchResult[] = chunkIds
+      .map(chunkId => {
+        const row = resultsMap.get(chunkId)
+        if (!row) return null
+
+        return {
+          chunkId: row.id,
+          documentId: row.document_id,
+          filename: row.filename,
+          content: row.content,
+          heading: row.heading,
+          chunkIndex: row.chunk_index,
+          score: scoreMap.get(chunkId) || 0
+        }
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+
+    return results
   }
 
   const searchVectors = async (query: string, documentIds: string[]): Promise<SearchResult[]> => {
@@ -830,6 +958,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         retryFailed,
         retryInitialization,
         searchVectors,
+        searchBM25,
       }}
     >
       {children}
