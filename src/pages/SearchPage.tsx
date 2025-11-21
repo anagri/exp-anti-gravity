@@ -17,7 +17,7 @@ export default function SearchPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
 
-  const { searchBM25 } = useVectorDB()
+  const { searchBM25, lunrReady } = useVectorDB()
 
   const handleSearch = async () => {
     if (!query.trim()) return
@@ -67,7 +67,7 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl p-6">
+    <div className="container mx-auto max-w-4xl p-6" data-lunr-ready={lunrReady ? 'true' : 'false'}>
       <h1 className="text-3xl font-bold mb-6">Search Documents</h1>
 
       {/* Search Bar */}

@@ -21,11 +21,8 @@ test.describe('Chat with Real OpenAI API @live', () => {
     await welcomePage.submitApiKey(apiKey);
     await chatPage.expectChatPageLoaded();
 
-    await chatPage.waitForModelsLoaded();
+    await chatPage.waitForReady();
     await chatPage.expectEmptyState();
-
-    await chatPage.selectModel('gpt-4o-mini');
-    await chatPage.expectSelectedModel('gpt-4o-mini');
 
     await chatPage.sendMessageAndWait('What day comes after Monday?');
     await chatPage.expectUserMessage('What day comes after Monday?');

@@ -82,6 +82,7 @@ interface VectorDBContextType {
   retryInitialization: () => Promise<void>
   searchVectors: (query: string, documentIds: string[]) => Promise<SearchResult[]>
   searchBM25: (query: string, limit?: number) => Promise<SearchResult[]>
+  lunrReady: boolean
 }
 
 const VectorDBContext = createContext<VectorDBContextType | undefined>(
@@ -282,6 +283,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
   const [initError, setInitError] = useState<{ message: string; canRetry: boolean } | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
   const [indexingProgress, setIndexingProgress] = useState<Map<string, IndexingProgress>>(new Map())
+  const [lunrReadyState, setLunrReadyState] = useState(false)
 
   const emitProgress = (
     documentId: string,
@@ -816,6 +818,8 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
       console.log('[VectorDB] Building Lunr index...')
     }
 
+    setLunrReadyState(false)
+
     const result = await dbGlobal.query<{
       id: string
       content: string
@@ -841,6 +845,8 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         })
       })
     })
+
+    setLunrReadyState(true)
 
     if (import.meta.env.DEV) {
       console.log(`[VectorDB] Lunr index built with ${result.rows.length} chunks`)
@@ -1009,6 +1015,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         retryInitialization,
         searchVectors,
         searchBM25,
+        lunrReady: lunrReadyState,
       }}
     >
       {children}

@@ -33,8 +33,11 @@ test.describe('BM25 Search @live', () => {
     // Navigate to search page (use BasePage navigateTo for basename handling)
     await documentsPage.navigateTo('/search');
 
-    // Wait for page to load
+    // Wait for page to load and Lunr index to be ready
     await page.waitForSelector('[data-testid="input-search-query"]');
+    await page.waitForFunction(() =>
+      document.querySelector('[data-lunr-ready="true"]') !== null
+    );
 
     // Perform BM25 search for exact keyword "equity"
     await page.fill('[data-testid="input-search-query"]', 'equity');
@@ -72,6 +75,9 @@ test.describe('BM25 Search @live', () => {
     // Navigate to search page (use BasePage navigateTo for basename handling)
     await documentsPage.navigateTo('/search');
     await page.waitForSelector('[data-testid="input-search-query"]');
+    await page.waitForFunction(() =>
+      document.querySelector('[data-lunr-ready="true"]') !== null
+    );
 
     // Search for keyword that doesn't exist
     await page.fill('[data-testid="input-search-query"]', 'xyznonexistentkeyword123');
