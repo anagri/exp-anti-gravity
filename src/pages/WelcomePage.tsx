@@ -4,10 +4,12 @@ import { useApiKey } from '../contexts/ApiKeyContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/card';
-import { Key } from 'lucide-react';
+import { Key, Settings } from 'lucide-react';
+import SettingsDialog from '../components/SettingsDialog';
 
 export default function WelcomePage() {
   const [inputKey, setInputKey] = useState('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { setApiKey } = useApiKey();
   const navigate = useNavigate();
 
@@ -45,13 +47,29 @@ export default function WelcomePage() {
               required
             />
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex flex-col gap-2">
             <Button data-testid="btn-welcome-start" type="submit" className="w-full">
               Start Chatting
+            </Button>
+            <Button
+              data-testid="btn-welcome-settings"
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSettingsOpen(true)}
+              className="w-full"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Advanced Settings
             </Button>
           </CardFooter>
         </form>
       </Card>
+
+      <SettingsDialog
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 }

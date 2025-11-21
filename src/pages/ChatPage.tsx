@@ -9,7 +9,6 @@ import { Card } from '../components/ui/card';
 import { Send, Bot, User, Paperclip } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-import { ModelSelector } from '../components/ModelSelector';
 import FileSelector from '../components/FileSelector';
 import AttachmentBadges from '../components/AttachmentBadges';
 import { SourceCitations } from '../components/SourceCitations';
@@ -19,7 +18,7 @@ export default function ChatPage() {
   const { apiKey } = useApiKey();
   const { documents, searchVectors } = useVectorDB();
   const [attachedDocumentIds, setAttachedDocumentIds] = useState<string[]>([]);
-  const { messages, isLoading, error, sendMessage, clearChat, models, selectedModel, setSelectedModel, fetchModels, sources } = useChat({
+  const { messages, isLoading, error, sendMessage, clearChat, sources } = useChat({
     apiKey,
     attachedDocumentIds,
     searchVectors,
@@ -27,10 +26,6 @@ export default function ChatPage() {
   const [inputValue, setInputValue] = useState('');
   const [isFileSelectorOpen, setIsFileSelectorOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetchModels();
-  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -157,15 +152,6 @@ export default function ChatPage() {
                 <span className="sr-only">Send</span>
               </Button>
             </form>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-sm text-gray-600">Model:</span>
-              <ModelSelector
-                models={models}
-                selectedModel={selectedModel}
-                onSelect={setSelectedModel}
-                disabled={isLoading}
-              />
-            </div>
           </div>
         </Card>
       </main>
