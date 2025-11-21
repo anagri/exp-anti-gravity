@@ -75,6 +75,7 @@ describe('Search Settings', () => {
         BM25_LIMIT: 10,
         HNSW_M: 16,
         HNSW_EF_CONSTRUCTION: 64,
+        RRF_K: 0.6,
       })
     })
 
@@ -90,6 +91,7 @@ describe('Search Settings', () => {
         BM25_LIMIT: 20,
         HNSW_M: 16,
         HNSW_EF_CONSTRUCTION: 64,
+        RRF_K: 0.6,
       })
     })
 
@@ -99,6 +101,7 @@ describe('Search Settings', () => {
       setSearchSetting('BM25_LIMIT', 15)
       setSearchSetting('HNSW_M', 32)
       setSearchSetting('HNSW_EF_CONSTRUCTION', 128)
+      setSearchSetting('RRF_K', 1.2)
 
       const settings = getAllSearchSettings()
 
@@ -108,6 +111,7 @@ describe('Search Settings', () => {
         BM25_LIMIT: 15,
         HNSW_M: 32,
         HNSW_EF_CONSTRUCTION: 128,
+        RRF_K: 1.2,
       })
     })
   })

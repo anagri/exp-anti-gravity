@@ -44,6 +44,7 @@ export interface SearchSettings {
   BM25_LIMIT: number
   HNSW_M: number
   HNSW_EF_CONSTRUCTION: number
+  RRF_K: number
 }
 
 const DEFAULT_SEARCH_SETTINGS: SearchSettings = {
@@ -51,7 +52,8 @@ const DEFAULT_SEARCH_SETTINGS: SearchSettings = {
   SIMILARITY_THRESHOLD: 0.3,
   BM25_LIMIT: 10,
   HNSW_M: 16,
-  HNSW_EF_CONSTRUCTION: 64
+  HNSW_EF_CONSTRUCTION: 64,
+  RRF_K: 0.6
 }
 
 /**
@@ -97,7 +99,8 @@ export function getAllSearchSettings(): SearchSettings {
     SIMILARITY_THRESHOLD: getSearchSetting('SIMILARITY_THRESHOLD'),
     BM25_LIMIT: getSearchSetting('BM25_LIMIT'),
     HNSW_M: getSearchSetting('HNSW_M'),
-    HNSW_EF_CONSTRUCTION: getSearchSetting('HNSW_EF_CONSTRUCTION')
+    HNSW_EF_CONSTRUCTION: getSearchSetting('HNSW_EF_CONSTRUCTION'),
+    RRF_K: getSearchSetting('RRF_K')
   }
 }
 

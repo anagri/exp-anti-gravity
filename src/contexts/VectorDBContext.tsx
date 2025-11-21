@@ -59,6 +59,11 @@ interface SearchResult {
   chunkIndex: number
   similarity?: number
   score?: number
+  vectorScore?: number
+  bm25Score?: number
+  fusedScore?: number
+  vectorRank?: number
+  bm25Rank?: number
 }
 
 interface IndexingJob {
@@ -82,6 +87,7 @@ interface VectorDBContextType {
   retryInitialization: () => Promise<void>
   searchVectors: (query: string, documentIds: string[]) => Promise<SearchResult[]>
   searchBM25: (query: string, limit?: number) => Promise<SearchResult[]>
+  searchHybrid: (query: string, documentIds: string[]) => Promise<SearchResult[]>
   lunrReady: boolean
 }
 
@@ -1001,6 +1007,98 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     }))
   }
 
+  const searchHybrid = async (query: string, documentIds: string[]): Promise<SearchResult[]> => {
+    if (!dbGlobal) {
+      throw new Error('Database not initialized')
+    }
+
+    if (!openaiClient) {
+      throw new Error('OpenAI client not initialized. Set API key in settings.')
+    }
+
+    // Get search settings
+    const topK = getSearchSetting('VECTOR_TOP_K')
+    const similarityThreshold = getSearchSetting('SIMILARITY_THRESHOLD')
+    const bm25Limit = getSearchSetting('BM25_LIMIT')
+    const rrfK = getSearchSetting('RRF_K')
+
+    if (import.meta.env.DEV) {
+      console.log('[VectorDB] Hybrid search:', { query, topK, similarityThreshold, bm25Limit, rrfK })
+    }
+
+    // Execute both searches in parallel
+    const [vectorResults, bm25Results] = await Promise.all([
+      searchVectors(query, documentIds),
+      searchBM25(query, bm25Limit)
+    ])
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] Hybrid search: ${vectorResults.length} vector results, ${bm25Results.length} BM25 results`)
+    }
+
+    // Build rank maps (1-based ranking)
+    const vectorRankMap = new Map<string, number>()
+    vectorResults.forEach((result, index) => {
+      vectorRankMap.set(result.chunkId, index + 1)
+    })
+
+    const bm25RankMap = new Map<string, number>()
+    bm25Results.forEach((result, index) => {
+      bm25RankMap.set(result.chunkId, index + 1)
+    })
+
+    // Collect all unique chunk IDs
+    const allChunkIds = new Set<string>([
+      ...vectorResults.map(r => r.chunkId),
+      ...bm25Results.map(r => r.chunkId)
+    ])
+
+    // Build result map for easy lookup
+    const resultMap = new Map<string, SearchResult>()
+    vectorResults.forEach(r => resultMap.set(r.chunkId, r))
+    bm25Results.forEach(r => {
+      if (!resultMap.has(r.chunkId)) {
+        resultMap.set(r.chunkId, r)
+      }
+    })
+
+    // Calculate RRF scores for all chunks
+    const fusedResults: SearchResult[] = []
+
+    allChunkIds.forEach(chunkId => {
+      const vectorRank = vectorRankMap.get(chunkId)
+      const bm25Rank = bm25RankMap.get(chunkId)
+
+      // RRF formula: score = 1/(k + rank)
+      const vectorScore = vectorRank ? 1 / (rrfK + vectorRank) : 0
+      const bm25Score = bm25Rank ? 1 / (rrfK + bm25Rank) : 0
+      const fusedScore = vectorScore + bm25Score
+
+      const baseResult = resultMap.get(chunkId)!
+
+      fusedResults.push({
+        ...baseResult,
+        vectorScore,
+        bm25Score,
+        fusedScore,
+        vectorRank,
+        bm25Rank
+      })
+    })
+
+    // Sort by fused score (descending)
+    fusedResults.sort((a, b) => (b.fusedScore || 0) - (a.fusedScore || 0))
+
+    // Limit to topK results
+    const finalResults = fusedResults.slice(0, topK)
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] Hybrid search returned ${finalResults.length} fused results`)
+    }
+
+    return finalResults
+  }
+
   return (
     <VectorDBContext.Provider
       value={{
@@ -1015,6 +1113,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         retryInitialization,
         searchVectors,
         searchBM25,
+        searchHybrid,
         lunrReady: lunrReadyState,
       }}
     >

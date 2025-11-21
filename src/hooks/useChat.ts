@@ -13,6 +13,7 @@ interface UseChatParams {
   apiKey: string | null;
   attachedDocumentIds?: string[];
   searchVectors?: (query: string, documentIds: string[]) => Promise<SearchResult[]>;
+  searchHybrid?: (query: string, documentIds: string[]) => Promise<SearchResult[]>;
 }
 
 export function useChat(params: UseChatParams | string | null) {
@@ -20,6 +21,7 @@ export function useChat(params: UseChatParams | string | null) {
   const apiKey = typeof params === 'string' || params === null ? params : params.apiKey;
   const attachedDocumentIds = typeof params === 'object' && params !== null ? params.attachedDocumentIds || [] : [];
   const searchVectors = typeof params === 'object' && params !== null ? params.searchVectors : undefined;
+  const searchHybrid = typeof params === 'object' && params !== null ? params.searchHybrid : undefined;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -70,16 +72,17 @@ ${result.content}
       let currentMessageSources: SearchResult[] | undefined = undefined;
 
       // RAG flow: Check if documents are attached (Phase rag-integration)
-      if (attachedDocumentIds.length > 0 && searchVectors) {
+      if (attachedDocumentIds.length > 0 && (searchHybrid || searchVectors)) {
         setIsSearching(true);
 
-        // Perform vector search with lower threshold for better recall
-        const searchResults = await searchVectors(content, attachedDocumentIds);
+        // Prefer hybrid search if available, fallback to vector search
+        const searchFunction = searchHybrid || searchVectors!;
+        const searchResults = await searchFunction(content, attachedDocumentIds);
         currentMessageSources = searchResults;
         setIsSearching(false);
 
         if (import.meta.env.DEV) {
-          console.log('[useChat] Vector search results:', searchResults.length, 'chunks found');
+          console.log('[useChat] Search results:', searchResults.length, 'chunks found');
         }
 
         // Format context from search results

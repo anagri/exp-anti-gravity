@@ -16,12 +16,12 @@ import TopBar from '../components/TopBar';
 
 export default function ChatPage() {
   const { apiKey } = useApiKey();
-  const { documents, searchVectors } = useVectorDB();
+  const { documents, searchHybrid } = useVectorDB();
   const [attachedDocumentIds, setAttachedDocumentIds] = useState<string[]>([]);
   const { messages, isLoading, error, sendMessage, clearChat } = useChat({
     apiKey,
     attachedDocumentIds,
-    searchVectors,
+    searchHybrid,
   });
   const [inputValue, setInputValue] = useState('');
   const [isFileSelectorOpen, setIsFileSelectorOpen] = useState(false);
