@@ -18,7 +18,7 @@ type FilterOption = 'all' | 'markdown' | 'text';
 export default function DocumentsPage() {
   const navigate = useNavigate();
   const { clearApiKey } = useApiKey();
-  const { documents, uploadFiles, deleteDocument, initialized, indexingProgress, retryFailed } = useVectorDB();
+  const { documents, uploadFiles, deleteDocument, initialized, initError, indexingProgress, retryFailed, retryInitialization } = useVectorDB();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<{ id: string; filename: string } | null>(null);
@@ -143,10 +143,34 @@ export default function DocumentsPage() {
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-7xl mx-auto">
-          {!initialized && (
+          {!initialized && !initError && (
             <p className="text-sm text-gray-500 mb-4" data-testid="div-doc-loading">
               Initializing database...
             </p>
+          )}
+          {initError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6" data-testid="div-init-error">
+              <h3 className="text-red-800 font-semibold text-lg mb-2">Database Initialization Failed</h3>
+              <p className="text-red-700 text-sm mb-4">{initError.message}</p>
+              <div className="bg-red-100 border border-red-300 rounded p-4 mb-4">
+                <p className="text-red-800 font-semibold text-sm mb-2">Troubleshooting Steps:</p>
+                <ul className="text-red-700 text-sm list-disc list-inside space-y-1">
+                  <li>Clear browser cache and reload (Cmd+Shift+R or Ctrl+Shift+R)</li>
+                  <li>Open DevTools → Application → Storage → IndexedDB → Delete "rag-vectors" database</li>
+                  <li>Try a different browser or incognito/private window</li>
+                  <li>Restart your browser completely</li>
+                </ul>
+              </div>
+              {initError.canRetry && (
+                <Button
+                  onClick={retryInitialization}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  data-testid="btn-retry-init"
+                >
+                  Retry Initialization
+                </Button>
+              )}
+            </div>
           )}
           {isUploading && (
             <p className="text-sm text-gray-500 mb-4" data-testid="div-doc-uploading">
@@ -154,7 +178,7 @@ export default function DocumentsPage() {
             </p>
           )}
 
-        <UploadZone onFilesSelected={handleFilesSelected} disabled={isUploading || !initialized} />
+        <UploadZone onFilesSelected={handleFilesSelected} disabled={isUploading || !initialized || !!initError} />
 
         <DocumentToolbar
           searchQuery={searchQuery}
