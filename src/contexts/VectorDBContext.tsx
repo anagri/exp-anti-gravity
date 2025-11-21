@@ -25,6 +25,46 @@ let openaiClient: OpenAI | null = null
 let tokenizer: Tiktoken | null = null
 let lunrIndex: lunr.Index | null = null
 
+interface KnowledgeBase {
+  // Metadata
+  id: string // UUID
+  name: string // unique, 1-50 chars
+  description: string | null // optional, max 500 chars
+  color: string | null // optional, hex code #RRGGBB
+  created_at: string // ISO timestamp
+  updated_at: string // ISO timestamp
+
+  // Vector Configuration
+  embedding_model: string // e.g., 'text-embedding-3-small'
+  embedding_dimensions: number // e.g., 768
+
+  // Hybrid Search Configuration
+  vector_top_k: number // 1-20, default 3
+  similarity_threshold: number // 0-1, default 0.3
+  bm25_limit: number // 1-50, default 10
+  hnsw_m: number // 4-64, default 16
+  hnsw_ef_construction: number // 16-256, default 64
+  rrf_k: number // default 0.6
+
+  // Computed Stats
+  document_count: number // computed, may be 0
+  chunk_count: number // computed from kb_{id}_chunks table
+}
+
+interface KnowledgeBaseConfig {
+  // Vector Config
+  embedding_model?: string
+  embedding_dimensions?: number
+
+  // Search Config
+  vector_top_k?: number
+  similarity_threshold?: number
+  bm25_limit?: number
+  hnsw_m?: number
+  hnsw_ef_construction?: number
+  rrf_k?: number
+}
+
 interface Document {
   id: string
   filename: string
@@ -37,6 +77,13 @@ interface Document {
   indexing_status: 'pending' | 'processing' | 'completed' | 'failed' | null
   error_message: string | null
   retry_count: number | null
+  knowledge_base_id: string | null
+
+  // Joined KB Fields (from LEFT JOIN knowledge_bases)
+  kb_name: string | null
+  kb_color: string | null
+  kb_embedding_model: string | null
+  kb_embedding_dimensions: number | null
 }
 
 interface IndexingProgress {
@@ -79,6 +126,7 @@ interface VectorDBContextType {
   initialized: boolean
   initError: { message: string; canRetry: boolean } | null
   documents: Document[]
+  knowledgeBases: KnowledgeBase[]
   uploadFiles: (files: File[]) => Promise<void>
   deleteDocument: (id: string) => Promise<void>
   refreshDocuments: () => Promise<void>
@@ -89,6 +137,24 @@ interface VectorDBContextType {
   searchBM25: (query: string, limit?: number) => Promise<SearchResult[]>
   searchHybrid: (query: string, documentIds: string[]) => Promise<SearchResult[]>
   lunrReady: boolean
+  // KB Management
+  createKnowledgeBase: (params: {
+    name: string
+    description?: string
+    color?: string
+    config?: KnowledgeBaseConfig
+  }) => Promise<KnowledgeBase>
+  updateKnowledgeBase: (
+    id: string,
+    updates: {
+      name?: string
+      description?: string | null
+      color?: string | null
+      config?: KnowledgeBaseConfig
+    }
+  ) => Promise<{ requiresReindex: boolean; affectedDocCount?: number }>
+  deleteKnowledgeBase: (id: string) => Promise<void>
+  refreshKnowledgeBases: () => Promise<void>
 }
 
 const VectorDBContext = createContext<VectorDBContextType | undefined>(
@@ -298,6 +364,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
   const [initialized, setInitialized] = useState(false)
   const [initError, setInitError] = useState<{ message: string; canRetry: boolean } | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([])
   const [indexingProgress, setIndexingProgress] = useState<Map<string, IndexingProgress>>(new Map())
   const [lunrReadyState, setLunrReadyState] = useState(false)
 
@@ -524,8 +591,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     await initializeDatabase()
   }
 
-  // Helper method for creating KB-specific chunks tables (used in Phase kb-management)
-  // @ts-expect-error - Will be used when implementing createKnowledgeBase in Phase kb-management
+  // Helper method for creating KB-specific chunks tables
   const createKBChunksTable = async (
     kbId: string,
     dimensions: number,
@@ -565,6 +631,241 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
     if (import.meta.env.DEV) {
       console.log(`[VectorDB] Created chunks table for KB ${kbId}: ${tableName} (dimensions: ${dimensions}, hnsw_m: ${hnswM}, hnsw_ef: ${hnswEfConstruction})`)
+    }
+  }
+
+  const refreshKnowledgeBases = async () => {
+    if (!dbGlobal) return
+
+    try {
+      const result = await dbGlobal.query<KnowledgeBase>(`
+        SELECT
+          kb.id,
+          kb.name,
+          kb.description,
+          kb.color,
+          kb.created_at,
+          kb.updated_at,
+          kb.embedding_model,
+          kb.embedding_dimensions,
+          kb.vector_top_k,
+          kb.similarity_threshold,
+          kb.bm25_limit,
+          kb.hnsw_m,
+          kb.hnsw_ef_construction,
+          kb.rrf_k,
+          COUNT(DISTINCT d.id)::integer as document_count
+        FROM knowledge_bases kb
+        LEFT JOIN documents d ON d.knowledge_base_id = kb.id
+        GROUP BY kb.id
+        ORDER BY kb.created_at DESC
+      `)
+
+      // Compute chunk counts for each KB
+      const kbsWithChunkCounts = await Promise.all(
+        result.rows.map(async (kb) => {
+          const tableName = `kb_${kb.id.replace(/-/g, '_')}_chunks`
+          try {
+            const chunkResult = await dbGlobal!.query<{ count: number }>(`SELECT COUNT(*)::integer as count FROM ${tableName}`)
+            const chunkCount = chunkResult.rows[0]?.count || 0
+            return { ...kb, chunk_count: chunkCount }
+          } catch {
+            // Table doesn't exist yet, return 0
+            return { ...kb, chunk_count: 0 }
+          }
+        })
+      )
+
+      setKnowledgeBases(kbsWithChunkCounts)
+    } catch (error) {
+      console.error('[VectorDB] Error refreshing knowledge bases:', error)
+    }
+  }
+
+  const createKnowledgeBase = async (params: {
+    name: string
+    description?: string
+    color?: string
+    config?: KnowledgeBaseConfig
+  }): Promise<KnowledgeBase> => {
+    if (!dbGlobal) {
+      throw new Error('Database not initialized')
+    }
+
+    // Validate name
+    const trimmedName = params.name.trim()
+    if (!trimmedName || trimmedName.length > 50) {
+      throw new Error('Name must be between 1 and 50 characters')
+    }
+
+    // Check for duplicate name
+    const existing = await dbGlobal.query<{ count: number }>(
+      'SELECT COUNT(*)::integer as count FROM knowledge_bases WHERE name = $1',
+      [trimmedName]
+    )
+    if ((existing.rows[0]?.count || 0) > 0) {
+      throw new Error('A knowledge base with this name already exists')
+    }
+
+    // Get defaults from global settings
+    const config = params.config || {}
+    const embeddingModel = config.embedding_model || 'text-embedding-3-small'
+    const embeddingDimensions = config.embedding_dimensions || 768
+    const vectorTopK = config.vector_top_k ?? getSearchSetting('VECTOR_TOP_K')
+    const similarityThreshold = config.similarity_threshold ?? getSearchSetting('SIMILARITY_THRESHOLD')
+    const bm25Limit = config.bm25_limit ?? getSearchSetting('BM25_LIMIT')
+    const hnswM = config.hnsw_m ?? getSearchSetting('HNSW_M')
+    const hnswEfConstruction = config.hnsw_ef_construction ?? getSearchSetting('HNSW_EF_CONSTRUCTION')
+    const rrfK = config.rrf_k ?? getSearchSetting('RRF_K')
+
+    const kbId = uuidv4()
+
+    // Insert KB record
+    await dbGlobal.exec(`
+      INSERT INTO knowledge_bases (
+        id, name, description, color,
+        embedding_model, embedding_dimensions,
+        vector_top_k, similarity_threshold, bm25_limit,
+        hnsw_m, hnsw_ef_construction, rrf_k
+      ) VALUES (
+        '${kbId}', '${trimmedName.replace(/'/g, "''")}',
+        ${params.description ? `'${params.description.replace(/'/g, "''")}'` : 'NULL'},
+        ${params.color ? `'${params.color}'` : 'NULL'},
+        '${embeddingModel}', ${embeddingDimensions},
+        ${vectorTopK}, ${similarityThreshold}, ${bm25Limit},
+        ${hnswM}, ${hnswEfConstruction}, ${rrfK}
+      )
+    `)
+
+    // Create KB-specific chunks table
+    await createKBChunksTable(kbId, embeddingDimensions, hnswM, hnswEfConstruction)
+
+    // Refresh KB list
+    await refreshKnowledgeBases()
+
+    const newKB = knowledgeBases.find(kb => kb.id === kbId)
+    if (!newKB) {
+      throw new Error('Failed to create knowledge base')
+    }
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] Created knowledge base: ${trimmedName} (${kbId})`)
+    }
+
+    return newKB
+  }
+
+  const updateKnowledgeBase = async (
+    id: string,
+    updates: {
+      name?: string
+      description?: string | null
+      color?: string | null
+      config?: KnowledgeBaseConfig
+    }
+  ): Promise<{ requiresReindex: boolean; affectedDocCount?: number }> => {
+    if (!dbGlobal) {
+      throw new Error('Database not initialized')
+    }
+
+    // Get current KB
+    const currentResult = await dbGlobal.query<KnowledgeBase>(
+      'SELECT * FROM knowledge_bases WHERE id = $1',
+      [id]
+    )
+    const current = currentResult.rows[0]
+    if (!current) {
+      throw new Error('Knowledge base not found')
+    }
+
+    // Validate name if provided
+    if (updates.name) {
+      const trimmedName = updates.name.trim()
+      if (!trimmedName || trimmedName.length > 50) {
+        throw new Error('Name must be between 1 and 50 characters')
+      }
+
+      // Check for duplicate name (excluding current KB)
+      const existing = await dbGlobal.query<{ count: number }>(
+        'SELECT COUNT(*)::integer as count FROM knowledge_bases WHERE name = $1 AND id != $2',
+        [trimmedName, id]
+      )
+      if ((existing.rows[0]?.count || 0) > 0) {
+        throw new Error('A knowledge base with this name already exists')
+      }
+    }
+
+    // Detect if re-index is required
+    const config = updates.config || {}
+    const requiresReindex =
+      (config.embedding_model && config.embedding_model !== current.embedding_model) ||
+      (config.embedding_dimensions && config.embedding_dimensions !== current.embedding_dimensions) ||
+      (config.hnsw_m && config.hnsw_m !== current.hnsw_m) ||
+      (config.hnsw_ef_construction && config.hnsw_ef_construction !== current.hnsw_ef_construction)
+
+    if (requiresReindex) {
+      // Get affected document count
+      const docResult = await dbGlobal.query<{ count: number }>(
+        'SELECT COUNT(*)::integer as count FROM documents WHERE knowledge_base_id = $1',
+        [id]
+      )
+      return { requiresReindex: true, affectedDocCount: docResult.rows[0]?.count || 0 }
+    }
+
+    // Build UPDATE statement
+    const setClauses: string[] = []
+    if (updates.name) setClauses.push(`name = '${updates.name.trim().replace(/'/g, "''")}'`)
+    if (updates.description !== undefined) {
+      setClauses.push(updates.description ? `description = '${updates.description.replace(/'/g, "''")}'` : 'description = NULL')
+    }
+    if (updates.color !== undefined) {
+      setClauses.push(updates.color ? `color = '${updates.color}'` : 'color = NULL')
+    }
+    if (config.vector_top_k !== undefined) setClauses.push(`vector_top_k = ${config.vector_top_k}`)
+    if (config.similarity_threshold !== undefined) setClauses.push(`similarity_threshold = ${config.similarity_threshold}`)
+    if (config.bm25_limit !== undefined) setClauses.push(`bm25_limit = ${config.bm25_limit}`)
+    if (config.rrf_k !== undefined) setClauses.push(`rrf_k = ${config.rrf_k}`)
+
+    setClauses.push('updated_at = CURRENT_TIMESTAMP')
+
+    if (setClauses.length > 0) {
+      await dbGlobal.exec(`
+        UPDATE knowledge_bases
+        SET ${setClauses.join(', ')}
+        WHERE id = '${id}'
+      `)
+    }
+
+    await refreshKnowledgeBases()
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] Updated knowledge base: ${id}`)
+    }
+
+    return { requiresReindex: false }
+  }
+
+  const deleteKnowledgeBase = async (id: string) => {
+    if (!dbGlobal) {
+      throw new Error('Database not initialized')
+    }
+
+    // Delete KB (CASCADE will delete documents and indexing_queue entries)
+    await dbGlobal.exec(`DELETE FROM knowledge_bases WHERE id = '${id}'`)
+
+    // Drop KB-specific chunks table
+    const tableName = `kb_${id.replace(/-/g, '_')}_chunks`
+    try {
+      await dbGlobal.exec(`DROP TABLE IF EXISTS ${tableName}`)
+    } catch (error) {
+      console.error(`[VectorDB] Error dropping chunks table ${tableName}:`, error)
+    }
+
+    await refreshKnowledgeBases()
+    await refreshDocuments()
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] Deleted knowledge base: ${id}`)
     }
   }
 
@@ -1195,6 +1496,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         initialized,
         initError,
         documents,
+        knowledgeBases,
         uploadFiles,
         deleteDocument,
         refreshDocuments,
@@ -1205,6 +1507,10 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         searchBM25,
         searchHybrid,
         lunrReady: lunrReadyState,
+        createKnowledgeBase,
+        updateKnowledgeBase,
+        deleteKnowledgeBase,
+        refreshKnowledgeBases,
       }}
     >
       {children}
