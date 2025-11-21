@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid'
 import OpenAI from 'openai'
 import { Tiktoken, encodingForModel } from 'js-tiktoken'
 import lunr from 'lunr'
-import { isFeatureEnabled, FEATURES } from '@/lib/feature-flags'
+import { isFeatureEnabled, FEATURES, getSearchSetting } from '@/lib/feature-flags'
 import { useApiKey } from './ApiKeyContext'
 
 // Global instance to prevent re-initialization in React StrictMode
@@ -385,12 +385,14 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
           CREATE INDEX IF NOT EXISTS idx_chunks_document ON chunks(document_id);
         `)
 
-        // Create HNSW index
+        // Create HNSW index using settings
+        const hnswM = getSearchSetting('HNSW_M')
+        const hnswEfConstruction = getSearchSetting('HNSW_EF_CONSTRUCTION')
         await db.exec(`
           CREATE INDEX IF NOT EXISTS idx_chunks_embedding_hnsw
           ON chunks
           USING hnsw (embedding vector_cosine_ops)
-          WITH (m = 16, ef_construction = 64);
+          WITH (m = ${hnswM}, ef_construction = ${hnswEfConstruction});
         `)
 
         if (import.meta.env.DEV) {
@@ -499,6 +501,31 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener('featureFlagChanged', handleFlagChange)
     return () => window.removeEventListener('featureFlagChanged', handleFlagChange)
+  }, [])
+
+  // Listen for search setting changes
+  useEffect(() => {
+    const handleSettingChange = (event: Event) => {
+      const customEvent = event as CustomEvent
+      const { setting, value } = customEvent.detail
+
+      if (import.meta.env.DEV) {
+        console.log(`[VectorDB] Search setting changed: ${setting} = ${value}`)
+      }
+
+      // HNSW index parameters require index rebuild (not implemented in this phase)
+      if (setting === 'HNSW_M' || setting === 'HNSW_EF_CONSTRUCTION') {
+        console.warn(
+          '[VectorDB] HNSW index parameters changed. Index rebuild required but not automated. ' +
+          'Please reload the page and re-index documents for changes to take effect.'
+        )
+      }
+
+      // Other settings (topK, threshold, BM25 limit) apply immediately on next search
+    }
+
+    window.addEventListener('searchSettingChanged', handleSettingChange)
+    return () => window.removeEventListener('searchSettingChanged', handleSettingChange)
   }, [])
 
   const refreshDocuments = async () => {
@@ -831,7 +858,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
       return []
     }
 
-    const resultLimit = limit || 10
+    const resultLimit = limit || getSearchSetting('BM25_LIMIT')
 
     if (import.meta.env.DEV) {
       console.log(`[VectorDB] BM25 search for: "${query}"`)
@@ -905,8 +932,8 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
       return []
     }
 
-    const topK = 3
-    const similarityThreshold = 0.3
+    const topK = getSearchSetting('VECTOR_TOP_K')
+    const similarityThreshold = getSearchSetting('SIMILARITY_THRESHOLD')
 
     const embeddingResponse = await openaiClient.embeddings.create({
       model: 'text-embedding-3-small',

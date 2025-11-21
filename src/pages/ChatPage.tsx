@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import { useChat } from '../hooks/useChat';
 import { useApiKey } from '../contexts/ApiKeyContext';
 import { useVectorDB } from '../contexts/VectorDBContext';
@@ -7,17 +6,17 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 // import { ScrollArea } from '../components/ui/scroll-area';
 import { Card } from '../components/ui/card';
-import { Send, LogOut, Bot, User, FileText, Paperclip } from 'lucide-react';
+import { Send, Bot, User, Paperclip } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 import { ModelSelector } from '../components/ModelSelector';
 import FileSelector from '../components/FileSelector';
 import AttachmentBadges from '../components/AttachmentBadges';
 import { SourceCitations } from '../components/SourceCitations';
+import TopBar from '../components/TopBar';
 
 export default function ChatPage() {
-  const navigate = useNavigate();
-  const { apiKey, clearApiKey } = useApiKey();
+  const { apiKey } = useApiKey();
   const { documents, searchVectors } = useVectorDB();
   const [attachedDocumentIds, setAttachedDocumentIds] = useState<string[]>([]);
   const { messages, isLoading, error, sendMessage, clearChat, models, selectedModel, setSelectedModel, fetchModels, sources } = useChat({
@@ -48,51 +47,19 @@ export default function ChatPage() {
     await sendMessage(content);
   };
 
-  const handleLogout = () => {
-    clearApiKey();
-    navigate('/');
-  };
-
-
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b p-4 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Bot className="w-6 h-6 text-blue-600" />
-            <h1 className="font-semibold text-lg hidden sm:block">AI Chat</h1>
-          </div>
-          <nav className="flex items-center gap-2 border-l pl-4">
-            <Link to="/chat">
-              <Button variant="ghost" size="sm" className="font-medium">
-                Chat
-              </Button>
-            </Link>
-            <Link to="/documents">
-              <Button variant="ghost" size="sm">
-                <FileText className="w-4 h-4 mr-2" />
-                Documents
-              </Button>
-            </Link>
-          </nav>
-          <ModelSelector
-            models={models}
-            selectedModel={selectedModel}
-            onSelect={setSelectedModel}
-            disabled={isLoading}
-          />
-        </div>
-        <div className="flex gap-2">
-          <Button data-testid="btn-chat-clear" variant="outline" size="sm" onClick={clearChat} disabled={messages.length === 0}>
-            Clear Chat
-          </Button>
-          <Button data-testid="btn-chat-logout" variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        </div>
-      </header>
+      <TopBar title="AI Chat" icon={<Bot className="w-6 h-6 text-blue-600" />}>
+        <Button
+          data-testid="btn-chat-clear"
+          variant="outline"
+          size="sm"
+          onClick={clearChat}
+          disabled={messages.length === 0}
+        >
+          Clear Chat
+        </Button>
+      </TopBar>
 
       {/* Chat Area */}
       <main className="flex-1 overflow-hidden p-4 max-w-4xl mx-auto w-full flex flex-col">
@@ -190,6 +157,15 @@ export default function ChatPage() {
                 <span className="sr-only">Send</span>
               </Button>
             </form>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-sm text-gray-600">Model:</span>
+              <ModelSelector
+                models={models}
+                selectedModel={selectedModel}
+                onSelect={setSelectedModel}
+                disabled={isLoading}
+              />
+            </div>
           </div>
         </Card>
       </main>

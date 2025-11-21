@@ -60,6 +60,13 @@ export default function FileSelector({
     });
   };
 
+  const handleSelectAll = () => {
+    const completedDocumentIds = filteredDocuments
+      .filter((doc) => doc.indexing_status === 'completed')
+      .map((doc) => doc.id);
+    setLocalSelection(new Set(completedDocumentIds));
+  };
+
   const handleConfirm = () => {
     onSelectionChange(Array.from(localSelection));
     onClose();
@@ -179,10 +186,21 @@ export default function FileSelector({
 
         {/* Footer */}
         <div className="flex justify-between items-center p-4 border-t bg-gray-50">
-          <div className="text-sm text-gray-600">
-            {localSelection.size === 0
-              ? 'No documents selected'
-              : `${localSelection.size} ${localSelection.size === 1 ? 'document' : 'documents'} selected`}
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-gray-600">
+              {localSelection.size === 0
+                ? 'No documents selected'
+                : `${localSelection.size} ${localSelection.size === 1 ? 'document' : 'documents'} selected`}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSelectAll}
+              disabled={filteredDocuments.filter(d => d.indexing_status === 'completed').length === 0}
+              data-testid="btn-select-all"
+            >
+              Select All
+            </Button>
           </div>
           <div className="flex gap-2">
             <Button

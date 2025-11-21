@@ -102,10 +102,10 @@ setFeatureFlag(FEATURES.INDEXING_ENABLED, false) // disable
 ```
 
 **Settings UI:**
-- Access via Settings cog icon in Documents page header
+- Access via Settings cog icon in both Chat and Documents page headers (shared TopBar component)
 - Interactive toggles allow users to enable/disable features
-- Warning shown when changes pending
-- "Reload Now" button to apply changes immediately
+- Warning shown when changes pending for feature flags
+- "Reload Now" button to apply feature flag changes immediately
 
 **Test Strategy:**
 Use `page.addInitScript()` to set toggle state before app loads:
@@ -118,3 +118,75 @@ test.beforeEach(async ({ page }) => {
   // ... setup
 })
 ```
+## Hybrid Search Settings
+
+User-configurable search parameters stored in localStorage using feature-flags pattern.
+
+### `SEARCH_SETTINGS`
+Runtime configurable parameters for vector and BM25 hybrid search.
+
+**Available Settings:**
+- `VECTOR_TOP_K` (default: 3): Number of vector search results to return (range: 1-20)
+- `SIMILARITY_THRESHOLD` (default: 0.3): Cosine similarity cutoff for vector results (range: 0-1)
+- `BM25_LIMIT` (default: 10): Number of BM25 full-text search results (range: 1-50)
+- `HNSW_M` (default: 16): HNSW index max connections per layer - requires re-index (range: 4-64)
+- `HNSW_EF_CONSTRUCTION` (default: 64): HNSW dynamic candidate list size - requires re-index (range: 16-256)
+
+**Storage:**
+- localStorage keys: `search-setting-{SETTING_NAME}`
+- Values: numeric strings (e.g., `"3"`, `"0.7"`)
+- Changes to basic settings (topK, threshold, BM25 limit) apply immediately on next search
+- Changes to HNSW index parameters require page reload and document re-indexing
+
+**Usage in Code:**
+```typescript
+import { getSearchSetting, setSearchSetting, SEARCH_SETTINGS } from '@/lib/feature-flags'
+
+// Read setting
+const topK = getSearchSetting('VECTOR_TOP_K') // returns number
+
+// Write setting
+setSearchSetting('VECTOR_TOP_K', 5) // dispatches searchSettingChanged event
+```
+
+**Settings UI:**
+- Access via Settings cog icon (same as feature flags)
+- Number inputs with validation for min/max bounds
+- Separate sections: "Hybrid Search Settings" (basic) and "Advanced Settings" (HNSW)
+- Warning shown for HNSW parameter changes
+- No reload required for basic settings (apply immediately)
+
+**Test Strategy:**
+```typescript
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('search-setting-VECTOR_TOP_K', '5')
+    localStorage.setItem('search-setting-SIMILARITY_THRESHOLD', '0.7')
+  })
+})
+```
+
+## UI Components
+
+### TopBar Component
+Shared navigation bar component used across Chat and Documents pages.
+
+**Location:** `src/components/TopBar.tsx`
+
+**Features:**
+- Page title and icon
+- Navigation links (Chat | Documents)
+- Settings cog button (opens SettingsDialog)
+- Logout button
+- Children slot for page-specific actions (e.g., Clear Chat button)
+
+**Usage:**
+```typescript
+<TopBar title="AI Chat" icon={<Bot className="w-6 h-6" />}>
+  <Button onClick={clearChat}>Clear Chat</Button>
+</TopBar>
+```
+
+### Model Selector Location
+- **Chat Page**: Model selector positioned **below** the chat input area with "Model:" label
+- Previously in header, moved to improve UX and make space for settings

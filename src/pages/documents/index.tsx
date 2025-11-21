@@ -1,36 +1,25 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useVectorDB } from '@/contexts/VectorDBContext';
+import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, FileText, LogOut, Settings } from 'lucide-react';
-import { useApiKey } from '@/contexts/ApiKeyContext';
-import { useNavigate } from 'react-router-dom';
 import UploadZone from './components/UploadZone';
 import DocumentCard from './components/DocumentCard';
 import DeleteModal from './components/DeleteModal';
-import SettingsModal from './components/SettingsModal';
 import DocumentToolbar from './components/DocumentToolbar';
 import EmptyState from './components/EmptyState';
+import TopBar from '@/components/TopBar';
 
 type SortOption = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'size-asc' | 'size-desc';
 type FilterOption = 'all' | 'markdown' | 'text';
 
 export default function DocumentsPage() {
-  const navigate = useNavigate();
-  const { clearApiKey } = useApiKey();
   const { documents, uploadFiles, deleteDocument, initialized, initError, indexingProgress, retryFailed, retryInitialization } = useVectorDB();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<{ id: string; filename: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('date-desc');
   const [filterOption, setFilterOption] = useState<FilterOption>('all');
   const [isUploading, setIsUploading] = useState(false);
-
-  const handleLogout = () => {
-    clearApiKey();
-    navigate('/');
-  };
 
   const handleFilesSelected = async (files: File[]) => {
     const validFiles = files.filter(file => {
@@ -103,42 +92,7 @@ export default function DocumentsPage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50" data-db-initialized={initialized} data-uploading={isUploading}>
-      {/* Header */}
-      <header className="bg-white border-b p-4 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <FileText className="w-6 h-6 text-blue-600" />
-            <h1 className="font-semibold text-lg hidden sm:block">Documents</h1>
-          </div>
-          <nav className="flex items-center gap-2 border-l pl-4">
-            <Link to="/chat">
-              <Button variant="ghost" size="sm">
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Chat
-              </Button>
-            </Link>
-            <Link to="/documents">
-              <Button variant="ghost" size="sm" className="font-medium">
-                Documents
-              </Button>
-            </Link>
-          </nav>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSettingsOpen(true)}
-            data-testid="btn-settings"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        </div>
-      </header>
+      <TopBar title="Documents" icon={<FileText className="w-6 h-6 text-blue-600" />} />
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-6">
@@ -212,11 +166,6 @@ export default function DocumentsPage() {
             onCancel={handleDeleteCancel}
           />
         )}
-
-        <SettingsModal
-          isOpen={settingsOpen}
-          onClose={() => setSettingsOpen(false)}
-        />
         </div>
       </div>
     </div>
