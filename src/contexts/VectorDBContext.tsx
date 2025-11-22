@@ -9,7 +9,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { vector } from '@electric-sql/pglite/vector'
 import { v4 as uuidv4 } from 'uuid'
 import OpenAI from 'openai'
-import { Tiktoken, encodingForModel } from 'js-tiktoken'
+import { Tiktoken, encodingForModel, getEncoding } from 'js-tiktoken'
 import lunr from 'lunr'
 import { isFeatureEnabled, FEATURES, getSearchSetting, getOpenAIConfig } from '@/lib/feature-flags'
 import { useApiKey } from './ApiKeyContext'
@@ -103,7 +103,17 @@ function sleep(ms: number): Promise<void> {
 function initializeTokenizer(): void {
   if (!tokenizer) {
     const embeddingModel = getOpenAIConfig('EMBEDDING_MODEL') as any
-    tokenizer = encodingForModel(embeddingModel)
+    try {
+      tokenizer = encodingForModel(embeddingModel)
+    } catch (error) {
+      // Fallback to cl100k_base (used by GPT-4/GPT-3.5) for unknown models
+      // This is common when using local LLM servers (llama.cpp, etc.)
+      console.warn(
+        `[VectorDB] Unknown model "${embeddingModel}" for tiktoken, using cl100k_base encoding. ` +
+        `Error: ${error instanceof Error ? error.message : String(error)}`
+      )
+      tokenizer = getEncoding('cl100k_base')
+    }
   }
 }
 
@@ -262,7 +272,7 @@ async function generateEmbeddings(
     const response = await openaiClient.embeddings.create({
       model: embeddingModel,
       input: batchChunks.map(c => c.content),
-      dimensions: 1536,
+      dimensions: 768,
     })
 
     const batchEmbeddings = response.data.map(item => item.embedding)
@@ -386,7 +396,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
             chunk_index INTEGER NOT NULL,
             content TEXT NOT NULL,
             heading TEXT,
-            embedding vector(1536),
+            embedding vector(768),
             token_count INTEGER NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE (document_id, chunk_index)
@@ -957,7 +967,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     const embeddingResponse = await openaiClient.embeddings.create({
       model: embeddingModel,
       input: query,
-      dimensions: 1536,
+      dimensions: 768,
     })
 
     const queryEmbedding = embeddingResponse.data[0].embedding
