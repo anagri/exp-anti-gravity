@@ -56,6 +56,7 @@ export default function DocumentsPage() {
     if (initialized) {
       refreshKnowledgeBases();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized]);
 
   // Load documents when KB is expanded
@@ -63,6 +64,7 @@ export default function DocumentsPage() {
     if (initialized && expandedKBId) {
       refreshDocuments();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized, expandedKBId]);
 
   const handleDeleteClick = (kb: {

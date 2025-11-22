@@ -28,6 +28,7 @@ export default function SearchPage() {
     if (debouncedQuery.trim() && selectedKBId && lunrReady) {
       handleSearch();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery, selectedKBId]);
 
   const handleSearch = async () => {

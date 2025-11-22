@@ -952,6 +952,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     initializeDatabase();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync API key to OpenAI client
@@ -1749,6 +1750,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useVectorDB() {
   const context = useContext(VectorDBContext);
   if (context === undefined) {
