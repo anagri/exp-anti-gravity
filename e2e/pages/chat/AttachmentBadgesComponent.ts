@@ -18,9 +18,13 @@ export class AttachmentBadgesComponent {
 
   async remove(filename: string) {
     const badge = this.page.locator(`[data-filename="${filename}"]`);
+
+    // Precondition: Badge must be visible before removing
+    await expect(badge).toBeVisible();
+
     const documentId = await badge.getAttribute('data-testid');
-    if (!documentId) throw new Error(`Could not find document ID for ${filename}`);
-    const id = documentId.replace('attachment-badge-', '');
+    expect(documentId, `Could not find document ID for ${filename}`).toBeTruthy();
+    const id = documentId!.replace('attachment-badge-', '');
     await this.page.getByTestId(`btn-remove-attachment-${id}`).click();
   }
 

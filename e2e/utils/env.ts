@@ -2,6 +2,7 @@ import { config } from 'dotenv';
 import { existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { expect } from '@playwright/test';
 
 export function loadTestApiKey(): string {
   const __filename = fileURLToPath(import.meta.url);
@@ -13,9 +14,7 @@ export function loadTestApiKey(): string {
   }
 
   const apiKey = process.env.TEST_OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('TEST_OPENAI_API_KEY not found in e2e/.env.test or environment variables');
-  }
+  expect(apiKey, 'TEST_OPENAI_API_KEY not found in e2e/.env.test or environment variables').toBeDefined();
 
-  return apiKey;
+  return apiKey!;
 }

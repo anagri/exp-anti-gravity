@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 
 /**
  * Component for individual document card operations
@@ -39,20 +39,14 @@ export class DocumentCardComponent {
 
   async deleteFileByName(filename: string) {
     const fileId = await this.findFileByName(filename);
-
-    if (!fileId) {
-      throw new Error(`File not found: ${filename}`);
-    }
+    expect(fileId, `File not found: ${filename}`).toBeTruthy();
 
     await this.page.click(`[data-testid="btn-doc-delete-${fileId}"]`);
   }
 
   async downloadFileByName(filename: string) {
     const fileId = await this.findFileByName(filename);
-
-    if (!fileId) {
-      throw new Error(`File not found: ${filename}`);
-    }
+    expect(fileId, `File not found: ${filename}`).toBeTruthy();
 
     await this.page.click(`[data-testid="btn-doc-download-${fileId}"]`);
   }
@@ -65,11 +59,10 @@ export class DocumentCardComponent {
   async getChunkCount(fileId: string): Promise<number> {
     const card = this.getCard(fileId);
     const chunkCountStr = await card.getAttribute('data-chunk-count');
-    const chunkCount = parseInt(chunkCountStr || '0', 10);
+    expect(chunkCountStr, `Chunk count attribute missing for file ${fileId}`).toBeTruthy();
 
-    if (isNaN(chunkCount)) {
-      throw new Error(`Invalid chunk count for file ${fileId}: ${chunkCountStr}`);
-    }
+    const chunkCount = parseInt(chunkCountStr!, 10);
+    expect(chunkCount, `Invalid chunk count for file ${fileId}: ${chunkCountStr}`).not.toBeNaN();
 
     return chunkCount;
   }
