@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import OpenAI from 'openai';
 import type { SearchResult } from '@/contexts/VectorDBContext';
 import { getOpenAIConfig } from '@/lib/feature-flags';
@@ -39,6 +39,7 @@ export function useChat(params: UseChatParams | string | null) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Get chat model from config
   const chatModel = getOpenAIConfig('CHAT_MODEL');
@@ -66,6 +67,14 @@ ${result.content}
       setError('API Key is missing');
       return;
     }
+
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
 
     const newMessage: Message = { role: 'user', content };
     setMessages(prev => [...prev, newMessage]);
@@ -142,11 +151,14 @@ Now answer the user's question using the context above. Remember to cite sources
           .join('\n\n---\n\n');
       }
 
-      const stream = await openai.chat.completions.create({
-        messages: messagesToSend.map(m => ({ role: m.role, content: m.content })),
-        model: chatModel,
-        stream: true,
-      });
+      const stream = await openai.chat.completions.create(
+        {
+          messages: messagesToSend.map(m => ({ role: m.role, content: m.content })),
+          model: chatModel,
+          stream: true,
+        },
+        { signal: abortControllerRef.current.signal }
+      );
 
       let assistantContent = '';
       setMessages(prev => [...prev, { role: 'assistant', content: '', sources: currentMessageSources, metadata: currentMessageMetadata, prompt: currentMessagePrompt }]);
@@ -160,10 +172,24 @@ Now answer the user's question using the context above. Remember to cite sources
           return newMsgs;
         });
       }
-    } catch (err) {
+    } catch (err: any) {
+      // Don't show error if request was aborted by user
+      if (err?.name === 'AbortError') {
+        console.log('[useChat] Request cancelled');
+        return;
+      }
       console.error(err);
       setError('Failed to send message. Please check your API key.');
     } finally {
+      setIsLoading(false);
+      setIsSearching(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const cancelMessage = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
       setIsLoading(false);
       setIsSearching(false);
     }
@@ -172,6 +198,9 @@ Now answer the user's question using the context above. Remember to cite sources
   const clearChat = () => {
     setMessages([]);
     setError(null);
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
   };
 
   // Get sources from the last assistant message for backward compatibility
@@ -184,6 +213,7 @@ Now answer the user's question using the context above. Remember to cite sources
     isSearching,
     error,
     sendMessage,
+    cancelMessage,
     clearChat,
     sources,
   };
