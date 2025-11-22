@@ -6,6 +6,7 @@ import fs from 'fs';
 
 test.describe('Document Upload & Management', () => {
   let documentsPage: DocumentPage;
+  const TEST_KB_NAME = 'Test Knowledge Base';
 
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
@@ -13,23 +14,22 @@ test.describe('Document Upload & Management', () => {
     });
 
     documentsPage = new DocumentPage(page);
-    await documentsPage.setup();
+    await documentsPage.setup("sk-test-key-123");
+
+    // Create a KB for testing
+    await documentsPage.createKB(TEST_KB_NAME, 'KB for document upload tests');
+    await documentsPage.expandKB(TEST_KB_NAME);
   });
 
   test('comprehensive workflow: validation → lifecycle → multi-ops → persistence', async ({ page }) => {
-    await documentsPage.expectEmptyState();
+    await documentsPage.expectEmptyDocumentsInKB();
 
-    await documentsPage.uploadFiles(TEST_FILES.INVALID_PDF);
-
-    await page.waitForFunction(() => {
-      const container = document.querySelector('[data-uploading]');
-      return container?.getAttribute('data-uploading') === 'false';
-    });
+    await documentsPage.uploadFilesToKB(TEST_KB_NAME, TEST_FILES.INVALID_PDF);
 
     await documentsPage.expectFileCount(0);
-    await documentsPage.expectEmptyState();
+    await documentsPage.expectEmptyDocumentsInKB();
 
-    await documentsPage.uploadFilesAndWait(TEST_FILES.DOC_01_MD, FILE_NAMES.DOC_01_MD);
+    await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, TEST_FILES.DOC_01_MD, FILE_NAMES.DOC_01_MD);
 
     await documentsPage.expectFileCount(1);
     await documentsPage.emptyState.expectNotVisible();
@@ -57,9 +57,9 @@ test.describe('Document Upload & Management', () => {
     await documentsPage.deleteModal.waitForModalToClose();
 
     await documentsPage.expectFileCount(0);
-    await documentsPage.expectEmptyState();
+    await documentsPage.expectEmptyDocumentsInKB();
 
-    await documentsPage.uploadFiles([
+    await documentsPage.uploadFilesToKB(TEST_KB_NAME, [
       TEST_FILES.DOC_01_MD,
       TEST_FILES.DOC_02_TXT,
       TEST_FILES.DOC_03_MD,
@@ -103,7 +103,7 @@ test.describe('Document Upload & Management', () => {
 
     await page.reload();
     await documentsPage.waitForDBInitialized();
-
+    await documentsPage.expectKbExpanded(TEST_KB_NAME, true);
     await documentsPage.expectFileCount(2);
 
     const fileNamesAfterReload = await documentsPage.documentList.getFileNames();
@@ -124,6 +124,7 @@ test.describe('Document Upload & Management', () => {
 
     await page.reload();
     await documentsPage.waitForDBInitialized();
+    await documentsPage.expectKbExpanded(TEST_KB_NAME, true);
 
     await documentsPage.expectFileCount(1);
 
