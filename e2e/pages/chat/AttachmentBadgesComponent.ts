@@ -1,6 +1,6 @@
 import { Page, expect } from '@playwright/test';
 
-export class AttachmentsComponent {
+export class AttachmentBadgesComponent {
   constructor(private readonly page: Page) {}
 
   async expectBadges(count: number) {

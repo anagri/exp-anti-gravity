@@ -4,7 +4,7 @@ import { FileSelectorComponent } from './chat/FileSelectorComponent';
 import { MessagesComponent } from './chat/MessagesComponent';
 import { SourcesComponent } from './chat/SourcesComponent';
 import { CitationsComponent } from './chat/CitationsComponent';
-import { AttachmentsComponent } from './chat/AttachmentsComponent';
+import { AttachmentBadgesComponent } from './chat/AttachmentBadgesComponent';
 import { ModelSelectorComponent } from './chat/ModelSelectorComponent';
 import { LoadingStateComponent } from './chat/LoadingStateComponent';
 import { ChatInputComponent } from './chat/ChatInputComponent';
@@ -16,7 +16,7 @@ export class ChatPage extends BasePage {
   readonly messages: MessagesComponent;
   readonly sources: SourcesComponent;
   readonly citations: CitationsComponent;
-  readonly attachments: AttachmentsComponent;
+  readonly attachments: AttachmentBadgesComponent;
   readonly modelSelector: ModelSelectorComponent;
   readonly loadingState: LoadingStateComponent;
   readonly input: ChatInputComponent;
@@ -29,7 +29,7 @@ export class ChatPage extends BasePage {
     this.messages = new MessagesComponent(page);
     this.sources = new SourcesComponent(page);
     this.citations = new CitationsComponent(page);
-    this.attachments = new AttachmentsComponent(page);
+    this.attachments = new AttachmentBadgesComponent(page);
     this.modelSelector = new ModelSelectorComponent(page);
     this.loadingState = new LoadingStateComponent(page);
     this.input = new ChatInputComponent(page);
