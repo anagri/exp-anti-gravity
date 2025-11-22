@@ -366,27 +366,29 @@ Expanded content: data-testid="kb-expanded-{kbId}"
 - Default: **expanded** (visible immediately, not collapsed)
 - All fields always visible with number inputs:
   - **Vector Top K**: Number of vector search results
-    - Default: 3 (from `getSearchSetting('VECTOR_TOP_K')`)
+    - Default: 3 (hardcoded constant, previously from global settings)
     - Range: 1-20
     - Help text: "How many vector search results to retrieve"
   - **Similarity Threshold**: Cosine similarity cutoff
-    - Default: 0.3 (from `getSearchSetting('SIMILARITY_THRESHOLD')`)
+    - Default: 0.3 (hardcoded constant, previously from global settings)
     - Range: 0-1, step: 0.1
     - Help text: "Minimum similarity score (0-1) to include results"
   - **BM25 Limit**: Number of keyword search results
-    - Default: 10 (from `getSearchSetting('BM25_LIMIT')`)
+    - Default: 10 (hardcoded constant, previously from global settings)
     - Range: 1-50
     - Help text: "How many BM25 full-text search results to retrieve"
   - **HNSW M**: HNSW max connections per layer
-    - Default: 16 (from `getSearchSetting('HNSW_M')`)
+    - Default: 16 (hardcoded constant, KB-level setting only)
     - Range: 4-64
     - Help text: "Higher = more accurate but slower indexing (requires re-index)"
+    - **Note:** HNSW settings are KB-level only, not global
   - **HNSW EF Construction**: HNSW construction list size
-    - Default: 64 (from `getSearchSetting('HNSW_EF_CONSTRUCTION')`)
+    - Default: 64 (hardcoded constant, KB-level setting only)
     - Range: 16-256
     - Help text: "Higher = better index quality but slower build (requires re-index)"
+    - **Note:** HNSW settings are KB-level only, not global
   - **RRF K**: Reciprocal Rank Fusion constant
-    - Default: 0.6 (from `getSearchSetting('RRF_K')`)
+    - Default: 0.6 (hardcoded constant, previously from global settings)
     - Range: 0-1, step: 0.1
     - Help text: "Constant for merging vector + BM25 results (lower = favor top ranks)"
   - Info text at bottom: "⚠️ Changing HNSW params or vector config later will require re-indexing"
@@ -449,10 +451,12 @@ Submit button: data-testid="btn-create-kb-submit"
 
 **Implementation References:**
 
-- Global embedding model: `VectorDBContext.tsx` line 271 (DEFAULT_EMBEDDING_MODEL constant)
-- Global vector dimensions: `VectorDBContext.tsx` line 276 (768 hardcoded)
-- Global search settings: `feature-flags.ts` SEARCH_SETTINGS object
+- Default embedding model: `VectorDBContext.tsx` line 271 (DEFAULT_EMBEDDING_MODEL constant used as default for new KBs)
+- Default vector dimensions: `VectorDBContext.tsx` line 276 (768 hardcoded, used as default for new KBs)
+- Default search settings: Hardcoded constants in CreateKBModal (no global settings, only KB-level)
 - OpenAI embedding models documentation: https://platform.openai.com/docs/guides/embeddings
+
+**Note:** All search configuration (including HNSW params) is stored at KB level only. There are no global HNSW settings. The defaults mentioned above are only used to pre-fill the Create KB form.
 
 ### 2.3 Edit Knowledge Base Modal
 
@@ -1726,3 +1730,20 @@ This phase introduces Knowledge Base organization with per-KB vector/search conf
 - Context-Aware Query Rephrasing (phase query-rephrasing)
 - Advanced Hybrid Search RRF implementation (phase hybrid-search-rrf)
 - DocsGPT-style Agentic RAG (phase agentic-rag)
+
+---
+
+## 15. Test Migration (See Separate Spec)
+
+This spec focused primarily on feature implementation. During actual implementation, significant test migration was required that was not fully detailed here.
+
+**See:** `ai-docs/plans/phase-knowledge-base-test-migration-spec.md` for comprehensive test migration strategy covering:
+
+- Breaking changes to page structure and workflows
+- Test impact analysis (6 tests affected)
+- Page object method migration matrix
+- Before/after code examples for test updates
+- Implementation order constraints
+- Test migration checklist
+
+**Lessons Learned:** Future breaking feature specs should include comprehensive test migration sections upfront. See `ai-docs/plans/kb-retrospective.md` for detailed analysis of what went wrong and how to prevent similar issues in future implementations.
