@@ -84,4 +84,14 @@ export class DocumentListComponent {
 
     return chunkCount;
   }
+
+  async waitForIndexedText(fileId: string) {
+    await this.page.waitForFunction(
+      (id) => {
+        const doc = document.querySelector(`[data-testid="div-doc-item-${id}"]`);
+        return doc?.textContent?.includes('Indexed');
+      },
+      fileId
+    );
+  }
 }

@@ -84,4 +84,14 @@ export class FileSelectorComponent {
   async expectSelectionSummary(text: string) {
     await expect(this.page.getByText(text)).toBeVisible();
   }
+
+  async clickFileByName(filename: string) {
+    const fileItem = this.page.locator(`[data-filename="${filename}"]`);
+    await fileItem.click();
+  }
+
+  async expectFileSelection(filename: string, selected: boolean) {
+    const fileItem = this.page.locator(`[data-filename="${filename}"]`);
+    await expect(fileItem).toHaveAttribute('data-selected', selected.toString());
+  }
 }

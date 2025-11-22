@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures/globalSetup';
+import { test } from '../fixtures/globalSetup';
 import { DocumentPage } from '../pages/DocumentPage';
 import { ChatPage } from '../pages/ChatPage';
 import { TEST_FILES, FILE_NAMES } from '../fixtures/test-files';
@@ -23,7 +23,7 @@ test.describe('KB Workflow with Indexing @live', () => {
     await documentsPage.setup(apiKey);
   });
 
-  test('Phase upload-index → chat-kb-filter → auto-filter → selection-summary', async ({ page }) => {
+  test('Phase upload-index → chat-kb-filter → auto-filter → selection-summary', async () => {
     // ─────────────────────────────────────────────────────────
     // PHASE UPLOAD-INDEX: Create KBs and Upload with Indexing
     // ─────────────────────────────────────────────────────────
@@ -38,13 +38,7 @@ test.describe('KB Workflow with Indexing @live', () => {
     // Wait for indexing to complete
     const fileAId = await documentsPage.documentList.findFileByName(FILE_NAMES.DOC_01_MD);
     if (!fileAId) throw new Error('File A not found');
-    await page.waitForFunction(
-      (id) => {
-        const doc = document.querySelector(`[data-testid="div-doc-item-${id}"]`);
-        return doc?.textContent?.includes('Indexed');
-      },
-      fileAId
-    );
+    await documentsPage.documentList.waitForIndexedText(fileAId);
 
     await documentsPage.createKB('KB B');
     await documentsPage.expectKBVisible('KB B');
@@ -56,13 +50,7 @@ test.describe('KB Workflow with Indexing @live', () => {
 
     const fileBId = await documentsPage.documentList.findFileByName(FILE_NAMES.DOC_02_TXT);
     if (!fileBId) throw new Error('File B not found');
-    await page.waitForFunction(
-      (id) => {
-        const doc = document.querySelector(`[data-testid="div-doc-item-${id}"]`);
-        return doc?.textContent?.includes('Indexed');
-      },
-      fileBId
-    );
+    await documentsPage.documentList.waitForIndexedText(fileBId);
 
     console.log('Documents uploaded and indexed');
 
@@ -102,9 +90,8 @@ test.describe('KB Workflow with Indexing @live', () => {
     await chatPage.fileSelector.expectFileCount(2);
 
     // Select document from KB A
-    const docAItem = page.locator(`[data-filename="${FILE_NAMES.DOC_01_MD}"]`);
-    await docAItem.click();
-    await expect(docAItem).toHaveAttribute('data-selected', 'true');
+    await chatPage.fileSelector.clickFileByName(FILE_NAMES.DOC_01_MD);
+    await chatPage.fileSelector.expectFileSelection(FILE_NAMES.DOC_01_MD, true);
 
     // Verify KB filter auto-changed to KB A
     await chatPage.fileSelector.expectKBFilterValue(kbAId);
@@ -125,12 +112,11 @@ test.describe('KB Workflow with Indexing @live', () => {
     await chatPage.fileSelector.expectSelectionSummary('No documents selected');
 
     // Verify doc from KB B not selected
-    const docBItem = page.locator(`[data-filename="${FILE_NAMES.DOC_02_TXT}"]`);
-    await expect(docBItem).toHaveAttribute('data-selected', 'false');
+    await chatPage.fileSelector.expectFileSelection(FILE_NAMES.DOC_02_TXT, false);
 
     // Select in KB B and verify summary
     await chatPage.fileSelector.selectKBFilter('KB B');
-    await docBItem.click();
+    await chatPage.fileSelector.clickFileByName(FILE_NAMES.DOC_02_TXT);
     await chatPage.fileSelector.expectSelectionSummary('1 document selected from KB B');
 
     console.log('Selection summary shows KB context correctly');
