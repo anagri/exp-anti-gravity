@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, expect, Locator } from '@playwright/test';
 
 interface ScoreData {
   chunkId: string | null;
@@ -13,10 +13,32 @@ interface ScoreArray {
   fusedScores: number[];
 }
 
-export class SourcesComponent {
+/**
+ * Combined component for citations and sources
+ * Maps to src/pages/chat/SourceCitations.tsx
+ */
+export class SourceCitationsComponent {
   constructor(private readonly page: Page) {}
 
-  async getCount(): Promise<number> {
+  // Citation methods (inline citation markers)
+
+  async getCitationCount(): Promise<number> {
+    return await this.page.locator('[data-citation-index]').count();
+  }
+
+  async hoverCitation(index: number) {
+    const citation = this.page.locator(`[data-citation-index="${index}"]`).first();
+    await expect(citation).toBeVisible();
+    await citation.hover();
+  }
+
+  async expectTooltipVisible() {
+    await expect(this.page.locator('[data-citation-tooltip]')).toBeVisible();
+  }
+
+  // Sources methods (sources footer section)
+
+  async getSourceCount(): Promise<number> {
     return await this.page.locator('[data-source-index]').count();
   }
 
@@ -83,5 +105,10 @@ export class SourcesComponent {
     }
 
     return true;
+  }
+
+  // Backward-compatible aliases
+  async getCount(): Promise<number> {
+    return await this.getSourceCount();
   }
 }

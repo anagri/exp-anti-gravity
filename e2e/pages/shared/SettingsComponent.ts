@@ -1,5 +1,9 @@
 import { Page, expect } from '@playwright/test';
 
+/**
+ * Shared component for Settings dialog operations
+ * Maps to src/components/SettingsDialog.tsx
+ */
 export class SettingsComponent {
   constructor(private readonly page: Page) {}
 

@@ -79,7 +79,7 @@ test.describe('Hybrid Search @live', () => {
     console.log(`First message: ${firstMsgSources} sources, Second message: ${secondMsgSources} sources`);
 
     // Step 5: Verify total sources visible equals sum
-    const totalSources = await chatPage.sources.getCount();
+    const totalSources = await chatPage.sourceCitations.getSourceCount();
     expect(totalSources).toBe(firstMsgSources + secondMsgSources);
     console.log(`Total sources visible: ${totalSources} (verified sum)`);
 
@@ -113,7 +113,7 @@ test.describe('Hybrid Search @live', () => {
     console.log(`First message metadata: ${firstMetadata?.chunkIds.length} chunks with scores`);
 
     // Step 9: Verify data attributes on sources
-    const scoreData = await chatPage.sources.getScoreData(0, 1);
+    const scoreData = await chatPage.sourceCitations.getScoreData(0, 1);
 
     expect(scoreData.chunkId).toBeTruthy();
     expect(scoreData.vectorScore).toBeGreaterThanOrEqual(0);

@@ -1,3 +1,7 @@
+/**
+ * Settings dialog component for feature flags, OpenAI config, and search settings
+ * E2E: e2e/pages/shared/SettingsComponent.ts
+ */
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Settings, X, Eye, EyeOff, RefreshCw } from 'lucide-react'

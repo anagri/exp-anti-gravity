@@ -1,97 +1,66 @@
-import { Page, expect } from '@playwright/test';
+import { Page } from '@playwright/test';
+import { DocumentCardComponent } from './DocumentCardComponent';
+import { IndexingStatusBadgeComponent } from './IndexingStatusBadgeComponent';
+import { IndexingProgressComponent } from './IndexingProgressComponent';
 
+/**
+ * Composite component for document list operations
+ * Delegates to: DocumentCardComponent, IndexingStatusBadgeComponent, IndexingProgressComponent
+ */
 export class DocumentListComponent {
-  constructor(private page: Page) {}
+  readonly card: DocumentCardComponent;
+  readonly statusBadge: IndexingStatusBadgeComponent;
+  readonly progress: IndexingProgressComponent;
+
+  constructor(private page: Page) {
+    this.card = new DocumentCardComponent(page);
+    this.statusBadge = new IndexingStatusBadgeComponent(page);
+    this.progress = new IndexingProgressComponent(page);
+  }
+
+  // Backward-compatible wrapper methods delegate to sub-components
 
   async findFileByName(filename: string): Promise<string | null> {
-    const cards = await this.page.locator('[data-testid^="div-doc-item-"]').all();
-
-    for (const card of cards) {
-      const filenameLoc = card.locator('[data-testid^="span-doc-filename-"]');
-      const text = await filenameLoc.textContent();
-
-      if (text?.includes(filename)) {
-        const testId = await card.getAttribute('data-testid');
-        return testId?.replace('div-doc-item-', '') || null;
-      }
-    }
-
-    return null;
+    return await this.card.findFileByName(filename);
   }
 
   async waitForFileToAppear(filename: string) {
-    await this.page.waitForFunction(
-      (name) => {
-        const filenames = document.querySelectorAll('[data-testid^="span-doc-filename-"]');
-        return Array.from(filenames).some(el => el.textContent?.includes(name));
-      },
-      filename
-    );
+    await this.card.waitForFileToAppear(filename);
   }
 
   async deleteFileByName(filename: string) {
-    const fileId = await this.findFileByName(filename);
-
-    if (!fileId) {
-      throw new Error(`File not found: ${filename}`);
-    }
-
-    await this.page.click(`[data-testid="btn-doc-delete-${fileId}"]`);
+    await this.card.deleteFileByName(filename);
   }
 
   async downloadFileByName(filename: string) {
-    const fileId = await this.findFileByName(filename);
-
-    if (!fileId) {
-      throw new Error(`File not found: ${filename}`);
-    }
-
-    await this.page.click(`[data-testid="btn-doc-download-${fileId}"]`);
+    await this.card.downloadFileByName(filename);
   }
 
   async expectFileCount(count: number) {
-    const cards = this.page.locator('[data-testid^="div-doc-item-"]');
-    await expect(cards).toHaveCount(count);
+    await this.progress.expectFileCount(count);
   }
 
   async getFileNames(): Promise<string[]> {
-    const filenames = await this.page.locator('[data-testid^="span-doc-filename-"]').allTextContents();
-    return filenames;
+    return await this.card.getFileNames();
   }
 
   getDocumentCard(fileId: string) {
-    return this.page.locator(`[data-testid="div-doc-item-${fileId}"]`);
+    return this.card.getCard(fileId);
   }
 
   async waitForIndexingStatus(fileId: string, status: 'completed' | 'failed') {
-    const card = this.getDocumentCard(fileId);
-    await expect(card).toHaveAttribute('data-indexing-status', status);
+    await this.statusBadge.waitForIndexingStatus(fileId, status);
   }
 
   async expectIndexingStatus(fileId: string, status: string) {
-    const card = this.getDocumentCard(fileId);
-    await expect(card).toHaveAttribute('data-indexing-status', status);
+    await this.statusBadge.expectIndexingStatus(fileId, status);
   }
 
   async getChunkCount(fileId: string): Promise<number> {
-    const card = this.getDocumentCard(fileId);
-    const chunkCountStr = await card.getAttribute('data-chunk-count');
-    const chunkCount = parseInt(chunkCountStr || '0', 10);
-
-    if (isNaN(chunkCount)) {
-      throw new Error(`Invalid chunk count for file ${fileId}: ${chunkCountStr}`);
-    }
-
-    return chunkCount;
+    return await this.card.getChunkCount(fileId);
   }
 
   async waitForIndexedText(fileId: string) {
-    await this.page.waitForFunction(
-      (id) => {
-        const doc = document.querySelector(`[data-testid="div-doc-item-${id}"]`);
-        return doc?.textContent?.includes('Indexed');
-      },
-      fileId
-    );
+    await this.statusBadge.waitForIndexedText(fileId);
   }
 }

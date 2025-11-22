@@ -2,8 +2,7 @@ import { Page, expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 import { FileSelectorComponent } from './chat/FileSelectorComponent';
 import { MessagesComponent } from './chat/MessagesComponent';
-import { SourcesComponent } from './chat/SourcesComponent';
-import { CitationsComponent } from './chat/CitationsComponent';
+import { SourceCitationsComponent } from './chat/SourceCitationsComponent';
 import { AttachmentBadgesComponent } from './chat/AttachmentBadgesComponent';
 import { ModelSelectorComponent } from './chat/ModelSelectorComponent';
 import { LoadingStateComponent } from './chat/LoadingStateComponent';
@@ -14,8 +13,7 @@ import { SettingsComponent } from './shared/SettingsComponent';
 export class ChatPage extends BasePage {
   readonly fileSelector: FileSelectorComponent;
   readonly messages: MessagesComponent;
-  readonly sources: SourcesComponent;
-  readonly citations: CitationsComponent;
+  readonly sourceCitations: SourceCitationsComponent;
   readonly attachments: AttachmentBadgesComponent;
   readonly modelSelector: ModelSelectorComponent;
   readonly loadingState: LoadingStateComponent;
@@ -27,8 +25,7 @@ export class ChatPage extends BasePage {
     super(page, baseUrl);
     this.fileSelector = new FileSelectorComponent(page);
     this.messages = new MessagesComponent(page);
-    this.sources = new SourcesComponent(page);
-    this.citations = new CitationsComponent(page);
+    this.sourceCitations = new SourceCitationsComponent(page);
     this.attachments = new AttachmentBadgesComponent(page);
     this.modelSelector = new ModelSelectorComponent(page);
     this.loadingState = new LoadingStateComponent(page);
@@ -128,23 +125,23 @@ export class ChatPage extends BasePage {
   }
 
   async getCitationCount(): Promise<number> {
-    return await this.citations.getCount();
+    return await this.sourceCitations.getCitationCount();
   }
 
   async getSourcesCount(): Promise<number> {
-    return await this.sources.getCount();
+    return await this.sourceCitations.getSourceCount();
   }
 
   async getSourceFilenames(): Promise<string[]> {
-    return await this.sources.getSourceFilenames();
+    return await this.sourceCitations.getSourceFilenames();
   }
 
   async hoverCitation(index: number) {
-    await this.citations.hover(index);
+    await this.sourceCitations.hoverCitation(index);
   }
 
   async expectCitationTooltipVisible() {
-    await this.citations.expectTooltipVisible();
+    await this.sourceCitations.expectTooltipVisible();
   }
 
   async expectAttachmentBadges(count: number) {
@@ -164,11 +161,11 @@ export class ChatPage extends BasePage {
   }
 
   async getSourceScores(messageIndex: number) {
-    return await this.sources.getSourceScores(messageIndex);
+    return await this.sourceCitations.getSourceScores(messageIndex);
   }
 
   async verifyScoreOrdering(messageIndex: number, scoreType: 'fused' | 'vector' | 'bm25'): Promise<boolean> {
-    return await this.sources.verifyScoreOrdering(messageIndex, scoreType);
+    return await this.sourceCitations.verifyScoreOrdering(messageIndex, scoreType);
   }
 
   async getMessagePrompt(messageIndex: number): Promise<string | null> {
