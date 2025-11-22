@@ -9,7 +9,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { vector } from '@electric-sql/pglite/vector'
 import { v4 as uuidv4 } from 'uuid'
 import OpenAI from 'openai'
-import { Tiktoken, encodingForModel, getEncoding } from 'js-tiktoken'
+import { Tiktoken, getEncoding } from 'js-tiktoken'
 import lunr from 'lunr'
 import { isFeatureEnabled, FEATURES, getSearchSetting, getOpenAIConfig } from '@/lib/feature-flags'
 import { useApiKey } from './ApiKeyContext'
@@ -23,7 +23,8 @@ let indexingEnabled = true
 let isProcessing = false
 let openaiClient: OpenAI | null = null
 let tokenizer: Tiktoken | null = null
-let lunrIndex: lunr.Index | null = null
+// Per-KB Lunr indexes: Map<kbId, lunr.Index>
+const lunrIndexes = new Map<string, lunr.Index>()
 
 interface KnowledgeBase {
   // Metadata
@@ -135,14 +136,14 @@ interface VectorDBContextType {
   initError: { message: string; canRetry: boolean } | null
   documents: Document[]
   knowledgeBases: KnowledgeBase[]
-  uploadFiles: (files: File[], kbId?: string) => Promise<void>
+  uploadFiles: (files: File[], kbId: string) => Promise<void>
   deleteDocument: (id: string) => Promise<void>
   refreshDocuments: () => Promise<void>
   indexingProgress: Map<string, IndexingProgress>
   retryFailed: (documentId: string) => Promise<void>
   retryInitialization: () => Promise<void>
   searchVectors: (query: string, documentIds: string[]) => Promise<SearchResult[]>
-  searchBM25: (query: string, limit?: number) => Promise<SearchResult[]>
+  searchBM25: (query: string, limit?: number, kbId?: string) => Promise<SearchResult[]>
   searchHybrid: (query: string, documentIds: string[]) => Promise<SearchResult[]>
   lunrReady: boolean
   // KB Management
@@ -176,18 +177,9 @@ function sleep(ms: number): Promise<void> {
 
 function initializeTokenizer(): void {
   if (!tokenizer) {
-    const embeddingModel = getOpenAIConfig('EMBEDDING_MODEL') as any
-    try {
-      tokenizer = encodingForModel(embeddingModel)
-    } catch (error) {
-      // Fallback to cl100k_base (used by GPT-4/GPT-3.5) for unknown models
-      // This is common when using local LLM servers (llama.cpp, etc.)
-      console.warn(
-        `[VectorDB] Unknown model "${embeddingModel}" for tiktoken, using cl100k_base encoding. ` +
-        `Error: ${error instanceof Error ? error.message : String(error)}`
-      )
-      tokenizer = getEncoding('cl100k_base')
-    }
+    // Use cl100k_base encoding (used by GPT-4/GPT-3.5)
+    // This is a reasonable default for token estimation during chunking
+    tokenizer = getEncoding('cl100k_base')
   }
 }
 
@@ -216,10 +208,11 @@ function splitOversizedParagraph(paragraph: string, maxTokens: number): string[]
   return pieces
 }
 
-function chunkDocument(content: string): Array<{ content: string, heading?: string }> {
-  const MAX_CHUNK_TOKENS = 2000
-  const MAX_OVERLAP_TOKENS = 200
-
+function chunkDocument(
+  content: string,
+  maxTokens: number,
+  overlapTokens: number
+): Array<{ content: string, heading?: string }> {
   initializeTokenizer()
 
   const paragraphs = content.split(/\n\n+/)
@@ -233,7 +226,7 @@ function chunkDocument(content: string): Array<{ content: string, heading?: stri
 
     const paragraphTokens = countTokens(trimmedParagraph)
 
-    if (paragraphTokens > MAX_CHUNK_TOKENS) {
+    if (paragraphTokens > maxTokens) {
       if (currentChunk) {
         chunks.push({
           content: currentChunk.trim(),
@@ -243,7 +236,7 @@ function chunkDocument(content: string): Array<{ content: string, heading?: stri
         currentTokens = 0
       }
 
-      const pieces = splitOversizedParagraph(trimmedParagraph, MAX_CHUNK_TOKENS)
+      const pieces = splitOversizedParagraph(trimmedParagraph, maxTokens)
       for (const piece of pieces) {
         chunks.push({
           content: piece,
@@ -256,7 +249,7 @@ function chunkDocument(content: string): Array<{ content: string, heading?: stri
 
     const separatorTokens = currentChunk ? countTokens('\n\n') : 0
 
-    if (currentTokens + paragraphTokens + separatorTokens > MAX_CHUNK_TOKENS) {
+    if (currentTokens + paragraphTokens + separatorTokens > maxTokens) {
       if (currentChunk) {
         chunks.push({
           content: currentChunk.trim(),
@@ -265,19 +258,19 @@ function chunkDocument(content: string): Array<{ content: string, heading?: stri
 
         const words = currentChunk.split(/\s+/)
         let overlapText = ''
-        let overlapTokens = 0
+        let currentOverlapTokens = 0
 
-        for (let i = words.length - 1; i >= 0 && overlapTokens < MAX_OVERLAP_TOKENS; i--) {
+        for (let i = words.length - 1; i >= 0 && currentOverlapTokens < overlapTokens; i--) {
           const word = words[i]
           const testOverlap = word + (overlapText ? ' ' : '') + overlapText
           const testTokens = countTokens(testOverlap)
-          if (testTokens > MAX_OVERLAP_TOKENS) break
+          if (testTokens > overlapTokens) break
           overlapText = testOverlap
-          overlapTokens = testTokens
+          currentOverlapTokens = testTokens
         }
 
         currentChunk = overlapText ? overlapText + '\n\n' : ''
-        currentTokens = overlapTokens + (overlapText ? separatorTokens : 0)
+        currentTokens = currentOverlapTokens + (overlapText ? separatorTokens : 0)
       }
     }
 
@@ -294,7 +287,7 @@ function chunkDocument(content: string): Array<{ content: string, heading?: stri
 
   if (chunks.length === 0 && content.trim()) {
     const tokens = tokenizer!.encode(content)
-    const chunkTokens = tokens.slice(0, MAX_CHUNK_TOKENS)
+    const chunkTokens = tokens.slice(0, maxTokens)
     const chunkContent = tokenizer!.decode(chunkTokens)
     return [{ content: chunkContent, heading: extractHeading(chunkContent) }]
   }
@@ -304,7 +297,9 @@ function chunkDocument(content: string): Array<{ content: string, heading?: stri
 
 async function generateEmbeddings(
   chunks: Array<{ content: string, heading?: string }>,
-  onBatchProgress: (current: number, total: number) => void
+  onBatchProgress: (current: number, total: number) => void,
+  embeddingDimensions: number,
+  embeddingModel: string
 ): Promise<number[][]> {
   if (!openaiClient) {
     throw new Error('OpenAI client not initialized. Set API key in application settings.')
@@ -342,11 +337,10 @@ async function generateEmbeddings(
     const end = Math.min(start + BATCH_SIZE, chunks.length)
     const batchChunks = chunks.slice(start, end)
 
-    const embeddingModel = getOpenAIConfig('EMBEDDING_MODEL')
     const response = await openaiClient.embeddings.create({
       model: embeddingModel,
       input: batchChunks.map(c => c.content),
-      dimensions: 768,
+      dimensions: embeddingDimensions,
     })
 
     const batchEmbeddings = response.data.map(item => item.embedding)
@@ -431,8 +425,8 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         const defaultVectorTopK = getSearchSetting('VECTOR_TOP_K')
         const defaultSimilarityThreshold = getSearchSetting('SIMILARITY_THRESHOLD')
         const defaultBm25Limit = getSearchSetting('BM25_LIMIT')
-        const defaultHnswM = getSearchSetting('HNSW_M')
-        const defaultHnswEfConstruction = getSearchSetting('HNSW_EF_CONSTRUCTION')
+        const defaultHnswM = 16  // HNSW M default (per-KB setting)
+        const defaultHnswEfConstruction = 64  // HNSW ef_construction default (per-KB setting)
         const defaultRrfK = getSearchSetting('RRF_K')
 
         await db.exec(`
@@ -444,7 +438,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             embedding_model TEXT NOT NULL DEFAULT 'text-embedding-3-small',
-            embedding_dimensions INTEGER NOT NULL DEFAULT 768,
+            embedding_dimensions INTEGER NOT NULL DEFAULT 1536,
             chunk_max_tokens INTEGER NOT NULL DEFAULT 2000,
             chunk_overlap_tokens INTEGER NOT NULL DEFAULT 200,
             vector_top_k INTEGER NOT NULL DEFAULT ${defaultVectorTopK},
@@ -483,6 +477,23 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
           CREATE INDEX IF NOT EXISTS idx_documents_knowledge_base_id ON documents(knowledge_base_id);
         `)
 
+        // Enforce NOT NULL constraint on knowledge_base_id
+        // Delete any orphaned documents without KB (no production data to preserve)
+        await db.exec(`DELETE FROM documents WHERE knowledge_base_id IS NULL;`)
+
+        // Now safe to add NOT NULL constraint
+        try {
+          await db.exec(`
+            ALTER TABLE documents
+            ALTER COLUMN knowledge_base_id SET NOT NULL;
+          `)
+        } catch (e) {
+          // Constraint might already exist, ignore error
+          if (import.meta.env.DEV) {
+            console.log('[VectorDB] NOT NULL constraint on knowledge_base_id already exists or failed:', e)
+          }
+        }
+
         // Create indexing_queue table
         await db.exec(`
           CREATE TABLE IF NOT EXISTS indexing_queue (
@@ -501,35 +512,8 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
           CREATE INDEX IF NOT EXISTS idx_queue_status_created ON indexing_queue(status, created_at);
         `)
 
-        // Create chunks table
-        await db.exec(`
-          CREATE TABLE IF NOT EXISTS chunks (
-            id UUID PRIMARY KEY,
-            document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-            chunk_index INTEGER NOT NULL,
-            content TEXT NOT NULL,
-            heading TEXT,
-            embedding vector(768),
-            token_count INTEGER NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE (document_id, chunk_index)
-          );
-
-          CREATE INDEX IF NOT EXISTS idx_chunks_document ON chunks(document_id);
-        `)
-
-        // Create HNSW index using settings
-        const hnswM = getSearchSetting('HNSW_M')
-        const hnswEfConstruction = getSearchSetting('HNSW_EF_CONSTRUCTION')
-        await db.exec(`
-          CREATE INDEX IF NOT EXISTS idx_chunks_embedding_hnsw
-          ON chunks
-          USING hnsw (embedding vector_cosine_ops)
-          WITH (m = ${hnswM}, ef_construction = ${hnswEfConstruction});
-        `)
-
         if (import.meta.env.DEV) {
-          console.log('[VectorDB] Database initialized with all tables and HNSW index')
+          console.log('[VectorDB] Database initialized with all tables (KB-specific chunks only)')
         }
 
         // Initialize indexing state
@@ -545,17 +529,14 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
           })
         }
 
-        // Build Lunr index if chunks exist
-        const chunkCountResult = await db.query<{ count: number }>('SELECT COUNT(*) as count FROM chunks')
-        const chunkCount = parseInt(chunkCountResult.rows[0]?.count?.toString() || '0')
-        if (chunkCount > 0) {
-          await buildLunrIndex()
-        }
+        // Build Lunr index from KB-specific chunks tables
+        await buildLunrIndex()
 
         // Start queue processor
         processQueue()
         setInterval(() => processQueue(), 2000)
 
+        await refreshKnowledgeBases()
         await refreshDocuments()
         setInitialized(true)
         setInitError(null)
@@ -719,17 +700,26 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
       throw new Error('A knowledge base with this name already exists')
     }
 
-    // Get defaults from global settings
+    // Extract config with validation
     const config = params.config || {}
-    const embeddingModel = config.embedding_model || 'text-embedding-3-small'
-    const embeddingDimensions = config.embedding_dimensions || 768
+
+    // Embedding settings are required (no global defaults)
+    if (!config.embedding_model) {
+      throw new Error('Embedding model is required')
+    }
+    if (!config.embedding_dimensions) {
+      throw new Error('Embedding dimensions are required')
+    }
+
+    const embeddingModel = config.embedding_model
+    const embeddingDimensions = config.embedding_dimensions
     const chunkMaxTokens = config.chunk_max_tokens || 2000
     const chunkOverlapTokens = config.chunk_overlap_tokens || 200
     const vectorTopK = config.vector_top_k ?? getSearchSetting('VECTOR_TOP_K')
     const similarityThreshold = config.similarity_threshold ?? getSearchSetting('SIMILARITY_THRESHOLD')
     const bm25Limit = config.bm25_limit ?? getSearchSetting('BM25_LIMIT')
-    const hnswM = config.hnsw_m ?? getSearchSetting('HNSW_M')
-    const hnswEfConstruction = config.hnsw_ef_construction ?? getSearchSetting('HNSW_EF_CONSTRUCTION')
+    const hnswM = config.hnsw_m ?? 16  // HNSW M default (per-KB setting)
+    const hnswEfConstruction = config.hnsw_ef_construction ?? 64  // HNSW ef_construction default (per-KB setting)
     const rrfK = config.rrf_k ?? getSearchSetting('RRF_K')
 
     const kbId = uuidv4()
@@ -941,6 +931,9 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
       console.error(`[VectorDB] Error dropping chunks table ${tableName}:`, error)
     }
 
+    // Remove Lunr index for this KB
+    lunrIndexes.delete(id)
+
     await refreshKnowledgeBases()
     await refreshDocuments()
 
@@ -1046,9 +1039,13 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const uploadFiles = async (files: File[], kbId?: string) => {
+  const uploadFiles = async (files: File[], kbId: string) => {
     if (!dbGlobal) {
       throw new Error('Database not initialized')
+    }
+
+    if (!kbId) {
+      throw new Error('Knowledge Base ID is required for document upload')
     }
 
     try {
@@ -1070,7 +1067,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         await dbGlobal.query(
           `INSERT INTO documents (id, filename, content, file_size, mime_type, knowledge_base_id)
            VALUES ($1, $2, $3, $4, $5, $6)`,
-          [id, file.name, content, fileSize, mimeType, kbId || null]
+          [id, file.name, content, fileSize, mimeType, kbId]
         )
 
         if (indexingEnabled) {
@@ -1091,6 +1088,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
       }
 
       await refreshDocuments()
+      await refreshKnowledgeBases() // Update KB stats
       processQueue() // Trigger immediate processing
     } catch (error) {
       console.error('[VectorDB] Error uploading files:', error)
@@ -1120,13 +1118,22 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
   const storeChunks = async (
     documentId: string,
     chunks: Array<{ content: string, heading?: string }>,
-    embeddings: number[][]
+    embeddings: number[][],
+    knowledgeBaseId?: string
   ) => {
     if (!dbGlobal) {
       throw new Error('Database not initialized')
     }
 
     initializeTokenizer()
+
+    // All documents must belong to a KB
+    if (!knowledgeBaseId) {
+      throw new Error('Knowledge Base ID is required for storing chunks')
+    }
+
+    // Determine table name based on KB
+    const tableName = `kb_${knowledgeBaseId.replace(/-/g, '_')}_chunks`
 
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i]
@@ -1136,7 +1143,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
       const embeddingStr = `[${embedding.join(',')}]`
 
       await dbGlobal.query(
-        `INSERT INTO chunks (id, document_id, chunk_index, content, heading, embedding, token_count)
+        `INSERT INTO ${tableName} (id, document_id, chunk_index, content, heading, embedding, token_count)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           uuidv4(),
@@ -1151,7 +1158,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     }
 
     if (import.meta.env.DEV) {
-      console.log(`[VectorDB] Stored ${chunks.length} chunks with embeddings for document ${documentId}`)
+      console.log(`[VectorDB] Stored ${chunks.length} chunks with embeddings for document ${documentId} in table ${tableName}`)
     }
   }
 
@@ -1170,8 +1177,22 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
       emitProgress(document_id, 'processing', 0, 'chunking', 'Starting indexing...')
 
-      const docResult = await dbGlobal.query<{ content: string }>(
-        'SELECT content FROM documents WHERE id = $1',
+      const docResult = await dbGlobal.query<{
+        content: string
+        knowledge_base_id: string | null
+        kb_embedding_dimensions: number | null
+        kb_embedding_model: string | null
+        kb_chunk_max_tokens: number | null
+        kb_chunk_overlap_tokens: number | null
+      }>(
+        `SELECT d.content, d.knowledge_base_id,
+                kb.embedding_dimensions as kb_embedding_dimensions,
+                kb.embedding_model as kb_embedding_model,
+                kb.chunk_max_tokens as kb_chunk_max_tokens,
+                kb.chunk_overlap_tokens as kb_chunk_overlap_tokens
+         FROM documents d
+         LEFT JOIN knowledge_bases kb ON d.knowledge_base_id = kb.id
+         WHERE d.id = $1`,
         [document_id]
       )
 
@@ -1181,19 +1202,29 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
       const document = docResult.rows[0]
 
+      // Validate KB config exists (all documents must belong to a KB)
+      if (!document.kb_embedding_dimensions || !document.kb_embedding_model ||
+          !document.kb_chunk_max_tokens || !document.kb_chunk_overlap_tokens) {
+        throw new Error('Document must belong to a Knowledge Base with full configuration')
+      }
+
       emitProgress(document_id, 'processing', 10, 'chunking', 'Splitting document into chunks...')
-      const chunks = chunkDocument(document.content)
+      const chunks = chunkDocument(
+        document.content,
+        document.kb_chunk_max_tokens,
+        document.kb_chunk_overlap_tokens
+      )
       emitProgress(document_id, 'processing', 30, 'chunking', `Created ${chunks.length} chunks`)
 
       emitProgress(document_id, 'processing', 30, 'embedding', 'Generating embeddings...')
       const embeddings = await generateEmbeddings(chunks, (current, total) => {
         const embeddingProgress = 30 + Math.floor((current / total) * 40)
         emitProgress(document_id, 'processing', embeddingProgress, 'embedding', `Processing batch ${current}/${total}`)
-      })
+      }, document.kb_embedding_dimensions, document.kb_embedding_model)
       emitProgress(document_id, 'processing', 70, 'embedding', 'All embeddings generated')
 
       emitProgress(document_id, 'processing', 70, 'storing', 'Storing chunks...')
-      await storeChunks(document_id, chunks, embeddings)
+      await storeChunks(document_id, chunks, embeddings, document.knowledge_base_id || undefined)
       emitProgress(document_id, 'processing', 100, 'storing', 'All chunks stored')
 
       await dbGlobal.query(
@@ -1210,8 +1241,10 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         [chunks.length, document_id]
       )
 
-      // Rebuild Lunr index after adding new chunks
-      await buildLunrIndex()
+      // Rebuild Lunr index for this KB only
+      if (document.knowledge_base_id) {
+        await buildLunrIndex(document.knowledge_base_id)
+      }
 
       emitProgress(document_id, 'completed', 100, 'completed', 'Indexing completed successfully')
 
@@ -1291,61 +1324,135 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const buildLunrIndex = async () => {
+  const buildLunrIndex = async (kbId?: string) => {
     if (!dbGlobal) {
       throw new Error('Database not initialized')
     }
 
     if (import.meta.env.DEV) {
-      console.log('[VectorDB] Building Lunr index...')
+      console.log(`[VectorDB] Building Lunr index${kbId ? ` for KB ${kbId}` : ' for all KBs'}...`)
     }
 
     setLunrReadyState(false)
 
-    const result = await dbGlobal.query<{
-      id: string
-      content: string
-      heading: string | null
-      document_id: string
-    }>(`
-      SELECT id, content, heading, document_id
-      FROM chunks
-      WHERE content IS NOT NULL
-      ORDER BY document_id, chunk_index
-    `)
+    // Determine which KBs to build indexes for
+    const kbIds: string[] = []
+    if (kbId) {
+      kbIds.push(kbId)
+    } else {
+      const kbResult = await dbGlobal.query<{ id: string }>('SELECT id FROM knowledge_bases')
+      kbIds.push(...kbResult.rows.map(row => row.id))
+    }
 
-    lunrIndex = lunr(function() {
-      this.ref('id')
-      this.field('content')
-      this.field('heading')
+    // Build index for each KB
+    for (const currentKbId of kbIds) {
+      const tableName = `kb_${currentKbId.replace(/-/g, '_')}_chunks`
 
-      result.rows.forEach(chunk => {
-        this.add({
-          id: chunk.id,
-          content: chunk.content,
-          heading: chunk.heading || ''
+      try {
+        const chunks = await dbGlobal.query<{
+          id: string
+          content: string
+          heading: string | null
+          document_id: string
+        }>(`
+          SELECT id, content, heading, document_id
+          FROM ${tableName}
+          WHERE content IS NOT NULL
+          ORDER BY document_id, chunk_index
+        `)
+
+        const index = lunr(function() {
+          this.ref('id')
+          this.field('content')
+          this.field('heading')
+
+          chunks.rows.forEach(chunk => {
+            this.add({
+              id: chunk.id,
+              content: chunk.content,
+              heading: chunk.heading || ''
+            })
+          })
         })
-      })
-    })
+
+        lunrIndexes.set(currentKbId, index)
+
+        if (import.meta.env.DEV) {
+          console.log(`[VectorDB] Lunr index built for KB ${currentKbId}: ${chunks.rows.length} chunks`)
+        }
+      } catch (error) {
+        console.error(`[VectorDB] Error building index for ${tableName}:`, error)
+      }
+    }
 
     setLunrReadyState(true)
-
-    if (import.meta.env.DEV) {
-      console.log(`[VectorDB] Lunr index built with ${result.rows.length} chunks`)
-    }
   }
 
   const retryFailed = async (documentId: string) => {
     console.log('[VectorDB] Retry indexing for document:', documentId)
   }
 
-  const searchBM25 = async (query: string, limit?: number): Promise<SearchResult[]> => {
+  // Helper to get KB config from document IDs
+  const getKnowledgeBaseFromDocuments = async (documentIds: string[]): Promise<KnowledgeBase> => {
     if (!dbGlobal) {
       throw new Error('Database not initialized')
     }
 
+    if (!documentIds || documentIds.length === 0) {
+      throw new Error('No documents provided')
+    }
+
+    // Get KB IDs for all documents
+    const result = await dbGlobal.query<{ knowledge_base_id: string }>(
+      `SELECT DISTINCT knowledge_base_id FROM documents WHERE id = ANY($1::uuid[])`,
+      [documentIds]
+    )
+
+    if (result.rows.length === 0) {
+      throw new Error('No documents found')
+    }
+
+    // Validate all documents belong to same KB
+    if (result.rows.length > 1) {
+      throw new Error('Cannot search across multiple Knowledge Bases (different embedding spaces)')
+    }
+
+    const kbId = result.rows[0].knowledge_base_id
+    if (!kbId) {
+      throw new Error('Documents must belong to a Knowledge Base')
+    }
+
+    // Load KB config
+    const kbResult = await dbGlobal.query<KnowledgeBase>(
+      `SELECT * FROM knowledge_bases WHERE id = $1`,
+      [kbId]
+    )
+
+    if (kbResult.rows.length === 0) {
+      throw new Error('Knowledge Base not found')
+    }
+
+    return kbResult.rows[0]
+  }
+
+  const searchBM25 = async (query: string, limit?: number, kbId?: string): Promise<SearchResult[]> => {
+    if (!dbGlobal) {
+      throw new Error('Database not initialized')
+    }
+
+    // Determine which KB to search
+    // kbId can be passed explicitly or will be determined from the hybrid search context
+    if (!kbId) {
+      // If no KB specified, return empty (BM25 should only search within a specific KB)
+      return []
+    }
+
+    // Get KB-specific Lunr index
+    let lunrIndex = lunrIndexes.get(kbId)
     if (!lunrIndex) {
-      await buildLunrIndex()
+      // Build index for this KB if it doesn't exist
+      await buildLunrIndex(kbId)
+      lunrIndex = lunrIndexes.get(kbId)
     }
 
     if (!lunrIndex) {
@@ -1355,7 +1462,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     const resultLimit = limit || getSearchSetting('BM25_LIMIT')
 
     if (import.meta.env.DEV) {
-      console.log(`[VectorDB] BM25 search for: "${query}"`)
+      console.log(`[VectorDB] BM25 search for: "${query}" in KB ${kbId}`)
     }
 
     const lunrResults = lunrIndex.search(query)
@@ -1369,6 +1476,9 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     if (chunkIds.length === 0) {
       return []
     }
+
+    // Query only this KB's chunks table
+    const tableName = `kb_${kbId.replace(/-/g, '_')}_chunks`
 
     const result = await dbGlobal.query<{
       id: string
@@ -1385,7 +1495,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         c.heading,
         c.chunk_index,
         d.filename
-      FROM chunks c
+      FROM ${tableName} c
       JOIN documents d ON c.document_id = d.id
       WHERE c.id = ANY($1::uuid[])
     `, [chunkIds])
@@ -1426,18 +1536,25 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
       return []
     }
 
-    const topK = getSearchSetting('VECTOR_TOP_K')
-    const similarityThreshold = getSearchSetting('SIMILARITY_THRESHOLD')
+    // Get KB config from documents
+    const kb = await getKnowledgeBaseFromDocuments(documentIds)
 
-    const embeddingModel = getOpenAIConfig('EMBEDDING_MODEL')
+    // Use KB-specific search settings
+    const topK = kb.vector_top_k
+    const similarityThreshold = kb.similarity_threshold
+
+    // Generate query embedding with KB's model and dimensions
     const embeddingResponse = await openaiClient.embeddings.create({
-      model: embeddingModel,
+      model: kb.embedding_model,
       input: query,
-      dimensions: 768,
+      dimensions: kb.embedding_dimensions,
     })
 
     const queryEmbedding = embeddingResponse.data[0].embedding
     const embeddingStr = `[${queryEmbedding.join(',')}]`
+
+    // Query KB-specific chunks table
+    const tableName = `kb_${kb.id.replace(/-/g, '_')}_chunks`
 
     const result = await dbGlobal.query<{
       chunk_id: string
@@ -1457,7 +1574,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         c.chunk_index,
         d.filename,
         1 - (c.embedding <=> $1::vector) as similarity
-      FROM chunks c
+      FROM ${tableName} c
       JOIN documents d ON c.document_id = d.id
       WHERE c.document_id = ANY($2::uuid[])
         AND c.embedding IS NOT NULL
@@ -1492,20 +1609,21 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
       throw new Error('OpenAI client not initialized. Set API key in settings.')
     }
 
-    // Get search settings
-    const topK = getSearchSetting('VECTOR_TOP_K')
-    const similarityThreshold = getSearchSetting('SIMILARITY_THRESHOLD')
-    const bm25Limit = getSearchSetting('BM25_LIMIT')
-    const rrfK = getSearchSetting('RRF_K')
+    // Get KB config from documents (for BM25, RRF, and topK settings)
+    // searchVectors() will also load KB config internally for vector search settings
+    const kb = await getKnowledgeBaseFromDocuments(documentIds)
+    const bm25Limit = kb.bm25_limit
+    const rrfK = kb.rrf_k
+    const topK = kb.vector_top_k
 
     if (import.meta.env.DEV) {
-      console.log('[VectorDB] Hybrid search:', { query, topK, similarityThreshold, bm25Limit, rrfK })
+      console.log('[VectorDB] Hybrid search:', { query, kb: kb.name, bm25Limit, rrfK, topK })
     }
 
     // Execute both searches in parallel
     const [vectorResults, bm25Results] = await Promise.all([
       searchVectors(query, documentIds),
-      searchBM25(query, bm25Limit)
+      searchBM25(query, bm25Limit, kb.id)
     ])
 
     if (import.meta.env.DEV) {
