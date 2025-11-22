@@ -31,15 +31,15 @@ export class KBCardComponent {
 
   async collapse(kbName: string) {
     const kbCard = this.page.locator(`[data-kb-name="${kbName}"]`);
-    const isExpanded = await kbCard.getAttribute('data-expanded');
 
-    if (isExpanded === 'true') {
-      await kbCard.click();
-      await this.page.waitForFunction(
-        (name) => document.querySelector(`[data-kb-name="${name}"]`)?.getAttribute('data-expanded') === 'false',
-        kbName
-      );
-    }
+    // Precondition: KB must be expanded before collapsing
+    await this.expectExpanded(kbName, true);
+
+    await kbCard.click();
+    await this.page.waitForFunction(
+      (name) => document.querySelector(`[data-kb-name="${name}"]`)?.getAttribute('data-expanded') === 'false',
+      kbName
+    );
   }
 
   async expectVisible(kbName: string) {
