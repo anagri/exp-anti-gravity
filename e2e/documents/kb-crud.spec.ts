@@ -32,14 +32,7 @@ test.describe('Knowledge Base Workflow', () => {
     await documentsPage.expectKBVisible('Vue Docs');
 
     // Validation: duplicate names
-    await page.getByTestId('btn-create-kb').click();
-    const modal = page.getByTestId('modal-create-kb');
-    await modal.waitFor({ state: 'visible' });
-    await page.getByTestId('input-kb-name').fill('React Docs');
-    await page.getByTestId('btn-create-kb-submit').click();
-    await expect(modal.getByText(/already exists/i)).toBeVisible();
-    await modal.getByRole('button', { name: 'Cancel' }).click();
-    await modal.waitFor({ state: 'hidden' });
+    await documentsPage.knowledgeBase.expectDuplicateError('React Docs');
 
     await documentsPage.deleteKB('Vue Docs');
     await documentsPage.expectKBNotVisible('Vue Docs');
@@ -81,23 +74,23 @@ test.describe('Knowledge Base Workflow', () => {
     await documentsPage.expectKBExpanded('KB A', true);
     await documentsPage.collapseKB('KB A');
     await documentsPage.expectKBExpanded('KB A', false);
-    await page.waitForURL(url => !url.searchParams.has('kb'));
+    await documentsPage.expectURLHasNoKBParam();
 
     const kbAId = await documentsPage.getKBId('KB A');
     await documentsPage.expandKB('KB A');
-    await page.waitForURL(url => url.searchParams.get('kb') === kbAId);
+    await documentsPage.expectURLHasKBParam(kbAId);
 
     // Browser navigation
-    await page.goBack();
+    await documentsPage.goBack();
     await documentsPage.expectKBExpanded('KB A', false);
-    await page.goForward();
+    await documentsPage.goForward();
     await documentsPage.expectKBExpanded('KB A', true);
 
     // Reload persistence
-    await page.reload();
+    await documentsPage.reload();
     await documentsPage.waitForDBInitialized();
     await documentsPage.expectKBExpanded('KB A', true);
-    expect(page.url()).toContain(`kb=${kbAId}`);
+    await documentsPage.expectURLContains(`kb=${kbAId}`);
 
     // Deep linking
     await chatPage.navigate();
@@ -110,7 +103,7 @@ test.describe('Knowledge Base Workflow', () => {
     await documentsPage.expandKB('KB B');
     await documentsPage.expectKBExpanded('KB B', true);
     await documentsPage.expectKBExpanded('KB A', false);
-    await page.waitForURL(url => url.searchParams.get('kb') === kbBId);
+    await documentsPage.expectURLHasKBParam(kbBId);
 
     // Note: Chat selection phase skipped - requires indexing enabled for file selection
     console.log('KB workflow test completed successfully');
