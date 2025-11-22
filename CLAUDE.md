@@ -55,6 +55,7 @@ npx playwright test e2e/welcome.spec.ts         # Single e2e test file
 ### Test Configuration
 - **Vitest**: Uses jsdom environment, setup at `src/test/setup.ts` with MSW server
 - **Playwright**: Runs against preview server (port 4173), tests in `e2e/` directory
+  - **E2E Testing Conventions**: See `e2e/CLAUDE.md` for comprehensive testing philosophy and patterns
 - **MSW Handlers**: Mock OpenAI API endpoints at `src/mocks/handlers.ts`
 
 ## UI Components
@@ -70,7 +71,6 @@ Using Tailwind CSS v4 with Vite plugin:
 - Theme colors defined as CSS custom properties (HSL values)
 - No `@apply` directives (removed for v4 compatibility)
 - CSS theme configuration in `src/index.css`
-- in e2e tests, never use waitForTimeout, instead have the app pages such that it updates the ui element, or attribute on ui element as data-test-state="ready|pending|processing|busy|etc." and we wait for state to be ready for assertion
 
 ## Feature Toggles
 
