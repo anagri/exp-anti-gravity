@@ -45,7 +45,7 @@ export class SearchService {
       JOIN documents d ON d.id = c.document_id
     `;
 
-    const params: any[] = [`[${queryEmbedding.join(',')}]`];
+    const params: (string | number)[] = [`[${queryEmbedding.join(',')}]`];
 
     if (knowledgeBaseId) {
       sql += ` WHERE d.knowledge_base_id = $2`;
@@ -60,7 +60,17 @@ export class SearchService {
 
     const result = await this.db.query(sql, params);
 
-    return (result.rows as any[])
+    interface VectorSearchRow {
+      chunk_id: string;
+      document_id: string;
+      filename: string;
+      content: string;
+      heading: string;
+      chunk_index: number;
+      similarity: number;
+    }
+
+    return (result.rows as VectorSearchRow[])
       .filter((row) => row.similarity >= similarityThreshold)
       .map((row) => ({
         chunkId: row.chunk_id,

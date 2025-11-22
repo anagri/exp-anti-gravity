@@ -52,8 +52,9 @@ export default function FileSelector({
       return;
     }
 
-    // Clear selection on manual KB filter change
+    // Clear selection on manual KB filter change - intentional synchronous setState for UX
     // Prevents cross-KB selection and confusion
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalSelection(new Set());
   }, [selectedKBId]);
 

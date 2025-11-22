@@ -190,9 +190,9 @@ Now answer the user's question using the context above. Remember to cite sources
           return newMsgs;
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Don't show error if request was aborted by user
-      if (err?.name === 'AbortError') {
+      if (err instanceof Error && err.name === 'AbortError') {
         console.log('[useChat] Request cancelled');
         return;
       }

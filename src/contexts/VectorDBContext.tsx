@@ -863,7 +863,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
     // Build UPDATE statement using parameterized query
     const setClauses: string[] = [];
-    const params: any[] = [];
+    const params: (string | number | null)[] = [];
     let paramIndex = 1;
 
     if (updates.name) {

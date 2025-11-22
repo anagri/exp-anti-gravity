@@ -17,7 +17,7 @@ export const handlers = [
 
   // Mock Chat Completions API
   http.post('https://api.openai.com/v1/chat/completions', async ({ request }) => {
-    const body = (await request.json()) as any;
+    const body = (await request.json()) as { model: string; stream?: boolean };
     const { model, stream } = body;
 
     if (stream) {
