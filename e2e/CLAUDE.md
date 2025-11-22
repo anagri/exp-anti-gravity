@@ -31,7 +31,7 @@ test('Phase validation → lifecycle → persistence', async ({ page }) => {
 // ─────────────────────────────────────────────────────────
 ```
 
-## Page Objects
+## Page Objects Architecture
 
 ### Must Extend BasePage
 
@@ -46,6 +46,121 @@ await documentsPage.navigateTo('/documents');  // basename added automatically
 // ❌ Never hardcode URLs
 await page.goto('/exp-anti-gravity/documents');
 ```
+
+### BasePage Utilities
+
+BasePage provides common utilities inherited by all page objects:
+
+**Navigation & Routing:**
+- `navigateTo(path)` - Navigate with basename handling
+- `waitForPath(path)` - Wait for URL path
+- `expectCurrentPath(pathname)` - Assert current path
+- `reload()` - Page reload
+- `goBack()` - Browser back navigation
+- `goForward()` - Browser forward navigation
+
+**Feature Flag Management:**
+- `setFeatureFlag(flagName, enabled)` - Set feature flags via localStorage
+
+**Element Helpers:**
+- `clickTestId(testId)` - Click element by test ID
+- `fillTestId(testId, value)` - Fill input by test ID
+- `getTextByTestId(testId)` - Get text content by test ID
+- `waitForTestId(testId, state)` - Wait for element state
+
+```typescript
+// ✅ CORRECT: Use page object methods
+test.beforeEach(async ({ page }) => {
+  documentsPage = new DocumentPage(page);
+
+  // Set feature flags via page object
+  await documentsPage.setFeatureFlag('FEATURE_INDEXING_ENABLED', false);
+
+  await documentsPage.setup(apiKey);
+});
+
+// ❌ WRONG: Direct page usage
+await page.addInitScript(() => {
+  localStorage.setItem('feature-flag-FEATURE_INDEXING_ENABLED', 'false');
+});
+```
+
+### Component-Based Architecture
+
+Complex pages compose component classes following single responsibility principle:
+
+```typescript
+// Page object with components
+export class ChatPage extends BasePage {
+  readonly messages: MessagesComponent;
+  readonly sources: SourcesComponent;
+  readonly citations: CitationsComponent;
+  readonly attachments: AttachmentsComponent;
+  readonly modelSelector: ModelSelectorComponent;
+  readonly loadingState: LoadingStateComponent;
+  readonly input: ChatInputComponent;
+  readonly debug: DebugComponent;
+  readonly fileSelector: FileSelectorComponent;
+  readonly settings: SettingsComponent;  // Shared component
+
+  constructor(page: Page, baseUrl: string) {
+    super(page, baseUrl);
+    this.messages = new MessagesComponent(page);
+    this.sources = new SourcesComponent(page);
+    // ... instantiate all components
+    this.settings = new SettingsComponent(page);  // Shared across pages
+  }
+}
+```
+
+**When to Create Components:**
+1. **Logical UI Grouping** - Messages, sources, attachments are distinct UI sections
+2. **Single Responsibility** - Each component handles one concern
+3. **Reusability** - Multiple tests use the same interactions
+4. **Complexity Threshold** - 5+ related methods warrant a component
+
+**Component Naming:**
+- Page-specific: `e2e/pages/chat/MessagesComponent.ts`
+- Shared: `e2e/pages/shared/SettingsComponent.ts`
+- Search: `e2e/pages/search/SearchInputComponent.ts`
+
+**Component Structure:**
+```typescript
+export class MessagesComponent {
+  constructor(private readonly page: Page) {}
+
+  // Locator getters
+  getAssistantAt(index: number): Locator {
+    return this.page.locator('[data-testid="div-chat-assistant-msg"]').nth(index);
+  }
+
+  // Actions
+  async expectContains(index: number, text: string) {
+    const content = await this.getContent(index);
+    expect(content?.toLowerCase()).toContain(text.toLowerCase());
+  }
+
+  // Data extraction
+  async getCitationCount(messageIndex: number): Promise<number> {
+    const msg = this.getAssistantAt(messageIndex);
+    return await msg.locator('[data-citation-index]').count();
+  }
+}
+```
+
+### Shared vs Page-Specific Components
+
+**Shared Components** (`e2e/pages/shared/`):
+- Used by multiple page objects
+- Example: `SettingsComponent` (used by DocumentPage, ChatPage, WelcomePage)
+- Must be stateless, no page-specific assumptions
+- Import: `import { SettingsComponent } from './shared/SettingsComponent'`
+
+**Page-Specific Components** (`e2e/pages/{pagename}/`):
+- Used only by one page object
+- Example: `MessagesComponent` (only ChatPage), `KnowledgeBaseComponent` (only DocumentPage)
+- Can assume page context
+- Import: `import { MessagesComponent } from './chat/MessagesComponent'`
 
 ### Encapsulation Rules
 
@@ -69,6 +184,13 @@ test('upload file', async ({ page }) => {
 });
 ```
 
+**Zero `page.*` Tolerance:**
+- Tests should only use `page` parameter for page object constructors
+- All `page.click()`, `page.fill()`, `page.waitFor*()` calls violate encapsulation
+- All `page.locator()`, `page.getByTestId()` calls belong in page objects
+- Navigation: Use `pageObject.reload()` instead of `page.reload()`
+- Feature flags: Use `pageObject.setFeatureFlag()` instead of `page.addInitScript()`
+
 ### Extract Repeated Patterns
 
 **Group find → action → wait patterns** into single methods:
@@ -84,7 +206,28 @@ await modal.waitFor({ state: 'hidden' });
 
 // ✅ CORRECT: Single method encapsulates entire flow
 await documentsPage.createKB('KB A');
+
+// ✅ CORRECT: Even better with component
+await documentsPage.knowledgeBase.create('KB A');
 ```
+
+**Backward Compatibility During Migration:**
+When refactoring, keep wrapper methods temporarily:
+
+```typescript
+// DocumentPage delegates to component
+async createKB(name: string, description?: string) {
+  await this.knowledgeBase.create(name, description);
+}
+
+async expandKB(kbName: string) {
+  await this.knowledgeBase.expand(kbName);
+}
+```
+
+Tests can use either:
+- `documentsPage.createKB('KB A')` - Convenience wrapper
+- `documentsPage.knowledgeBase.create('KB A')` - Direct component access
 
 ### No Inline Timeouts
 
@@ -108,16 +251,78 @@ When UI changes, update page objects:
 - Remove methods for removed elements
 - Add methods for new elements
 - Update selectors when testids change
+- Update component structure if UI sections change
 
-### Component Pattern
+## Refactoring Strategy
 
-Complex pages compose component classes:
+### Phase-Based Refactoring
+
+**Phase 1: Create Components** (no test changes)
+```typescript
+// Create e2e/pages/documents/KnowledgeBaseComponent.ts
+export class KnowledgeBaseComponent {
+  constructor(private readonly page: Page) {}
+  async create(name: string, description?: string) { /* ... */ }
+  async expand(kbName: string) { /* ... */ }
+  // Extract all KB-related logic from DocumentPage
+}
 ```
-DocumentPage extends BasePage
-  ├── uploadZone: UploadZoneComponent
-  ├── documentList: DocumentListComponent
-  └── deleteModal: DeleteModalComponent
+
+**Phase 2: Integrate into Page Object** (backward compatible)
+```typescript
+// DocumentPage.ts
+export class DocumentPage extends BasePage {
+  readonly knowledgeBase: KnowledgeBaseComponent;
+
+  constructor(page: Page, baseUrl: string) {
+    super(page, baseUrl);
+    this.knowledgeBase = new KnowledgeBaseComponent(page);
+  }
+
+  // Keep wrapper methods for backward compatibility
+  async createKB(name: string, description?: string) {
+    await this.knowledgeBase.create(name, description);
+  }
+}
 ```
+
+**Phase 3: Update Tests** (one test at a time)
+```typescript
+// Before
+await page.getByTestId('btn-create-kb').click();
+// ... 10 lines of direct page usage
+
+// After
+await documentsPage.createKB('KB A');
+// or
+await documentsPage.knowledgeBase.create('KB A');
+```
+
+**Phase 4: Run Tests** (verify no regressions)
+```bash
+npm run test:e2e:all
+```
+
+**Phase 5: Next Test** (repeat phases 3-4)
+
+### Refactoring Checklist
+
+Before starting:
+- ✅ Identify direct `page.*` violations in tests
+- ✅ Group related violations (messages, sources, KB operations, etc.)
+- ✅ Plan component structure (one component per logical group)
+
+During refactoring:
+- ✅ Create components first (no test changes)
+- ✅ Integrate into page object with backward-compatible wrappers
+- ✅ Update one test at a time
+- ✅ Run test after each update (catch regressions immediately)
+- ✅ Run full suite before committing
+
+After refactoring:
+- ✅ All tests passing
+- ✅ Zero direct `page.*` usage in tests
+- ✅ Logical commits (component creation → integration → test updates)
 
 ## State-Based Waiting
 
@@ -137,18 +342,20 @@ await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
 
 ```typescript
 // DB initialized
-await page.waitForSelector('[data-db-initialized="true"]');
+await documentsPage.waitForDBInitialized();
+// Internally: await page.waitForSelector('[data-db-initialized="true"]');
 
 // Upload complete
-await page.waitForFunction(() =>
-  document.querySelector('[data-uploading]')?.getAttribute('data-uploading') === 'false'
-);
+await documentsPage.uploadFilesAndWait(fileName, fileContent);
+// Internally: waits for data-uploading="false"
 
 // KB expansion
-await page.waitForFunction((name) =>
-  document.querySelector(`[data-kb-name="${name}"]`)?.getAttribute('data-expanded') === 'true',
-  'KB Name'
-);
+await documentsPage.expandKB('KB Name');
+// Internally: waits for data-expanded="true"
+
+// Loading states
+await chatPage.loadingState.waitForThinkingToDisappear();
+// Internally: waits for thinking indicator to be hidden
 ```
 
 ### When Adding Background Operations
@@ -157,7 +364,26 @@ Always expose completion state via data attributes:
 - `data-db-initialized="true|false"`
 - `data-uploading="true|false"`
 - `data-indexing-status="completed|failed"` (not "processing")
+- `data-loading="true|false"` for async button operations
 - Use boolean flags for completion, avoid intermediate states
+
+**Example - Add loading state to button:**
+```tsx
+// Component
+<Button
+  data-testid="btn-refresh-models"
+  data-loading={isLoadingModels.toString()}
+>
+  Refresh Models
+</Button>
+
+// Page object method
+async refreshModels() {
+  await this.page.getByTestId('btn-refresh-models').click();
+  await this.page.waitForSelector('[data-testid="btn-refresh-models"][data-loading="true"]');
+  await this.page.waitForSelector('[data-testid="btn-refresh-models"][data-loading="false"]');
+}
+```
 
 ## Selectors & Assertions
 
@@ -173,7 +399,8 @@ await page.getByRole('button', { name: 'Start' }).click();  // acceptable
 
 ## Test Setup
 
-**Fixtures:**
+### Fixtures
+
 ```typescript
 import { test, expect } from './fixtures/globalSetup';
 import { TEST_FILES, FILE_NAMES } from '../fixtures/test-files';
@@ -181,7 +408,37 @@ import { PG_ESSAYS, PG_ESSAY_NAMES } from '../fixtures/pg-essays';
 import { loadTestApiKey } from './utils/env';
 ```
 
-**Live Tests:** Tag with `@live` (hits real OpenAI API, costs money):
+### Test Organization
+
+**Feature-Based Structure:**
+```
+e2e/
+├── chat/              # Chat page tests
+│   ├── auth.spec.ts
+│   ├── hybrid-search.spec.ts
+│   ├── kb-file-selector.spec.ts
+│   └── rag-multi-file.spec.ts
+├── documents/         # Documents page tests
+│   ├── bm25-search.spec.ts
+│   ├── file-upload.spec.ts
+│   ├── indexing.spec.ts
+│   └── kb-crud.spec.ts
+├── settings/          # Settings tests
+│   └── settings.spec.ts
+└── pages/             # Page objects
+    ├── BasePage.ts
+    ├── ChatPage.ts
+    ├── DocumentPage.ts
+    ├── SearchPage.ts
+    ├── chat/          # Chat components
+    ├── documents/     # Documents components
+    ├── search/        # Search components
+    └── shared/        # Shared components
+```
+
+### Live Tests
+
+Tag with `@live` (hits real OpenAI API, costs money):
 ```typescript
 test.describe('Indexing Workflow @live', () => {
   test.beforeAll(() => { apiKey = loadTestApiKey(); });
@@ -193,7 +450,7 @@ test.describe('Indexing Workflow @live', () => {
 - `@live` tests hit real OpenAI APIs (chat completions + embeddings) and cost money
 - Tests without `@live` tag do not hit OpenAI APIs
 - Embedding pipeline automatically triggers when uploading files
-- To avoid automatic trigger, use `feature-flag-FEATURE_INDEXING_ENABLED` setting:
+- To avoid automatic trigger, use `FEATURE_INDEXING_ENABLED` feature flag:
   - `false` - Disable automatic indexing (use for file upload tests only)
   - `true` - Enable automatic indexing (use for indexing and RAG flow tests)
   - Default: `true` if not set
@@ -203,28 +460,47 @@ test.describe('Indexing Workflow @live', () => {
   - `npm run test:e2e:all` - Run all tests
 - For single test debug/fix: `npx playwright test e2e/test-file.spec.ts` (no grep flags)
 
-**Feature Flags:** Set in `beforeEach` via `addInitScript`:
+### Feature Flags
+
+**✅ CORRECT: Use page object method**
+```typescript
+test.beforeEach(async ({ page }) => {
+  documentsPage = new DocumentPage(page);
+
+  // Disable indexing for this test (faster, UI-only)
+  await documentsPage.setFeatureFlag('FEATURE_INDEXING_ENABLED', false);
+
+  await documentsPage.setup(apiKey);
+});
+```
+
+**❌ WRONG: Direct page usage**
 ```typescript
 await page.addInitScript(() => {
   localStorage.setItem('feature-flag-FEATURE_INDEXING_ENABLED', 'false');
 });
 ```
 
-**Separate Test Files for Different Setups:**
+### Separate Test Files for Different Setups
+
 When features require different configurations, create separate test files:
-- `kb-workflow.spec.ts`: Tests with indexing disabled (faster, UI-only)
-- `kb-workflow-live.spec.ts`: Tests with indexing enabled (requires API, slower)
+- `kb-crud.spec.ts`: Tests with indexing disabled (faster, UI-only)
+- `indexing.spec.ts`: Tests with indexing enabled (requires API, slower)
 
 ## Common Workflow Patterns
 
-**KB Management:**
+### KB Management
+
 ```typescript
 await documentsPage.createKB('KB Name', 'Description');
+await documentsPage.expectKBVisible('KB Name');
 await documentsPage.expandKB('KB Name');
 await documentsPage.uploadFilesToKB('KB Name', [TEST_FILES.DOC_01_MD]);
+await documentsPage.expectKBStats('KB Name', 1);
 ```
 
-**Upload & Index:**
+### Upload & Index
+
 ```typescript
 await documentsPage.uploadFiles(PG_ESSAYS.EQUITY);
 await documentsPage.documentList.waitForFileToAppear(FILENAME);
@@ -232,37 +508,91 @@ const fileId = await documentsPage.documentList.findFileByName(FILENAME);
 await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
 ```
 
-**Chat with RAG:**
+### Chat with RAG
+
 ```typescript
 await chatPage.clickAttachButton();
+await chatPage.fileSelector.expectOpen();
 await chatPage.fileSelector.selectFile(FILENAME);
 await chatPage.fileSelector.confirmSelection();
+await chatPage.expectAttachmentBadges(1);
 await chatPage.sendMessage('query');
 await chatPage.waitForAssistantResponse();
+
+// Verify sources
+await chatPage.sources.expectCount(3);
+await chatPage.sources.expectScoreOrdering(0, 'fused');
 ```
 
-**Persistence:**
+### Persistence
+
+**✅ CORRECT: Use page object reload**
 ```typescript
-const preReload = await documentsPage.getSomeState();
-await page.reload();
+const preReload = await documentsPage.documentList.getChunkCount(fileId);
+await documentsPage.reload();
 await documentsPage.waitForDBInitialized();
-const postReload = await documentsPage.getSomeState();
+const postReload = await documentsPage.documentList.getChunkCount(fileId);
 expect(postReload).toBe(preReload);
+```
+
+**❌ WRONG: Direct page reload**
+```typescript
+await page.reload();
+```
+
+### Search
+
+```typescript
+await searchPage.navigateAndWaitForReady();
+await searchPage.kbSelector.selectKB(kbId);
+await searchPage.input.search('equity');
+await searchPage.results.expectResultsGreaterThan(0);
+await searchPage.results.expectFirstResultContains('equity');
+await searchPage.results.expectFirstResultScoreGreaterThan(0);
+```
+
+### Settings
+
+```typescript
+await documentsPage.settings.open();
+await documentsPage.settings.expectModalVisible();
+await documentsPage.settings.toggleFeatureFlag('FEATURE_INDEXING_ENABLED');
+await documentsPage.settings.expectReloadWarning();
+await documentsPage.settings.setSearchSetting('VECTOR_TOP_K', '5');
+await documentsPage.settings.close();
 ```
 
 ## Quick Reference
 
+### Test Organization
 - Search existing tests before creating new files, add phases to existing tests when possible
+- Feature-based folders: `e2e/chat/`, `e2e/documents/`, `e2e/settings/`
 - **Preserve coverage**: Don't remove test scenarios when refactoring; if unsure, ask user
 - **Stop and ask**: If unable to fix due to app bugs, stop and ask user - don't skip/remove tests
 - Separate test files for different setups (indexing on/off, @live vs mocked)
-- Keep page objects synced with UI (remove old, add new elements)
+
+### Page Objects
 - **All page objects**: Never direct `page.*` in tests, encapsulate all interactions
+- **Component-based**: Break complex pages into focused components
+- **Shared components**: Use `e2e/pages/shared/` for cross-page components
+- **BasePage utilities**: Use `setFeatureFlag()`, `reload()`, `goBack()`, `goForward()`
+- Keep page objects synced with UI (remove old, add new elements)
+
+### Best Practices
 - **Group patterns**: Extract repeated find → action → wait into single methods
 - **No inline timeouts**: Use framework defaults, configure globally if needed
+- **Zero page.* in tests**: All interactions through page objects
 - Phase naming: kebab-case with → notation (`validation → lifecycle → persistence`)
 - State waiting: use data attributes, never `waitForTimeout`, test final states only
-- Always add UI indicators for background ops
+- Always add UI indicators for background ops (`data-loading`, `data-indexing-status`)
 - Selectors: prefer `data-testid`, never CSS selectors
 - **Deterministic**: NO if-else, NO try-catch, NO fallback logic, NO arbitrary timeouts
 - Tag `@live` for tests hitting real APIs
+- Assertion order: `expect(actual).toBe(expected)`
+
+### Refactoring
+- Phase-based: components → integration → tests → verify
+- One test at a time with immediate verification
+- Backward-compatible wrappers during migration
+- Run full suite before committing
+- Logical commits: separate component creation, integration, and test updates
