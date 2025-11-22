@@ -8,12 +8,12 @@ test.describe('Knowledge Base Workflow', () => {
   let chatPage: ChatPage;
 
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem('feature-flag-FEATURE_INDEXING_ENABLED', 'false');
-    });
-
     documentsPage = new DocumentPage(page);
     chatPage = new ChatPage(page, 'http://127.0.0.1:4173');
+
+    // Disable indexing for this test (faster, UI-only)
+    await documentsPage.setFeatureFlag('FEATURE_INDEXING_ENABLED', false);
+
     await documentsPage.setup("sk-test-key-123");
   });
 

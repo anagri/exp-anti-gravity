@@ -39,7 +39,7 @@ test.describe('Indexing Workflow @live', () => {
     await documentsPage.documentList.expectIndexingStatus(fileId, 'completed');
     expect(preReloadChunkCount).toBeGreaterThan(0);
 
-    await page.reload();
+    await documentsPage.reload();
     await documentsPage.waitForDBInitialized();
     // KB auto-expands from URL (?kb={id}) after reload, no need to expand manually
 

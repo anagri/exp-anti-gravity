@@ -9,11 +9,11 @@ test.describe('Document Upload & Management', () => {
   const TEST_KB_NAME = 'Test Knowledge Base';
 
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.setItem('feature-flag-FEATURE_INDEXING_ENABLED', 'false');
-    });
-
     documentsPage = new DocumentPage(page);
+
+    // Disable indexing for this test (faster, file operations only)
+    await documentsPage.setFeatureFlag('FEATURE_INDEXING_ENABLED', false);
+
     await documentsPage.setup("sk-test-key-123");
 
     // Create a KB for testing
@@ -101,7 +101,7 @@ test.describe('Document Upload & Management', () => {
     expect(remainingNames.some(name => name.includes(FILE_NAMES.DOC_03_MD))).toBe(true);
     expect(remainingNames.some(name => name.includes(FILE_NAMES.DOC_02_TXT))).toBe(false);
 
-    await page.reload();
+    await documentsPage.reload();
     await documentsPage.waitForDBInitialized();
     await documentsPage.expectKbExpanded(TEST_KB_NAME, true);
     await documentsPage.expectFileCount(2);
@@ -122,7 +122,7 @@ test.describe('Document Upload & Management', () => {
     expect(fileNamesAfterDelete.some(name => name.includes(FILE_NAMES.DOC_03_MD))).toBe(true);
     expect(fileNamesAfterDelete.some(name => name.includes(FILE_NAMES.DOC_01_MD))).toBe(false);
 
-    await page.reload();
+    await documentsPage.reload();
     await documentsPage.waitForDBInitialized();
     await documentsPage.expectKbExpanded(TEST_KB_NAME, true);
 

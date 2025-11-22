@@ -193,18 +193,6 @@ export class DocumentPage extends BasePage {
     expect(this.page.url()).toContain(substring);
   }
 
-  async goBack() {
-    await this.page.goBack();
-  }
-
-  async goForward() {
-    await this.page.goForward();
-  }
-
-  async reload() {
-    await this.page.reload();
-  }
-
   // Settings operations (delegated to settings component)
   async openSettings() {
     await this.settings.open();

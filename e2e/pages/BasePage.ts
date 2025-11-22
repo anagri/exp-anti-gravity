@@ -35,4 +35,24 @@ export class BasePage {
   async waitForTestId(testId: string, state: 'visible' | 'hidden' | 'attached' | 'detached' = 'visible') {
     await this.page.waitForSelector(`[data-testid="${testId}"]`, { state });
   }
+
+  // Feature flag management
+  async setFeatureFlag(flagName: string, enabled: boolean) {
+    await this.page.addInitScript((flag, value) => {
+      localStorage.setItem(`feature-flag-${flag}`, value.toString());
+    }, flagName, enabled);
+  }
+
+  // Page navigation helpers
+  async reload() {
+    await this.page.reload();
+  }
+
+  async goBack() {
+    await this.page.goBack();
+  }
+
+  async goForward() {
+    await this.page.goForward();
+  }
 }

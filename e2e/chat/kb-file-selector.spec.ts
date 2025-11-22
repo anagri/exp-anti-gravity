@@ -14,13 +14,12 @@ test.describe('KB Workflow with Indexing @live', () => {
   });
 
   test.beforeEach(async ({ page }) => {
-    // Enable indexing for this test
-    await page.addInitScript(() => {
-      localStorage.setItem('feature-flag-FEATURE_INDEXING_ENABLED', 'true');
-    });
-
     documentsPage = new DocumentPage(page);
     chatPage = new ChatPage(page, 'http://127.0.0.1:4173');
+
+    // Enable indexing for this test
+    await documentsPage.setFeatureFlag('FEATURE_INDEXING_ENABLED', true);
+
     await documentsPage.setup(apiKey);
   });
 
