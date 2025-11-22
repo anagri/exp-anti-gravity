@@ -20,7 +20,7 @@ test.describe('Hybrid Search @live', () => {
     documentsPage = new DocumentPage(page);
   });
 
-  test('Phase hybrid-search: upload → index → hybrid RAG → verify sources have fused scores', async ({ page }) => {
+  test('Phase hybrid-search: upload → index → hybrid RAG → verify sources have fused scores', async () => {
     // Setup: Upload and index document for RAG
     await documentsPage.setup(apiKey);
     await documentsPage.createKB('Test KB');
@@ -57,9 +57,8 @@ test.describe('Hybrid Search @live', () => {
     console.log(`Hybrid search returned ${sourcesCount} source(s)`);
 
     // Step 2: Verify assistant message exists and has content
-    const firstAssistantMsg = page.locator('[data-testid="div-chat-assistant-msg"]').first();
-    await expect(firstAssistantMsg).toBeVisible();
-    const msgContent = await firstAssistantMsg.textContent();
+    await chatPage.messages.expectFirstAssistantVisible();
+    const msgContent = await chatPage.messages.getContent(0);
     expect(msgContent).toBeTruthy();
     console.log(`Assistant response length: ${msgContent?.length} characters`);
 
@@ -72,15 +71,15 @@ test.describe('Hybrid Search @live', () => {
     console.log(`Second query returned ${secondSourcesCount} source(s)`);
 
     // Step 4: Verify both messages have sources (per-message sources working)
-    const firstMsgSources = await page.locator('[data-testid="div-chat-assistant-msg"]').nth(0).locator('[data-source-index]').count();
-    const secondMsgSources = await page.locator('[data-testid="div-chat-assistant-msg"]').nth(1).locator('[data-source-index]').count();
+    const firstMsgSources = await chatPage.messages.getSourceCount(0);
+    const secondMsgSources = await chatPage.messages.getSourceCount(1);
 
     expect(firstMsgSources).toBeGreaterThan(0);
     expect(secondMsgSources).toBeGreaterThan(0);
     console.log(`First message: ${firstMsgSources} sources, Second message: ${secondMsgSources} sources`);
 
     // Step 5: Verify total sources visible equals sum
-    const totalSources = await page.locator('[data-source-index]').count();
+    const totalSources = await chatPage.sources.getCount();
     expect(totalSources).toBe(firstMsgSources + secondMsgSources);
     console.log(`Total sources visible: ${totalSources} (verified sum)`);
 
@@ -89,17 +88,16 @@ test.describe('Hybrid Search @live', () => {
     await chatPage.sendMessage('What is 2 + 2?');
     await chatPage.waitForAssistantResponse();
 
-    const thirdAssistantMsg = page.locator('[data-testid="div-chat-assistant-msg"]').nth(2);
-    const thirdMsgSources = await thirdAssistantMsg.locator('[data-source-index]').count();
+    const thirdMsgSources = await chatPage.messages.getSourceCount(2);
     expect(thirdMsgSources).toBe(0);
 
-    const thirdMsgContent = await thirdAssistantMsg.textContent();
+    const thirdMsgContent = await chatPage.messages.getContent(2);
     expect(thirdMsgContent).toContain('4');
     console.log(`Non-RAG query answered correctly without sources`);
 
     // Step 7: Verify first two messages still have their sources
-    const finalFirstMsgSources = await page.locator('[data-testid="div-chat-assistant-msg"]').nth(0).locator('[data-source-index]').count();
-    const finalSecondMsgSources = await page.locator('[data-testid="div-chat-assistant-msg"]').nth(1).locator('[data-source-index]').count();
+    const finalFirstMsgSources = await chatPage.messages.getSourceCount(0);
+    const finalSecondMsgSources = await chatPage.messages.getSourceCount(1);
 
     expect(finalFirstMsgSources).toBe(firstMsgSources);
     expect(finalSecondMsgSources).toBe(secondMsgSources);
@@ -115,19 +113,13 @@ test.describe('Hybrid Search @live', () => {
     console.log(`First message metadata: ${firstMetadata?.chunkIds.length} chunks with scores`);
 
     // Step 9: Verify data attributes on sources
-    const firstMsgDiv = page.locator('[data-testid="div-chat-assistant-msg"]').nth(0);
-    const firstSource = firstMsgDiv.locator('[data-source-index="1"]');
+    const scoreData = await chatPage.sources.getScoreData(0, 1);
 
-    const chunkId = await firstSource.getAttribute('data-chunk-id');
-    const vectorScore = await firstSource.getAttribute('data-vector-score');
-    const bm25Score = await firstSource.getAttribute('data-bm25-score');
-    const fusedScore = await firstSource.getAttribute('data-fused-score');
-
-    expect(chunkId).toBeTruthy();
-    expect(parseFloat(vectorScore || '0')).toBeGreaterThanOrEqual(0);
-    expect(parseFloat(bm25Score || '0')).toBeGreaterThanOrEqual(0);
-    expect(parseFloat(fusedScore || '0')).toBeGreaterThan(0);
-    console.log(`Source attributes verified: chunkId=${chunkId}, fusedScore=${fusedScore}`);
+    expect(scoreData.chunkId).toBeTruthy();
+    expect(scoreData.vectorScore).toBeGreaterThanOrEqual(0);
+    expect(scoreData.bm25Score).toBeGreaterThanOrEqual(0);
+    expect(scoreData.fusedScore).toBeGreaterThan(0);
+    console.log(`Source attributes verified: chunkId=${scoreData.chunkId}, fusedScore=${scoreData.fusedScore}`);
 
     // Step 10: Verify fused scores are in descending order
     const scoresOrdered = await chatPage.verifyScoreOrdering(0, 'fused');

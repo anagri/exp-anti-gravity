@@ -24,7 +24,7 @@ test.describe('Vector Search & RAG Workflow @live', () => {
     await documentsPage.setup(apiKey);
   });
 
-  test('RAG workflow: upload → index → attach → search → cite → selective attachment', async ({ page }) => {
+  test('RAG workflow: upload → index → attach → search → cite → selective attachment', async () => {
     // ─────────────────────────────────────────────────────────
     // PHASE 1: Upload & Index Three Essays
     // ─────────────────────────────────────────────────────────
@@ -156,12 +156,13 @@ test.describe('Vector Search & RAG Workflow @live', () => {
 
     // Verify NO citations in the last message (normal chat without attachments)
     // Note: Previous messages will still have their citations (per-message sources)
-    const lastAssistantMsg = page.locator('[data-testid="div-chat-assistant-msg"]').last();
-    const lastMsgCitations = await lastAssistantMsg.locator('[data-citation-index]').count();
+    const messageCount = await chatPage.messages.getCount();
+    const lastMsgIndex = messageCount - 1;
+    const lastMsgCitations = await chatPage.messages.getCitationCount(lastMsgIndex);
     expect(lastMsgCitations).toBe(0);
 
     // Verify NO sources footer in the last message
-    const lastMsgSources = await lastAssistantMsg.locator('[data-source-index]').count();
+    const lastMsgSources = await chatPage.messages.getSourceCount(lastMsgIndex);
     expect(lastMsgSources).toBe(0);
   });
 });

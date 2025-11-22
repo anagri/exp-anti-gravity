@@ -44,8 +44,7 @@ test.describe('KB Workflow with Indexing @live', () => {
         const doc = document.querySelector(`[data-testid="div-doc-item-${id}"]`);
         return doc?.textContent?.includes('Indexed');
       },
-      fileAId,
-      { timeout: 60000 }
+      fileAId
     );
 
     await documentsPage.createKB('KB B');
@@ -63,21 +62,19 @@ test.describe('KB Workflow with Indexing @live', () => {
         const doc = document.querySelector(`[data-testid="div-doc-item-${id}"]`);
         return doc?.textContent?.includes('Indexed');
       },
-      fileBId,
-      { timeout: 60000 }
+      fileBId
     );
 
     console.log('Documents uploaded and indexed');
 
     // Get KB IDs before navigating away from documents page
     const kbAId = await documentsPage.getKBId('KB A');
-    const kbBId = await documentsPage.getKBId('KB B');
 
     // ─────────────────────────────────────────────────────────
     // PHASE CHAT-KB-FILTER: FileSelector KB Filtering
     // ─────────────────────────────────────────────────────────
     await chatPage.navigate();
-    await page.waitForSelector('[data-page-ready="true"]');
+    await chatPage.waitForReady();
     await chatPage.clickAttachButton();
     await chatPage.fileSelector.expectOpen();
 
@@ -89,13 +86,13 @@ test.describe('KB Workflow with Indexing @live', () => {
     await chatPage.fileSelector.selectKBFilter('KB A');
     await chatPage.fileSelector.expectFileCount(1);
     await chatPage.fileSelector.expectFileVisible(FILE_NAMES.DOC_01_MD);
-    await expect(page.locator(`[data-filename="${FILE_NAMES.DOC_02_TXT}"]`)).not.toBeVisible();
+    await chatPage.fileSelector.expectFileNotVisible(FILE_NAMES.DOC_02_TXT);
 
     // Filter to KB B
     await chatPage.fileSelector.selectKBFilter('KB B');
     await chatPage.fileSelector.expectFileCount(1);
     await chatPage.fileSelector.expectFileVisible(FILE_NAMES.DOC_02_TXT);
-    await expect(page.locator(`[data-filename="${FILE_NAMES.DOC_01_MD}"]`)).not.toBeVisible();
+    await chatPage.fileSelector.expectFileNotVisible(FILE_NAMES.DOC_01_MD);
 
     console.log('KB filtering works correctly');
 
