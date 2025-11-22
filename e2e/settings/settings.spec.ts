@@ -1,5 +1,5 @@
-import { test, expect } from './fixtures/globalSetup';
-import { DocumentPage } from './pages/DocumentPage';
+import { test, expect } from '../fixtures/globalSetup';
+import { DocumentPage } from '../pages/DocumentPage';
 
 test.describe('Settings: Feature Flags & OpenAI Configuration & Search Settings', () => {
   let documentsPage: DocumentPage;

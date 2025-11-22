@@ -1,7 +1,7 @@
 
-import { test, expect } from './fixtures/globalSetup';
-import { DocumentPage } from './pages/DocumentPage';
-import { TEST_FILES, FILE_NAMES } from './fixtures/test-files';
+import { test, expect } from '../fixtures/globalSetup';
+import { DocumentPage } from '../pages/DocumentPage';
+import { TEST_FILES, FILE_NAMES } from '../fixtures/test-files';
 import fs from 'fs';
 
 test.describe('Document Upload & Management', () => {

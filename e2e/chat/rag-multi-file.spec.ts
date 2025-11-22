@@ -1,8 +1,8 @@
-import { test, expect } from './fixtures/globalSetup';
-import { DocumentPage } from './pages/DocumentPage';
-import { ChatPage } from './pages/ChatPage';
-import { PG_ESSAYS, PG_ESSAY_NAMES } from './fixtures/pg-essays';
-import { loadTestApiKey } from './utils/env';
+import { test, expect } from '../fixtures/globalSetup';
+import { DocumentPage } from '../pages/DocumentPage';
+import { ChatPage } from '../pages/ChatPage';
+import { PG_ESSAYS, PG_ESSAY_NAMES } from '../fixtures/pg-essays';
+import { loadTestApiKey } from '../utils/env';
 
 const STARTUP_FILENAME = PG_ESSAY_NAMES.STARTUP;
 const INEQUALITY_FILENAME = PG_ESSAY_NAMES.INEQUALITY;

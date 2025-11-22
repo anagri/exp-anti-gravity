@@ -1,7 +1,7 @@
-import { test, expect } from './fixtures/globalSetup';
-import { DocumentPage } from './pages/DocumentPage';
-import { PG_ESSAYS, PG_ESSAY_NAMES } from './fixtures/pg-essays';
-import { loadTestApiKey } from './utils/env';
+import { test, expect } from '../fixtures/globalSetup';
+import { DocumentPage } from '../pages/DocumentPage';
+import { PG_ESSAYS, PG_ESSAY_NAMES } from '../fixtures/pg-essays';
+import { loadTestApiKey } from '../utils/env';
 
 const EQUITY_FILENAME = PG_ESSAY_NAMES.EQUITY;
 const TEST_KB_NAME = 'BM25 Search Test KB';
