@@ -1,5 +1,6 @@
-import { test, expect } from '../fixtures/globalSetup';
+import { test } from '../fixtures/globalSetup';
 import { DocumentPage } from '../pages/DocumentPage';
+import { SearchPage } from '../pages/SearchPage';
 import { PG_ESSAYS, PG_ESSAY_NAMES } from '../fixtures/pg-essays';
 import { loadTestApiKey } from '../utils/env';
 
@@ -8,6 +9,7 @@ const TEST_KB_NAME = 'BM25 Search Test KB';
 
 test.describe('BM25 Search @live', () => {
   let documentsPage: DocumentPage;
+  let searchPage: SearchPage;
   let apiKey: string;
 
   test.beforeAll(() => {
@@ -16,10 +18,11 @@ test.describe('BM25 Search @live', () => {
 
   test.beforeEach(async ({ page }) => {
     documentsPage = new DocumentPage(page);
+    searchPage = new SearchPage(page, 'http://127.0.0.1:4173');
     await documentsPage.setup(apiKey);
   });
 
-  test('BM25 search returns relevant results for exact keyword match', async ({ page }) => {
+  test('BM25 search returns relevant results for exact keyword match', async () => {
     // Upload document and wait for indexing to complete
     await documentsPage.expectEmptyKBState();
 
@@ -40,41 +43,26 @@ test.describe('BM25 Search @live', () => {
     // Get KB ID before navigating away from documents page
     const kbId = await documentsPage.getKBId(TEST_KB_NAME);
 
-    // Navigate to search page (use BasePage navigateTo for basename handling)
-    await documentsPage.navigateTo('/search');
-
-    // Wait for page to load and Lunr index to be ready
-    await page.waitForSelector('[data-testid="input-search-query"]');
-    await page.waitForFunction(() =>
-      document.querySelector('[data-lunr-ready="true"]') !== null
-    );
+    // Navigate to search page
+    await searchPage.navigateAndWaitForReady();
 
     // Select KB from dropdown
-    await page.selectOption('[data-testid="select-kb-search"]', kbId);
+    await searchPage.kbSelector.selectKB(kbId);
 
     // Perform BM25 search for exact keyword "equity"
-    await page.fill('[data-testid="input-search-query"]', 'equity');
-    await page.click('[data-testid="button-search"]');
-
-    // Wait for search to complete (searching state to finish)
-    await page.waitForSelector('[data-testid="button-search"]:not([disabled])');
+    await searchPage.input.search('equity');
 
     // Assert: Results should be present
-    const results = page.locator('[data-testid^="div-search-result-"]');
-    const resultCount = await results.count();
-    expect(resultCount).toBeGreaterThan(0);
+    await searchPage.results.expectResultsGreaterThan(0);
 
     // Assert: First result should contain "equity" in content
-    const firstResult = results.first();
-    const content = await firstResult.locator('[data-testid="text-result-content"]').textContent();
-    expect(content?.toLowerCase()).toContain('equity');
+    await searchPage.results.expectFirstResultContains('equity');
 
     // Assert: Results should have BM25 scores
-    const score = await firstResult.getAttribute('data-result-score');
-    expect(parseFloat(score || '0')).toBeGreaterThan(0);
+    await searchPage.results.expectFirstResultScoreGreaterThan(0);
   });
 
-  test('BM25 search returns empty results for non-existent keyword', async ({ page }) => {
+  test('BM25 search returns empty results for non-existent keyword', async () => {
     // Upload document and wait for indexing
     await documentsPage.expectEmptyKBState();
 
@@ -94,25 +82,16 @@ test.describe('BM25 Search @live', () => {
     // Get KB ID before navigating away from documents page
     const kbId = await documentsPage.getKBId(TEST_KB_NAME);
 
-    // Navigate to search page (use BasePage navigateTo for basename handling)
-    await documentsPage.navigateTo('/search');
-    await page.waitForSelector('[data-testid="input-search-query"]');
-    await page.waitForFunction(() =>
-      document.querySelector('[data-lunr-ready="true"]') !== null
-    );
+    // Navigate to search page
+    await searchPage.navigateAndWaitForReady();
 
     // Select KB from dropdown
-    await page.selectOption('[data-testid="select-kb-search"]', kbId);
+    await searchPage.kbSelector.selectKB(kbId);
 
     // Search for keyword that doesn't exist
-    await page.fill('[data-testid="input-search-query"]', 'xyznonexistentkeyword123');
-    await page.click('[data-testid="button-search"]');
-
-    // Wait for empty state
-    await page.waitForSelector('[data-testid="div-search-empty"]');
+    await searchPage.input.search('xyznonexistentkeyword123');
 
     // Assert: No results
-    const emptyMessage = await page.locator('[data-testid="div-search-empty"]').textContent();
-    expect(emptyMessage).toContain('No results found');
+    await searchPage.results.expectEmptyMessage('No results found');
   });
 });
