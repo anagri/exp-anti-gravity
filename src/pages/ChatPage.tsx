@@ -16,7 +16,7 @@ import TopBar from '../components/TopBar';
 
 export default function ChatPage() {
   const { apiKey } = useApiKey();
-  const { documents, searchHybrid } = useVectorDB();
+  const { documents, knowledgeBases, searchHybrid } = useVectorDB();
   const [attachedDocumentIds, setAttachedDocumentIds] = useState<string[]>([]);
   const { messages, isLoading, error, sendMessage, clearChat } = useChat({
     apiKey,
@@ -178,6 +178,7 @@ export default function ChatPage() {
       {isFileSelectorOpen && (
         <FileSelector
           documents={documents}
+          knowledgeBases={knowledgeBases}
           selectedDocumentIds={attachedDocumentIds}
           onSelectionChange={(ids) => {
             setAttachedDocumentIds(ids);

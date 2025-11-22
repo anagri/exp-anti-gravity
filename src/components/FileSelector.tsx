@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -7,12 +7,19 @@ import IndexingStatusBadge from '@/pages/documents/components/IndexingStatusBadg
 interface Document {
   id: string;
   filename: string;
+  knowledge_base_id: string | null;
   indexing_status: 'pending' | 'processing' | 'completed' | 'failed' | null;
   retry_count: number | null;
 }
 
+interface KnowledgeBase {
+  id: string;
+  name: string;
+}
+
 interface FileSelectorProps {
   documents: Document[];
+  knowledgeBases: KnowledgeBase[];
   selectedDocumentIds: string[];
   onSelectionChange: (documentIds: string[]) => void;
   onClose: () => void;
@@ -20,21 +27,50 @@ interface FileSelectorProps {
 
 export default function FileSelector({
   documents,
+  knowledgeBases,
   selectedDocumentIds,
   onSelectionChange,
   onClose,
 }: FileSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedKBId, setSelectedKBId] = useState<string>('all');
   const [localSelection, setLocalSelection] = useState<Set<string>>(
     new Set(selectedDocumentIds)
   );
+  const isAutoFilterRef = useRef(false);
 
-  // Sort alphabetically by filename (ONLY sort option per spec)
+  // Track which KB is "locked" based on current selection
+  const lockedKBId = useMemo(() => {
+    if (localSelection.size === 0) return null;
+    const firstSelectedDoc = documents.find(doc => localSelection.has(doc.id));
+    return firstSelectedDoc?.knowledge_base_id || null;
+  }, [localSelection, documents]);
+
+  // Clear selection when KB filter changes manually (not via auto-filter)
+  useEffect(() => {
+    // Skip clearing if this was triggered by auto-filter
+    if (isAutoFilterRef.current) {
+      isAutoFilterRef.current = false;
+      return;
+    }
+
+    // Clear selection on manual KB filter change
+    // Prevents cross-KB selection and confusion
+    setLocalSelection(new Set());
+  }, [selectedKBId]);
+
+  // Filter by KB first
+  const kbFilteredDocuments = useMemo(() => {
+    if (selectedKBId === 'all') return documents;
+    return documents.filter((doc) => doc.knowledge_base_id === selectedKBId);
+  }, [documents, selectedKBId]);
+
+  // Sort alphabetically by filename
   const sortedDocuments = useMemo(() => {
-    return [...documents].sort((a, b) =>
+    return [...kbFilteredDocuments].sort((a, b) =>
       a.filename.localeCompare(b.filename, undefined, { sensitivity: 'base' })
     );
-  }, [documents]);
+  }, [kbFilteredDocuments]);
 
   // Filter by search query (client-side, case-insensitive)
   const filteredDocuments = useMemo(() => {
@@ -46,15 +82,33 @@ export default function FileSelector({
     );
   }, [sortedDocuments, searchQuery]);
 
-  const handleToggle = (documentId: string, isCompleted: boolean) => {
+  // Get KB name for selection summary
+  const selectedKBName = useMemo(() => {
+    if (selectedKBId === 'all') return null;
+    return knowledgeBases.find(kb => kb.id === selectedKBId)?.name || null;
+  }, [selectedKBId, knowledgeBases]);
+
+  const handleToggle = (documentId: string, isCompleted: boolean, docKBId: string | null) => {
     if (!isCompleted) return; // Disabled checkboxes do nothing
+
+    // Prevent cross-KB selection
+    if (lockedKBId && docKBId !== lockedKBId) {
+      return; // Silently ignore - checkbox is already disabled in UI
+    }
 
     setLocalSelection((prev) => {
       const next = new Set(prev);
       if (next.has(documentId)) {
         next.delete(documentId);
+        // If last selection removed and "all" was selected, keep "all"
+        // Otherwise stay on the KB filter
       } else {
         next.add(documentId);
+        // Auto-filter to the KB of the selected document
+        if (docKBId && selectedKBId === 'all') {
+          isAutoFilterRef.current = true;
+          setSelectedKBId(docKBId);
+        }
       }
       return next;
     });
@@ -96,6 +150,28 @@ export default function FileSelector({
           </Button>
         </div>
 
+        {/* KB Filter */}
+        {knowledgeBases.length > 0 && (
+          <div className="p-4 border-b bg-gray-50">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Knowledge Base
+            </label>
+            <select
+              data-testid="select-kb-filter-fileselector"
+              value={selectedKBId}
+              onChange={(e) => setSelectedKBId(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Knowledge Bases</option>
+              {knowledgeBases.map((kb) => (
+                <option key={kb.id} value={kb.id}>
+                  {kb.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Search Bar */}
         <div className="p-4 border-b">
           <div className="relative">
@@ -134,6 +210,8 @@ export default function FileSelector({
           <div className="space-y-2">
             {filteredDocuments.map((doc) => {
               const isCompleted = doc.indexing_status === 'completed';
+              const isFromDifferentKB = lockedKBId && doc.knowledge_base_id !== lockedKBId;
+              const isSelectable = isCompleted && !isFromDifferentKB;
               const isSelected = localSelection.has(doc.id);
 
               return (
@@ -143,19 +221,21 @@ export default function FileSelector({
                   data-filename={doc.filename}
                   data-indexing-status={doc.indexing_status || 'pending'}
                   data-selected={isSelected}
+                  data-from-different-kb={isFromDifferentKB || false}
                   className={`
                     flex items-center gap-3 p-3 rounded-lg border
-                    ${isCompleted ? 'cursor-pointer hover:bg-gray-50' : 'opacity-60 cursor-not-allowed'}
+                    ${isSelectable ? 'cursor-pointer hover:bg-gray-50' : 'opacity-60 cursor-not-allowed'}
                   `}
-                  onClick={() => handleToggle(doc.id, isCompleted)}
+                  onClick={() => handleToggle(doc.id, isSelectable, doc.knowledge_base_id)}
+                  title={isFromDifferentKB ? 'Cannot mix documents from different Knowledge Bases' : undefined}
                 >
                   {/* Checkbox */}
                   <input
                     type="checkbox"
                     data-testid={`checkbox-file-${doc.id}`}
-                    data-disabled={!isCompleted}
+                    data-disabled={!isSelectable}
                     checked={isSelected}
-                    disabled={!isCompleted}
+                    disabled={!isSelectable}
                     onChange={() => {}}
                     className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
@@ -164,7 +244,7 @@ export default function FileSelector({
                   <div className="flex-1 min-w-0">
                     <p
                       className={`text-sm font-medium truncate ${
-                        isCompleted ? 'text-gray-900' : 'text-gray-500'
+                        isSelectable ? 'text-gray-900' : 'text-gray-500'
                       }`}
                     >
                       {doc.filename}
@@ -190,6 +270,8 @@ export default function FileSelector({
             <div className="text-sm text-gray-600">
               {localSelection.size === 0
                 ? 'No documents selected'
+                : selectedKBName
+                ? `${localSelection.size} ${localSelection.size === 1 ? 'document' : 'documents'} selected from ${selectedKBName}`
                 : `${localSelection.size} ${localSelection.size === 1 ? 'document' : 'documents'} selected`}
             </div>
             <Button

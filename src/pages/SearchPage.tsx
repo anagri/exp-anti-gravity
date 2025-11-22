@@ -16,17 +16,18 @@ export default function SearchPage() {
   const [results, setResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const [selectedKBId, setSelectedKBId] = useState<string>('')
 
-  const { searchBM25, lunrReady } = useVectorDB()
+  const { searchBM25, lunrReady, knowledgeBases } = useVectorDB()
 
   const handleSearch = async () => {
-    if (!query.trim()) return
+    if (!query.trim() || !selectedKBId) return
 
     setIsSearching(true)
     setHasSearched(false)
 
     try {
-      const searchResults = await searchBM25(query, 10)
+      const searchResults = await searchBM25(query, 10, selectedKBId)
       setResults(searchResults)
       setHasSearched(true)
     } catch (error) {
@@ -70,6 +71,27 @@ export default function SearchPage() {
     <div className="container mx-auto max-w-4xl p-6" data-lunr-ready={lunrReady ? 'true' : 'false'}>
       <h1 className="text-3xl font-bold mb-6">Search Documents</h1>
 
+      {/* KB Selector */}
+      <div className="mb-4">
+        <label htmlFor="kb-selector" className="block text-sm font-medium text-gray-700 mb-2">
+          Select Knowledge Base
+        </label>
+        <select
+          id="kb-selector"
+          value={selectedKBId}
+          onChange={(e) => setSelectedKBId(e.target.value)}
+          data-testid="select-kb-search"
+          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">-- Select a Knowledge Base --</option>
+          {knowledgeBases.map((kb) => (
+            <option key={kb.id} value={kb.id}>
+              {kb.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Search Bar */}
       <div className="mb-6">
         <div className="flex gap-2">
@@ -85,7 +107,7 @@ export default function SearchPage() {
           />
           <button
             onClick={handleSearch}
-            disabled={isSearching || !query.trim()}
+            disabled={isSearching || !query.trim() || !selectedKBId}
             data-testid="button-search"
             className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >

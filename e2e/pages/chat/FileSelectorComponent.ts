@@ -21,11 +21,25 @@ export class FileSelectorComponent {
   async selectFile(filename: string) {
     const fileItem = this.page.locator(`[data-filename="${filename}"]`);
     const checkbox = fileItem.locator('[type="checkbox"]');
+
+    // Wait for checkbox to be enabled (only completed documents are selectable)
+    await expect(checkbox).toBeEnabled();
+
+    // Ensure file starts unselected (deterministic initial state)
+    await expect(fileItem).toHaveAttribute('data-selected', 'false');
+
+    // Click to select
     await checkbox.click();
+
+    // Wait for selection to be reflected in the UI
+    await expect(fileItem).toHaveAttribute('data-selected', 'true');
   }
 
   async confirmSelection() {
-    await this.page.click('[data-testid="btn-confirm-file-selector"]');
+    const confirmButton = this.page.locator('[data-testid="btn-confirm-file-selector"]');
+    await confirmButton.waitFor({ state: 'visible' });
+    await expect(confirmButton).toBeEnabled();
+    await confirmButton.click();
   }
 
   async cancel() {
@@ -38,5 +52,31 @@ export class FileSelectorComponent {
 
   async clearSearch() {
     await this.page.click('[data-testid="btn-clear-search"]');
+  }
+
+  async selectKBFilter(kbLabel: string) {
+    const kbFilter = this.page.getByTestId('select-kb-filter-fileselector');
+    await kbFilter.selectOption({ label: kbLabel });
+  }
+
+  async selectKBFilterById(kbId: string) {
+    const kbFilter = this.page.getByTestId('select-kb-filter-fileselector');
+    await kbFilter.waitFor({ state: 'visible' });
+    await kbFilter.selectOption(kbId);
+  }
+
+  async expectKBFilterValue(value: string) {
+    const kbFilter = this.page.getByTestId('select-kb-filter-fileselector');
+    await kbFilter.waitFor({ state: 'visible' });
+    await expect(kbFilter).toHaveValue(value);
+  }
+
+  async expectFileCount(count: number) {
+    const docItems = this.page.locator('[data-testid^="file-selector-item-"]');
+    await expect(docItems).toHaveCount(count);
+  }
+
+  async expectSelectionSummary(text: string) {
+    await expect(this.page.getByText(text)).toBeVisible();
   }
 }

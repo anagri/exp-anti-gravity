@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import KBCard from './components/KBCard';
 import CreateKBModal from './components/CreateKBModal';
 import DeleteKBModal from './components/DeleteKBModal';
+import DeleteModal from './components/DeleteModal';
 import DocumentCard from './components/DocumentCard';
 import UploadZone from './components/UploadZone';
+import DocumentToolbar from './components/DocumentToolbar';
 import TopBar from '@/components/TopBar';
 import { useSearchParams } from 'react-router-dom';
 
@@ -30,7 +32,14 @@ export default function DocumentsPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [kbToDelete, setKbToDelete] = useState<{ id: string; name: string; documentCount: number; chunkCount: number } | null>(null);
+  const [docDeleteModalOpen, setDocDeleteModalOpen] = useState(false);
+  const [docToDelete, setDocToDelete] = useState<{ id: string; filename: string } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Document filtering state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'size-asc' | 'size-desc'>('date-desc');
+  const [filterOption, setFilterOption] = useState<'all' | 'markdown' | 'text'>('all');
 
   // Expanded KB state synced with URL
   const expandedKBId = searchParams.get('kb') || null;
@@ -72,6 +81,24 @@ export default function DocumentsPage() {
     setKbToDelete(null);
   };
 
+  const handleDocumentDeleteClick = (doc: { id: string; filename: string }) => {
+    setDocToDelete(doc);
+    setDocDeleteModalOpen(true);
+  };
+
+  const handleDocumentDeleteConfirm = async () => {
+    if (!docToDelete) return;
+
+    await deleteDocument(docToDelete.id);
+    setDocDeleteModalOpen(false);
+    setDocToDelete(null);
+  };
+
+  const handleDocumentDeleteCancel = () => {
+    setDocDeleteModalOpen(false);
+    setDocToDelete(null);
+  };
+
   const handleKBClick = (kbId: string) => {
     if (expandedKBId === kbId) {
       // Collapse if already expanded
@@ -83,9 +110,40 @@ export default function DocumentsPage() {
     }
   };
 
-  // Filter documents to only show those in expanded KB
+  // Filter, search, and sort documents
   const visibleDocuments = expandedKBId
-    ? documents.filter((doc) => doc.knowledge_base_id === expandedKBId)
+    ? documents
+        .filter((doc) => doc.knowledge_base_id === expandedKBId)
+        .filter((doc) => {
+          // Apply type filter
+          if (filterOption === 'markdown') return doc.filename.endsWith('.md');
+          if (filterOption === 'text') return doc.filename.endsWith('.txt');
+          return true;
+        })
+        .filter((doc) => {
+          // Apply search query
+          if (!searchQuery) return true;
+          return doc.filename.toLowerCase().includes(searchQuery.toLowerCase());
+        })
+        .sort((a, b) => {
+          // Apply sort option
+          switch (sortOption) {
+            case 'date-desc':
+              return new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime();
+            case 'date-asc':
+              return new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime();
+            case 'name-asc':
+              return a.filename.localeCompare(b.filename);
+            case 'name-desc':
+              return b.filename.localeCompare(a.filename);
+            case 'size-asc':
+              return (a.file_size || 0) - (b.file_size || 0);
+            case 'size-desc':
+              return (b.file_size || 0) - (a.file_size || 0);
+            default:
+              return 0;
+          }
+        })
     : [];
 
   const handleFilesSelected = async (files: File[]) => {
@@ -201,6 +259,16 @@ export default function DocumentsPage() {
                           />
                         </div>
 
+                        {/* Document Toolbar */}
+                        <DocumentToolbar
+                          searchQuery={searchQuery}
+                          onSearchChange={setSearchQuery}
+                          sortOption={sortOption}
+                          onSortChange={setSortOption}
+                          filterOption={filterOption}
+                          onFilterChange={setFilterOption}
+                        />
+
                         {/* Documents List */}
                         {visibleDocuments.length === 0 ? (
                           <p className="text-gray-500 text-sm py-4">
@@ -212,9 +280,7 @@ export default function DocumentsPage() {
                               <DocumentCard
                                 key={doc.id}
                                 document={doc}
-                                onDelete={() => {
-                                  deleteDocument(doc.id);
-                                }}
+                                onDelete={() => handleDocumentDeleteClick({ id: doc.id, filename: doc.filename })}
                                 onRetry={
                                   doc.indexing_status === 'failed'
                                     ? () => retryFailed(doc.id)
@@ -248,6 +314,14 @@ export default function DocumentsPage() {
               chunkCount={kbToDelete.chunkCount}
               onConfirm={handleDeleteConfirm}
               onCancel={handleDeleteCancel}
+            />
+          )}
+
+          {docDeleteModalOpen && docToDelete && (
+            <DeleteModal
+              filename={docToDelete.filename}
+              onConfirm={handleDocumentDeleteConfirm}
+              onCancel={handleDocumentDeleteCancel}
             />
           )}
         </div>
