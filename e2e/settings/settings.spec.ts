@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures/globalSetup';
 import { DocumentPage } from '../pages/DocumentPage';
+import { SettingsComponent } from '../pages/shared/SettingsComponent';
 
 test.describe('Settings: Feature Flags & OpenAI Configuration & Search Settings', () => {
   let documentsPage: DocumentPage;
@@ -9,127 +10,106 @@ test.describe('Settings: Feature Flags & OpenAI Configuration & Search Settings'
     documentsPage = new DocumentPage(page);
     await documentsPage.setup("sk-test-key-123");
 
-    await documentsPage.openSettings();
-    await expect(page.getByTestId('div-settings-modal')).toBeVisible();
+    await documentsPage.settings.open();
+    await documentsPage.settings.expectModalVisible();
 
-    let enabled = await documentsPage.getFeatureFlagValue('FEATURE_INDEXING_ENABLED');
+    let enabled = await documentsPage.settings.getFeatureFlagValue('FEATURE_INDEXING_ENABLED');
     expect(enabled).toBe(true);
 
-    const flagRow = page.locator('[data-testid="feature-flag-FEATURE_INDEXING_ENABLED"]');
-    await expect(flagRow).toHaveAttribute('data-enabled', 'true');
+    await documentsPage.settings.expectFeatureFlagEnabled('FEATURE_INDEXING_ENABLED', true);
 
-    await documentsPage.toggleFeatureFlag('FEATURE_INDEXING_ENABLED');
-    await documentsPage.expectReloadWarning();
+    await documentsPage.settings.toggleFeatureFlag('FEATURE_INDEXING_ENABLED');
+    await documentsPage.settings.expectReloadWarning();
 
-    enabled = await documentsPage.getFeatureFlagValue('FEATURE_INDEXING_ENABLED');
+    enabled = await documentsPage.settings.getFeatureFlagValue('FEATURE_INDEXING_ENABLED');
     expect(enabled).toBe(false);
-    await expect(flagRow).toHaveAttribute('data-enabled', 'false');
+    await documentsPage.settings.expectFeatureFlagEnabled('FEATURE_INDEXING_ENABLED', false);
 
     // Phase openai-config: verify OpenAI Configuration section exists
-    await expect(page.getByText('OpenAI Configuration')).toBeVisible();
-    await expect(page.getByTestId('input-openai-api-key')).toBeVisible();
-    await expect(page.getByTestId('input-openai-base-url')).toBeVisible();
-    await expect(page.getByTestId('btn-refresh-models')).toBeVisible();
+    await documentsPage.settings.expectOpenAIConfigSection();
 
-    const apiKeyInput = page.getByTestId('input-openai-api-key');
-    const saveButton = page.getByTestId('btn-save-api-key');
-    const toggleButton = page.getByTestId('btn-toggle-api-key-visibility');
+    await documentsPage.settings.expectApiKeyType('password');
+    await documentsPage.settings.toggleApiKeyVisibility();
+    await documentsPage.settings.expectApiKeyType('text');
+    await documentsPage.settings.toggleApiKeyVisibility();
+    await documentsPage.settings.expectApiKeyType('password');
 
-    await expect(apiKeyInput).toHaveAttribute('type', 'password');
-    await toggleButton.click();
-    await expect(apiKeyInput).toHaveAttribute('type', 'text');
-    await toggleButton.click();
-    await expect(apiKeyInput).toHaveAttribute('type', 'password');
-
-    await apiKeyInput.fill('sk-test-persistent-key');
-    await saveButton.click();
-
-    const baseUrlInput = page.getByTestId('input-openai-base-url');
-    await baseUrlInput.fill('https://custom.openai.proxy/v1');
+    await documentsPage.settings.setApiKey('sk-test-persistent-key');
+    await documentsPage.settings.setBaseUrl('https://custom.openai.proxy/v1');
 
     // Phase search-settings: verify hybrid search settings section exists
-    await expect(page.getByText('Hybrid Search Settings')).toBeVisible();
+    await documentsPage.settings.expectSearchSettingsSection();
 
-    await expect(page.getByTestId('input-VECTOR_TOP_K')).toHaveValue('3');
-    await expect(page.getByTestId('input-SIMILARITY_THRESHOLD')).toHaveValue('0.3');
-    await expect(page.getByTestId('input-BM25_LIMIT')).toHaveValue('10');
+    await documentsPage.settings.expectSearchSettingValue('VECTOR_TOP_K', '3');
+    await documentsPage.settings.expectSearchSettingValue('SIMILARITY_THRESHOLD', '0.3');
+    await documentsPage.settings.expectSearchSettingValue('BM25_LIMIT', '10');
     // Note: HNSW settings moved to per-KB configuration (in CreateKBModal)
 
     // Phase validation: test input bounds validation
-    await page.getByTestId('input-VECTOR_TOP_K').fill('25');
-    await expect(page.getByText('Value must be between 1 and 20')).toBeVisible();
+    await documentsPage.settings.setSearchSetting('VECTOR_TOP_K', '25');
+    await documentsPage.settings.expectValidationError('Value must be between 1 and 20');
 
-    await page.getByTestId('input-VECTOR_TOP_K').fill('5');
-    await expect(page.getByText('Value must be between 1 and 20')).not.toBeVisible();
+    await documentsPage.settings.setSearchSetting('VECTOR_TOP_K', '5');
+    await documentsPage.settings.expectNoValidationError('Value must be between 1 and 20');
 
-    await page.getByTestId('input-SIMILARITY_THRESHOLD').fill('1.5');
-    await expect(page.getByText('Value must be between 0 and 1')).toBeVisible();
+    await documentsPage.settings.setSearchSetting('SIMILARITY_THRESHOLD', '1.5');
+    await documentsPage.settings.expectValidationError('Value must be between 0 and 1');
 
-    await page.getByTestId('input-SIMILARITY_THRESHOLD').fill('0.7');
-    await expect(page.getByText('Value must be between 0 and 1')).not.toBeVisible();
+    await documentsPage.settings.setSearchSetting('SIMILARITY_THRESHOLD', '0.7');
+    await documentsPage.settings.expectNoValidationError('Value must be between 0 and 1');
 
-    await page.getByTestId('input-BM25_LIMIT').fill('15');
+    await documentsPage.settings.setSearchSetting('BM25_LIMIT', '15');
 
-    await documentsPage.closeSettings();
+    await documentsPage.settings.close();
 
     // Verify search settings persisted
-    const topK = await page.evaluate(() => localStorage.getItem('search-setting-VECTOR_TOP_K'));
-    const threshold = await page.evaluate(() => localStorage.getItem('search-setting-SIMILARITY_THRESHOLD'));
-    const bm25 = await page.evaluate(() => localStorage.getItem('search-setting-BM25_LIMIT'));
-
-    expect(topK).toBe('5');
-    expect(threshold).toBe('0.7');
-    expect(bm25).toBe('15');
+    await documentsPage.settings.expectLocalStorageValue('search-setting-VECTOR_TOP_K', '5');
+    await documentsPage.settings.expectLocalStorageValue('search-setting-SIMILARITY_THRESHOLD', '0.7');
+    await documentsPage.settings.expectLocalStorageValue('search-setting-BM25_LIMIT', '15');
 
     // Phase persist: verify all settings persist across new page
     const newPage = await context.newPage();
+    const newPageSettings = new SettingsComponent(newPage);
+
     await newPage.goto('/exp-anti-gravity/');
     await newPage.getByTestId('btn-welcome-settings').click();
 
-    const newApiKeyInput = newPage.getByTestId('input-openai-api-key');
-    await expect(newApiKeyInput).toHaveValue('sk-test-persistent-key');
+    await newPageSettings.expectApiKeyValue('sk-test-persistent-key');
+    await newPageSettings.expectBaseUrlValue('https://custom.openai.proxy/v1');
+    await newPageSettings.expectFeatureFlagEnabled('FEATURE_INDEXING_ENABLED', false);
 
-    const newBaseUrlInput = newPage.getByTestId('input-openai-base-url');
-    await expect(newBaseUrlInput).toHaveValue('https://custom.openai.proxy/v1');
+    await newPageSettings.expectSearchSettingValue('VECTOR_TOP_K', '5');
+    await newPageSettings.expectSearchSettingValue('SIMILARITY_THRESHOLD', '0.7');
+    await newPageSettings.expectSearchSettingValue('BM25_LIMIT', '15');
 
-    const newFlagRow = newPage.locator('[data-testid="feature-flag-FEATURE_INDEXING_ENABLED"]');
-    await expect(newFlagRow).toHaveAttribute('data-enabled', 'false');
-
-    await expect(newPage.getByTestId('input-VECTOR_TOP_K')).toHaveValue('5');
-    await expect(newPage.getByTestId('input-SIMILARITY_THRESHOLD')).toHaveValue('0.7');
-    await expect(newPage.getByTestId('input-BM25_LIMIT')).toHaveValue('15');
-
-    await newPage.getByTestId('btn-refresh-models').click();
-    await newPage.waitForTimeout(500);
+    await newPageSettings.refreshModels();
 
     // Test close buttons
-    await newPage.getByTestId('btn-close-settings').click();
-    await expect(newPage.getByTestId('div-settings-modal')).not.toBeVisible();
+    await newPageSettings.close();
+    await newPageSettings.expectModalNotVisible();
 
     // Navigate to chat and verify settings persist from both pages
     await newPage.getByTestId('inp-welcome-apikey').fill('sk-test-persistent-key');
     await newPage.getByTestId('btn-welcome-start').click();
     await expect(newPage).toHaveURL(/\/chat/);
 
-    await newPage.getByTestId('btn-settings').click();
-    await expect(newPage.getByTestId('div-settings-modal')).toBeVisible();
-    await expect(newPage.getByText('OpenAI Configuration')).toBeVisible();
-    await expect(newPage.getByText('Hybrid Search Settings')).toBeVisible();
+    await newPageSettings.open();
+    await newPageSettings.expectModalVisible();
+    await newPageSettings.expectOpenAIConfigSection();
+    await newPageSettings.expectSearchSettingsSection();
 
-    const chatBaseUrlInput = newPage.getByTestId('input-openai-base-url');
-    await expect(chatBaseUrlInput).toHaveValue('https://custom.openai.proxy/v1');
+    await newPageSettings.expectBaseUrlValue('https://custom.openai.proxy/v1');
+    await newPageSettings.expectSearchSettingValue('VECTOR_TOP_K', '5');
+    await newPageSettings.expectSearchSettingValue('SIMILARITY_THRESHOLD', '0.7');
 
-    await expect(newPage.getByTestId('input-VECTOR_TOP_K')).toHaveValue('5');
-    await expect(newPage.getByTestId('input-SIMILARITY_THRESHOLD')).toHaveValue('0.7');
-
-    await newPage.getByTestId('btn-close-settings-footer').click();
-    await expect(newPage.getByTestId('div-settings-modal')).not.toBeVisible();
+    await newPageSettings.closeViaFooter();
+    await newPageSettings.expectModalNotVisible();
 
     // Test settings accessible from documents page
     await newPage.goto('/exp-anti-gravity/documents');
-    await newPage.getByTestId('btn-settings').click();
-    await expect(newPage.getByTestId('div-settings-modal')).toBeVisible();
-    await expect(newPage.getByText('Hybrid Search Settings')).toBeVisible();
+    await newPageSettings.open();
+    await newPageSettings.expectModalVisible();
+    await newPageSettings.expectSearchSettingsSection();
 
     await newPage.close();
   });
