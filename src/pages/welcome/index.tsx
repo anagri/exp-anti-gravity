@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useApiKey } from '@/contexts/ApiKeyContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,7 @@ export default function WelcomePage() {
       setApiKey(inputKey.trim());
       navigate('/chat');
     } else {
-      alert('Please enter a valid OpenAI API key starting with sk-');
+      toast.error('Please enter a valid OpenAI API key starting with sk-');
     }
   };
 

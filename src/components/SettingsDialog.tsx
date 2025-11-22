@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { Settings, X, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -83,7 +84,7 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
 
   const fetchModels = async () => {
     if (!apiKey) {
-      alert('Please set your API key first')
+      toast.error('Please set your API key first')
       return
     }
 
@@ -98,9 +99,10 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
       const list = await openai.models.list()
       const modelIds = list.data.map(m => m.id).sort()
       setModels(modelIds)
+      toast.success('Models loaded successfully')
     } catch (err) {
       console.error('Failed to fetch models', err)
-      alert('Failed to fetch models. Check your API key and base URL.')
+      toast.error('Failed to fetch models. Check your API key and base URL.')
     } finally {
       setIsLoadingModels(false)
     }
