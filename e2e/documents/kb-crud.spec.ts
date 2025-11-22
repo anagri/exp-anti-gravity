@@ -14,7 +14,7 @@ test.describe('Knowledge Base Workflow', () => {
     // Disable indexing for this test (faster, UI-only)
     await documentsPage.setFeatureFlag('FEATURE_INDEXING_ENABLED', false);
 
-    await documentsPage.setup("sk-test-key-123");
+    await documentsPage.setup('sk-test-key-123');
   });
 
   test('Phase crud → upload → filtering → persistence', async ({ page }) => {
@@ -56,7 +56,11 @@ test.describe('Knowledge Base Workflow', () => {
     // Expand KB before upload (deterministic - KB starts collapsed)
     await documentsPage.expandKB('KB B');
 
-    await documentsPage.uploadFilesToKBAndWait('KB B', TEST_FILES.DOC_02_TXT, FILE_NAMES.DOC_02_TXT);
+    await documentsPage.uploadFilesToKBAndWait(
+      'KB B',
+      TEST_FILES.DOC_02_TXT,
+      FILE_NAMES.DOC_02_TXT
+    );
     await documentsPage.expectFileCount(1);
 
     // Verify KB A still has 1 doc when switching back

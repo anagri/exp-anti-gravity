@@ -57,12 +57,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">
                   Feature Flag
                 </th>
-                <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">
-                  Enabled
-                </th>
-                <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">
-                  Action
-                </th>
+                <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">Enabled</th>
+                <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -77,9 +73,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <td className="py-2 px-3 text-sm">
                     <span
                       className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                        enabled
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
+                        enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                       }`}
                     >
                       {enabled ? '✓ true' : '✗ false'}
@@ -107,27 +101,17 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md"
             data-testid="reload-warning"
           >
-            <p className="text-sm text-amber-800">
-              ⚠ Changes require page reload to take effect
-            </p>
+            <p className="text-sm text-amber-800">⚠ Changes require page reload to take effect</p>
           </div>
         )}
 
         <div className="flex justify-end gap-3 mt-6">
           {hasChanges && (
-            <Button
-              variant="default"
-              onClick={handleReload}
-              data-testid="btn-reload-now"
-            >
+            <Button variant="default" onClick={handleReload} data-testid="btn-reload-now">
               Reload Now
             </Button>
           )}
-          <Button
-            variant="outline"
-            onClick={onClose}
-            data-testid="btn-close-settings-footer"
-          >
+          <Button variant="outline" onClick={onClose} data-testid="btn-close-settings-footer">
             Close
           </Button>
         </div>

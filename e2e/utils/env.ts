@@ -14,7 +14,10 @@ export function loadTestApiKey(): string {
   }
 
   const apiKey = process.env.TEST_OPENAI_API_KEY;
-  expect(apiKey, 'TEST_OPENAI_API_KEY not found in e2e/.env.test or environment variables').toBeDefined();
+  expect(
+    apiKey,
+    'TEST_OPENAI_API_KEY not found in e2e/.env.test or environment variables'
+  ).toBeDefined();
 
   return apiKey!;
 }

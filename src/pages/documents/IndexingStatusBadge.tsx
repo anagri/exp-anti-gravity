@@ -7,10 +7,7 @@ interface IndexingStatusBadgeProps {
   retryCount?: number;
 }
 
-export default function IndexingStatusBadge({
-  status,
-  retryCount = 0,
-}: IndexingStatusBadgeProps) {
+export default function IndexingStatusBadge({ status, retryCount = 0 }: IndexingStatusBadgeProps) {
   const config = {
     pending: {
       icon: Clock,

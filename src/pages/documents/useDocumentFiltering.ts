@@ -45,9 +45,7 @@ export function useDocumentFiltering({
     // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((doc) =>
-        doc.filename.toLowerCase().includes(query)
-      );
+      filtered = filtered.filter((doc) => doc.filename.toLowerCase().includes(query));
     }
 
     // Sort

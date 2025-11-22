@@ -3,7 +3,10 @@ import { Page, expect } from '@playwright/test';
 export class BasePage {
   protected readonly basename = '/exp-anti-gravity';
 
-  constructor(protected page: Page, protected baseUrl: string) {}
+  constructor(
+    protected page: Page,
+    protected baseUrl: string
+  ) {}
 
   async navigateTo(path: string) {
     await this.page.goto(`${this.baseUrl}${this.basename}${path}`);
@@ -11,7 +14,7 @@ export class BasePage {
 
   async waitForPath(path: string) {
     const expectedPath = path === '/' ? this.basename : `${this.basename}${path}`;
-    await this.page.waitForURL(url => url.pathname === expectedPath);
+    await this.page.waitForURL((url) => url.pathname === expectedPath);
   }
 
   async expectCurrentPath(pathname: string) {
@@ -32,15 +35,22 @@ export class BasePage {
     return await this.page.textContent(`[data-testid="${testId}"]`);
   }
 
-  async waitForTestId(testId: string, state: 'visible' | 'hidden' | 'attached' | 'detached' = 'visible') {
+  async waitForTestId(
+    testId: string,
+    state: 'visible' | 'hidden' | 'attached' | 'detached' = 'visible'
+  ) {
     await this.page.waitForSelector(`[data-testid="${testId}"]`, { state });
   }
 
   // Feature flag management
   async setFeatureFlag(flagName: string, enabled: boolean) {
-    await this.page.addInitScript((flag, value) => {
-      localStorage.setItem(`feature-flag-${flag}`, value.toString());
-    }, flagName, enabled);
+    await this.page.addInitScript(
+      (flag, value) => {
+        localStorage.setItem(`feature-flag-${flag}`, value.toString());
+      },
+      flagName,
+      enabled
+    );
   }
 
   // Page navigation helpers

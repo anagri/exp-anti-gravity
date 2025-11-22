@@ -12,8 +12,8 @@ export const test = base.extend<{ globalSetup: void }>({
         console.log('[globalSetup] Available databases:', databases);
 
         const promises = databases
-          .filter(db => db.name?.includes('rag') || db.name?.includes('pglite'))
-          .map(db => {
+          .filter((db) => db.name?.includes('rag') || db.name?.includes('pglite'))
+          .map((db) => {
             return new Promise<void>((resolve) => {
               if (db.name) {
                 console.log('[globalSetup] Deleting database:', db.name);

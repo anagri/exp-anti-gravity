@@ -6,10 +6,7 @@ interface AttachmentBadgesProps {
   onRemove: (documentId: string) => void;
 }
 
-export default function AttachmentBadges({
-  attachedDocuments,
-  onRemove,
-}: AttachmentBadgesProps) {
+export default function AttachmentBadges({ attachedDocuments, onRemove }: AttachmentBadgesProps) {
   if (attachedDocuments.length === 0) {
     return null;
   }
@@ -19,9 +16,7 @@ export default function AttachmentBadges({
       {attachedDocuments.map((doc) => {
         // Truncate long filenames (max 20 chars)
         const displayName =
-          doc.filename.length > 20
-            ? doc.filename.substring(0, 17) + '...'
-            : doc.filename;
+          doc.filename.length > 20 ? doc.filename.substring(0, 17) + '...' : doc.filename;
 
         return (
           <div

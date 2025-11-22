@@ -4,7 +4,6 @@ import { Input } from './input';
 import { Card, CardTitle, CardContent } from './card';
 import { describe, it, expect } from 'vitest';
 
-
 describe('UI Components', () => {
   it('renders Button correctly', () => {
     render(<Button>Click me</Button>);

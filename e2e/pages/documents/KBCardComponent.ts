@@ -18,15 +18,12 @@ export class KBCardComponent {
 
     await kbCard.click();
 
-    await this.page.waitForFunction(
-      (name) => {
-        const card = document.querySelector(`[data-kb-name="${name}"]`);
-        return card?.getAttribute('data-expanded') === 'true';
-      },
-      kbName
-    );
+    await this.page.waitForFunction((name) => {
+      const card = document.querySelector(`[data-kb-name="${name}"]`);
+      return card?.getAttribute('data-expanded') === 'true';
+    }, kbName);
 
-    await this.page.waitForURL(url => url.searchParams.get('kb') === kbId);
+    await this.page.waitForURL((url) => url.searchParams.get('kb') === kbId);
   }
 
   async collapse(kbName: string) {
@@ -37,7 +34,9 @@ export class KBCardComponent {
 
     await kbCard.click();
     await this.page.waitForFunction(
-      (name) => document.querySelector(`[data-kb-name="${name}"]`)?.getAttribute('data-expanded') === 'false',
+      (name) =>
+        document.querySelector(`[data-kb-name="${name}"]`)?.getAttribute('data-expanded') ===
+        'false',
       kbName
     );
   }

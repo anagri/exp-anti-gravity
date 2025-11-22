@@ -19,7 +19,9 @@ test.describe('Indexing Workflow @live', () => {
     await documentsPage.setup(apiKey);
   });
 
-  test('Phase embeddings: upload → queue → chunk → embed → store → persist after reload', async ({ page }) => {
+  test('Phase embeddings: upload → queue → chunk → embed → store → persist after reload', async ({
+    page,
+  }) => {
     await documentsPage.expectEmptyKBState();
 
     await documentsPage.createKB(TEST_KB_NAME);

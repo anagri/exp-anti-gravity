@@ -97,9 +97,7 @@ export default function DocumentCard({
 
             {/* Chunk Count (when completed) */}
             {document.indexing_status === 'completed' && document.chunk_count && (
-              <p className="text-xs text-gray-600">
-                {document.chunk_count} chunks indexed
-              </p>
+              <p className="text-xs text-gray-600">{document.chunk_count} chunks indexed</p>
             )}
 
             {/* Error Message (when failed) */}

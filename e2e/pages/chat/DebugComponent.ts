@@ -14,7 +14,9 @@ export class DebugComponent {
   constructor(private readonly page: Page) {}
 
   async getMetadata(messageIndex: number): Promise<Metadata | null> {
-    const messageDiv = this.page.locator('[data-testid="div-chat-assistant-msg"]').nth(messageIndex);
+    const messageDiv = this.page
+      .locator('[data-testid="div-chat-assistant-msg"]')
+      .nth(messageIndex);
     const metadataDiv = messageDiv.locator('[data-test-metadata]');
     const metadataCount = await metadataDiv.count();
 
@@ -31,7 +33,9 @@ export class DebugComponent {
   }
 
   async getPrompt(messageIndex: number): Promise<string | null> {
-    const messageDiv = this.page.locator('[data-testid="div-chat-assistant-msg"]').nth(messageIndex);
+    const messageDiv = this.page
+      .locator('[data-testid="div-chat-assistant-msg"]')
+      .nth(messageIndex);
     const promptPre = messageDiv.locator('[data-test-prompt]');
     const promptCount = await promptPre.count();
 

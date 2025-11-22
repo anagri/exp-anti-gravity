@@ -5,10 +5,13 @@ import { SettingsComponent } from '../pages/shared/SettingsComponent';
 test.describe('Settings: Feature Flags & OpenAI Configuration & Search Settings', () => {
   let documentsPage: DocumentPage;
 
-  test('Phase settings: feature-flags → openai-config → search-settings → validation → persist', async ({ page, context }) => {
+  test('Phase settings: feature-flags → openai-config → search-settings → validation → persist', async ({
+    page,
+    context,
+  }) => {
     // Phase feature-flags: verify defaults and toggle
     documentsPage = new DocumentPage(page);
-    await documentsPage.setup("sk-test-key-123");
+    await documentsPage.setup('sk-test-key-123');
 
     await documentsPage.settings.open();
     await documentsPage.settings.expectModalVisible();
@@ -64,7 +67,10 @@ test.describe('Settings: Feature Flags & OpenAI Configuration & Search Settings'
 
     // Verify search settings persisted
     await documentsPage.settings.expectLocalStorageValue('search-setting-VECTOR_TOP_K', '5');
-    await documentsPage.settings.expectLocalStorageValue('search-setting-SIMILARITY_THRESHOLD', '0.7');
+    await documentsPage.settings.expectLocalStorageValue(
+      'search-setting-SIMILARITY_THRESHOLD',
+      '0.7'
+    );
     await documentsPage.settings.expectLocalStorageValue('search-setting-BM25_LIMIT', '15');
 
     // Phase persist: verify all settings persist across new page

@@ -29,7 +29,7 @@ export async function generateEmbeddings(
       input: batch,
     });
 
-    embeddings.push(...response.data.map(d => d.embedding));
+    embeddings.push(...response.data.map((d) => d.embedding));
   }
 
   return embeddings;
@@ -64,5 +64,5 @@ export function cosineSimilarity(a: number[], b: number[]): number {
  */
 export function normalizeVector(vector: number[]): number[] {
   const norm = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
-  return norm > 0 ? vector.map(val => val / norm) : vector;
+  return norm > 0 ? vector.map((val) => val / norm) : vector;
 }

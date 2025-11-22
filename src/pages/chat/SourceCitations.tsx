@@ -58,9 +58,7 @@ function CitationMarker({ index, source }: CitationMarkerProps) {
           className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50"
         >
           <div className="font-semibold mb-1">{source.filename}</div>
-          {source.heading && (
-            <div className="text-gray-300 mb-1 text-xs">{source.heading}</div>
-          )}
+          {source.heading && <div className="text-gray-300 mb-1 text-xs">{source.heading}</div>}
           <div className="text-gray-200 line-clamp-3">{source.content}</div>
           <div className="text-gray-400 mt-1 text-xs">
             Similarity: {((source.similarity || 0) * 100).toFixed(1)}%
@@ -118,9 +116,7 @@ export function SourceCitations({ content, sources }: SourceCitationsProps) {
               >
                 <span className="font-medium text-blue-600">[{idx + 1}]</span>{' '}
                 <span className="font-medium">{source.filename}</span>
-                {source.heading && (
-                  <span className="text-gray-500"> - {source.heading}</span>
-                )}
+                {source.heading && <span className="text-gray-500"> - {source.heading}</span>}
                 <span className="text-gray-400 ml-2">
                   ({((source.similarity || 0) * 100).toFixed(0)}% match)
                 </span>

@@ -44,14 +44,14 @@ export class SourceCitationsComponent {
 
   async getSourceFilenames(): Promise<string[]> {
     const sources = await this.page.locator('[data-source-filename]').all();
-    const filenames = await Promise.all(
-      sources.map(s => s.getAttribute('data-source-filename'))
-    );
+    const filenames = await Promise.all(sources.map((s) => s.getAttribute('data-source-filename')));
     return filenames.filter((f): f is string => f !== null);
   }
 
   getSourceAt(messageIndex: number, sourceIndex: number): Locator {
-    const messageDiv = this.page.locator('[data-testid="div-chat-assistant-msg"]').nth(messageIndex);
+    const messageDiv = this.page
+      .locator('[data-testid="div-chat-assistant-msg"]')
+      .nth(messageIndex);
     return messageDiv.locator(`[data-source-index="${sourceIndex}"]`);
   }
 
@@ -72,7 +72,9 @@ export class SourceCitationsComponent {
   }
 
   async getSourceScores(messageIndex: number): Promise<ScoreArray> {
-    const messageDiv = this.page.locator('[data-testid="div-chat-assistant-msg"]').nth(messageIndex);
+    const messageDiv = this.page
+      .locator('[data-testid="div-chat-assistant-msg"]')
+      .nth(messageIndex);
     const sources = await messageDiv.locator('[data-source-index]').all();
 
     const vectorScores: number[] = [];
@@ -92,11 +94,17 @@ export class SourceCitationsComponent {
     return { vectorScores, bm25Scores, fusedScores };
   }
 
-  async verifyScoreOrdering(messageIndex: number, scoreType: 'fused' | 'vector' | 'bm25'): Promise<void> {
+  async verifyScoreOrdering(
+    messageIndex: number,
+    scoreType: 'fused' | 'vector' | 'bm25'
+  ): Promise<void> {
     const scores = await this.getSourceScores(messageIndex);
-    const scoreArray = scoreType === 'fused' ? scores.fusedScores :
-                       scoreType === 'vector' ? scores.vectorScores :
-                       scores.bm25Scores;
+    const scoreArray =
+      scoreType === 'fused'
+        ? scores.fusedScores
+        : scoreType === 'vector'
+          ? scores.vectorScores
+          : scores.bm25Scores;
 
     for (let i = 1; i < scoreArray.length; i++) {
       expect(

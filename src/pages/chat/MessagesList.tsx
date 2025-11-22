@@ -13,18 +13,13 @@ export default function MessagesList({ messages }: MessagesListProps) {
       {messages.map((msg, idx) => (
         <div
           key={idx}
-          className={cn(
-            "flex w-full",
-            msg.role === 'user' ? "justify-end" : "justify-start"
-          )}
+          className={cn('flex w-full', msg.role === 'user' ? 'justify-end' : 'justify-start')}
         >
           <div
             data-testid={msg.role === 'user' ? 'div-chat-user-msg' : 'div-chat-assistant-msg'}
             className={cn(
-              "flex max-w-[80%] rounded-lg p-3 text-sm",
-              msg.role === 'user'
-                ? "bg-blue-600 text-white ml-auto"
-                : "bg-gray-100 text-gray-900"
+              'flex max-w-[80%] rounded-lg p-3 text-sm',
+              msg.role === 'user' ? 'bg-blue-600 text-white ml-auto' : 'bg-gray-100 text-gray-900'
             )}
           >
             {msg.role !== 'user' && <Bot className="w-4 h-4 mr-2 mt-0.5 shrink-0" />}
@@ -35,20 +30,12 @@ export default function MessagesList({ messages }: MessagesListProps) {
                 <div className="whitespace-pre-wrap">{msg.content}</div>
               )}
               {msg.role === 'assistant' && msg.metadata && (
-                <div
-                  data-test-metadata
-                  className="hidden"
-                  aria-hidden="true"
-                >
+                <div data-test-metadata className="hidden" aria-hidden="true">
                   {JSON.stringify(msg.metadata)}
                 </div>
               )}
               {msg.role === 'assistant' && msg.prompt && (
-                <pre
-                  data-test-prompt
-                  className="hidden"
-                  aria-hidden="true"
-                >
+                <pre data-test-prompt className="hidden" aria-hidden="true">
                   {msg.prompt}
                 </pre>
               )}

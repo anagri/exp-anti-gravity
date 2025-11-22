@@ -45,7 +45,11 @@ test.describe('KB Workflow with Indexing @live', () => {
     // Expand KB before upload (deterministic - KB starts collapsed)
     await documentsPage.expandKB('KB B');
 
-    await documentsPage.uploadFilesToKBAndWait('KB B', TEST_FILES.DOC_02_TXT, FILE_NAMES.DOC_02_TXT);
+    await documentsPage.uploadFilesToKBAndWait(
+      'KB B',
+      TEST_FILES.DOC_02_TXT,
+      FILE_NAMES.DOC_02_TXT
+    );
 
     const fileBId = await documentsPage.documentList.card.getFileByName(FILE_NAMES.DOC_02_TXT);
     await documentsPage.documentList.waitForIndexedText(fileBId);

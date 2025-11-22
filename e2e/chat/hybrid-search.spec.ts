@@ -75,7 +75,9 @@ test.describe('Hybrid Search @live', () => {
 
     expect(firstMsgSources).toBeGreaterThan(0);
     expect(secondMsgSources).toBeGreaterThan(0);
-    console.log(`First message: ${firstMsgSources} sources, Second message: ${secondMsgSources} sources`);
+    console.log(
+      `First message: ${firstMsgSources} sources, Second message: ${secondMsgSources} sources`
+    );
 
     // Step 5: Verify total sources visible equals sum
     const totalSources = await chatPage.sourceCitations.getSourceCount();
@@ -118,7 +120,9 @@ test.describe('Hybrid Search @live', () => {
     expect(scoreData.vectorScore).toBeGreaterThanOrEqual(0);
     expect(scoreData.bm25Score).toBeGreaterThanOrEqual(0);
     expect(scoreData.fusedScore).toBeGreaterThan(0);
-    console.log(`Source attributes verified: chunkId=${scoreData.chunkId}, fusedScore=${scoreData.fusedScore}`);
+    console.log(
+      `Source attributes verified: chunkId=${scoreData.chunkId}, fusedScore=${scoreData.fusedScore}`
+    );
 
     // Step 10: Verify fused scores are in descending order
     await chatPage.verifyScoreOrdering(0, 'fused');

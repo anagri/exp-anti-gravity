@@ -57,7 +57,10 @@ export default function ChatPage() {
 
       {/* Chat Area */}
       <main className="flex-1 overflow-hidden p-4 max-w-4xl mx-auto w-full flex flex-col">
-        <Card className="flex-1 flex flex-col overflow-hidden shadow-md bg-white" data-test-state={isLoading ? 'loading' : error ? 'error' : 'ready'}>
+        <Card
+          className="flex-1 flex flex-col overflow-hidden shadow-md bg-white"
+          data-test-state={isLoading ? 'loading' : error ? 'error' : 'ready'}
+        >
           <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
             {messages.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-50">
@@ -70,7 +73,10 @@ export default function ChatPage() {
 
             {isLoading && (
               <div className="flex justify-start w-full">
-                <div data-testid="div-chat-loading" className="bg-gray-100 rounded-lg p-3 text-sm flex items-center">
+                <div
+                  data-testid="div-chat-loading"
+                  className="bg-gray-100 rounded-lg p-3 text-sm flex items-center"
+                >
                   <Bot className="w-4 h-4 mr-2" />
                   <span className="animate-pulse">Thinking...</span>
                 </div>
@@ -78,7 +84,10 @@ export default function ChatPage() {
             )}
 
             {error && (
-              <div data-testid="div-chat-error" className="text-red-600 text-center text-sm p-2 bg-red-50 rounded-md">
+              <div
+                data-testid="div-chat-error"
+                className="text-red-600 text-center text-sm p-2 bg-red-50 rounded-md"
+              >
                 {error}
               </div>
             )}
@@ -88,12 +97,12 @@ export default function ChatPage() {
           <div className="p-4 border-t bg-gray-50/50">
             {/* Attachment Badges (Phase ui-attachments) */}
             <AttachmentBadges
-              attachedDocuments={attachedDocumentIds.map(id => {
-                const doc = documents.find(d => d.id === id);
+              attachedDocuments={attachedDocumentIds.map((id) => {
+                const doc = documents.find((d) => d.id === id);
                 return { id, filename: doc?.filename || 'Unknown' };
               })}
               onRemove={(documentId) => {
-                setAttachedDocumentIds(prev => prev.filter(id => id !== documentId));
+                setAttachedDocumentIds((prev) => prev.filter((id) => id !== documentId));
               }}
             />
             <form onSubmit={handleSend} className="flex gap-2">
@@ -118,7 +127,11 @@ export default function ChatPage() {
                 disabled={isLoading}
                 className="flex-1"
               />
-              <Button data-testid="btn-chat-send" type="submit" disabled={isLoading || !inputValue.trim()}>
+              <Button
+                data-testid="btn-chat-send"
+                type="submit"
+                disabled={isLoading || !inputValue.trim()}
+              >
                 <Send className="w-4 h-4" />
                 <span className="sr-only">Send</span>
               </Button>

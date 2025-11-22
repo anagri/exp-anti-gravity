@@ -28,13 +28,10 @@ export class DocumentCardComponent {
   }
 
   async waitForFileToAppear(filename: string) {
-    await this.page.waitForFunction(
-      (name) => {
-        const filenames = document.querySelectorAll('[data-testid^="span-doc-filename-"]');
-        return Array.from(filenames).some(el => el.textContent?.includes(name));
-      },
-      filename
-    );
+    await this.page.waitForFunction((name) => {
+      const filenames = document.querySelectorAll('[data-testid^="span-doc-filename-"]');
+      return Array.from(filenames).some((el) => el.textContent?.includes(name));
+    }, filename);
   }
 
   async deleteFileByName(filename: string) {
@@ -52,7 +49,9 @@ export class DocumentCardComponent {
   }
 
   async getFileNames(): Promise<string[]> {
-    const filenames = await this.page.locator('[data-testid^="span-doc-filename-"]').allTextContents();
+    const filenames = await this.page
+      .locator('[data-testid^="span-doc-filename-"]')
+      .allTextContents();
     return filenames;
   }
 

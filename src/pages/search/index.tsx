@@ -1,81 +1,81 @@
-import { useState, useEffect } from 'react'
-import DOMPurify from 'dompurify'
-import { useVectorDB } from '@/contexts/VectorDBContext'
-import { useDebounce } from '@/hooks/useDebounce'
+import { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
+import { useVectorDB } from '@/contexts/VectorDBContext';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface SearchResult {
-  chunkId: string
-  documentId: string
-  filename: string
-  content: string
-  heading: string | null
-  chunkIndex: number
-  score?: number
+  chunkId: string;
+  documentId: string;
+  filename: string;
+  content: string;
+  heading: string | null;
+  chunkIndex: number;
+  score?: number;
 }
 
 export default function SearchPage() {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<SearchResult[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [hasSearched, setHasSearched] = useState(false)
-  const [selectedKBId, setSelectedKBId] = useState<string>('')
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [selectedKBId, setSelectedKBId] = useState<string>('');
 
-  const { searchBM25, lunrReady, knowledgeBases } = useVectorDB()
-  const debouncedQuery = useDebounce(query, 300)
+  const { searchBM25, lunrReady, knowledgeBases } = useVectorDB();
+  const debouncedQuery = useDebounce(query, 300);
 
   // Auto-search when debounced query changes
   useEffect(() => {
     if (debouncedQuery.trim() && selectedKBId && lunrReady) {
-      handleSearch()
+      handleSearch();
     }
-  }, [debouncedQuery, selectedKBId])
+  }, [debouncedQuery, selectedKBId]);
 
   const handleSearch = async () => {
-    if (!query.trim() || !selectedKBId) return
+    if (!query.trim() || !selectedKBId) return;
 
-    setIsSearching(true)
-    setHasSearched(false)
+    setIsSearching(true);
+    setHasSearched(false);
 
     try {
-      const searchResults = await searchBM25(query, 10, selectedKBId)
-      setResults(searchResults)
-      setHasSearched(true)
+      const searchResults = await searchBM25(query, 10, selectedKBId);
+      setResults(searchResults);
+      setHasSearched(true);
     } catch (error) {
-      console.error('Search error:', error)
-      setResults([])
-      setHasSearched(true)
+      console.error('Search error:', error);
+      setResults([]);
+      setHasSearched(true);
     } finally {
-      setIsSearching(false)
+      setIsSearching(false);
     }
-  }
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleSearch()
+      handleSearch();
     }
-  }
+  };
 
   const handleClear = () => {
-    setQuery('')
-    setResults([])
-    setHasSearched(false)
-  }
+    setQuery('');
+    setResults([]);
+    setHasSearched(false);
+  };
 
   const highlightQuery = (text: string, query: string): string => {
-    if (!query.trim()) return DOMPurify.sanitize(text)
+    if (!query.trim()) return DOMPurify.sanitize(text);
 
-    const words = query.toLowerCase().split(/\s+/)
-    let highlightedText = text
+    const words = query.toLowerCase().split(/\s+/);
+    let highlightedText = text;
 
-    words.forEach(word => {
-      if (word.length < 2) return
+    words.forEach((word) => {
+      if (word.length < 2) return;
 
-      const regex = new RegExp(`(${word})`, 'gi')
-      highlightedText = highlightedText.replace(regex, '<mark>$1</mark>')
-    })
+      const regex = new RegExp(`(${word})`, 'gi');
+      highlightedText = highlightedText.replace(regex, '<mark>$1</mark>');
+    });
 
-    return DOMPurify.sanitize(highlightedText)
-  }
+    return DOMPurify.sanitize(highlightedText);
+  };
 
   return (
     <div className="container mx-auto max-w-4xl p-6" data-lunr-ready={lunrReady ? 'true' : 'false'}>
@@ -137,11 +137,7 @@ export default function SearchPage() {
 
       {/* Results */}
       <div data-testid="div-search-results">
-        {isSearching && (
-          <div className="text-center py-8 text-gray-600">
-            Searching...
-          </div>
-        )}
+        {isSearching && <div className="text-center py-8 text-gray-600">Searching...</div>}
 
         {!isSearching && hasSearched && results.length === 0 && (
           <div data-testid="div-search-empty" className="text-center py-8 text-gray-600">
@@ -164,13 +160,9 @@ export default function SearchPage() {
               >
                 {/* File and heading */}
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-medium text-blue-600">
-                    📄 {result.filename}
-                  </span>
+                  <span className="text-sm font-medium text-blue-600">📄 {result.filename}</span>
                   {result.heading && (
-                    <span className="text-sm text-gray-500">
-                      → {result.heading}
-                    </span>
+                    <span className="text-sm text-gray-500">→ {result.heading}</span>
                   )}
                 </div>
 
@@ -179,7 +171,7 @@ export default function SearchPage() {
                   data-testid="text-result-content"
                   className="text-sm text-gray-700 mb-2 line-clamp-3"
                   dangerouslySetInnerHTML={{
-                    __html: highlightQuery(result.content, query)
+                    __html: highlightQuery(result.content, query),
                   }}
                 />
 
@@ -194,5 +186,5 @@ export default function SearchPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

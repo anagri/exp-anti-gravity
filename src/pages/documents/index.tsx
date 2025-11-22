@@ -31,14 +31,21 @@ export default function DocumentsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [kbToDelete, setKbToDelete] = useState<{ id: string; name: string; documentCount: number; chunkCount: number } | null>(null);
+  const [kbToDelete, setKbToDelete] = useState<{
+    id: string;
+    name: string;
+    documentCount: number;
+    chunkCount: number;
+  } | null>(null);
   const [docDeleteModalOpen, setDocDeleteModalOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState<{ id: string; filename: string } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   // Document filtering state
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortOption, setSortOption] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'size-asc' | 'size-desc'>('date-desc');
+  const [sortOption, setSortOption] = useState<
+    'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'size-asc' | 'size-desc'
+  >('date-desc');
   const [filterOption, setFilterOption] = useState<'all' | 'markdown' | 'text'>('all');
 
   // Expanded KB state synced with URL
@@ -58,7 +65,12 @@ export default function DocumentsPage() {
     }
   }, [initialized, expandedKBId]);
 
-  const handleDeleteClick = (kb: { id: string; name: string; document_count: number; chunk_count: number }) => {
+  const handleDeleteClick = (kb: {
+    id: string;
+    name: string;
+    document_count: number;
+    chunk_count: number;
+  }) => {
     setKbToDelete({
       id: kb.id,
       name: kb.name,
@@ -164,7 +176,11 @@ export default function DocumentsPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50" data-testid="page-knowledge-bases" data-db-initialized={initialized}>
+    <div
+      className="flex flex-col h-screen bg-gray-50"
+      data-testid="page-knowledge-bases"
+      data-db-initialized={initialized}
+    >
       <TopBar title="Knowledge Bases" icon={<BookOpen className="w-6 h-6 text-blue-600" />}>
         <Button
           onClick={() => setCreateModalOpen(true)}
@@ -179,19 +195,25 @@ export default function DocumentsPage() {
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-7xl mx-auto">
           {!initialized && !initError && (
-            <p className="text-sm text-gray-500 mb-4">
-              Initializing database...
-            </p>
+            <p className="text-sm text-gray-500 mb-4">Initializing database...</p>
           )}
           {initError && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6" data-testid="div-init-error">
-              <h3 className="text-red-800 font-semibold text-lg mb-2">Database Initialization Failed</h3>
+            <div
+              className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6"
+              data-testid="div-init-error"
+            >
+              <h3 className="text-red-800 font-semibold text-lg mb-2">
+                Database Initialization Failed
+              </h3>
               <p className="text-red-700 text-sm mb-4">{initError.message}</p>
               <div className="bg-red-100 border border-red-300 rounded p-4 mb-4">
                 <p className="text-red-800 font-semibold text-sm mb-2">Troubleshooting Steps:</p>
                 <ul className="text-red-700 text-sm list-disc list-inside space-y-1">
                   <li>Clear browser cache and reload (Cmd+Shift+R or Ctrl+Shift+R)</li>
-                  <li>Open DevTools → Application → Storage → IndexedDB → Delete "rag-vectors" database</li>
+                  <li>
+                    Open DevTools → Application → Storage → IndexedDB → Delete "rag-vectors"
+                    database
+                  </li>
                   <li>Try a different browser or incognito/private window</li>
                   <li>Restart your browser completely</li>
                 </ul>
@@ -223,7 +245,7 @@ export default function DocumentsPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {knowledgeBases.map(kb => {
+              {knowledgeBases.map((kb) => {
                 const isExpanded = expandedKBId === kb.id;
                 return (
                   <div key={kb.id}>
@@ -276,11 +298,13 @@ export default function DocumentsPage() {
                           </p>
                         ) : (
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {visibleDocuments.map(doc => (
+                            {visibleDocuments.map((doc) => (
                               <DocumentCard
                                 key={doc.id}
                                 document={doc}
-                                onDelete={() => handleDocumentDeleteClick({ id: doc.id, filename: doc.filename })}
+                                onDelete={() =>
+                                  handleDocumentDeleteClick({ id: doc.id, filename: doc.filename })
+                                }
                                 onRetry={
                                   doc.indexing_status === 'failed'
                                     ? () => retryFailed(doc.id)

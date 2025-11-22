@@ -32,7 +32,8 @@ export class DBService {
     hnswM: number;
     hnswEfConstruction: number;
   }): Promise<string> {
-    const { name, description, embeddingModel, embeddingDimensions, hnswM, hnswEfConstruction } = params;
+    const { name, description, embeddingModel, embeddingDimensions, hnswM, hnswEfConstruction } =
+      params;
 
     const result = await this.db.query(
       `INSERT INTO knowledge_bases (name, description, embedding_model, embedding_dimensions, hnsw_m, hnsw_ef_construction)

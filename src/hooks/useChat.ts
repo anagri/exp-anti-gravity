@@ -31,9 +31,12 @@ interface UseChatParams {
 export function useChat(params: UseChatParams | string | null) {
   // Support both old API (string) and new API (object) for backwards compatibility
   const apiKey = typeof params === 'string' || params === null ? params : params.apiKey;
-  const attachedDocumentIds = typeof params === 'object' && params !== null ? params.attachedDocumentIds || [] : [];
-  const searchVectors = typeof params === 'object' && params !== null ? params.searchVectors : undefined;
-  const searchHybrid = typeof params === 'object' && params !== null ? params.searchHybrid : undefined;
+  const attachedDocumentIds =
+    typeof params === 'object' && params !== null ? params.attachedDocumentIds || [] : [];
+  const searchVectors =
+    typeof params === 'object' && params !== null ? params.searchVectors : undefined;
+  const searchHybrid =
+    typeof params === 'object' && params !== null ? params.searchHybrid : undefined;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -77,7 +80,7 @@ ${result.content}
     abortControllerRef.current = new AbortController();
 
     const newMessage: Message = { role: 'user', content };
-    setMessages(prev => [...prev, newMessage]);
+    setMessages((prev) => [...prev, newMessage]);
     setIsLoading(true);
     setError(null);
 
@@ -111,13 +114,13 @@ ${result.content}
         // Build metadata from search results (Phase test-metadata)
         if (searchResults.length > 0) {
           currentMessageMetadata = {
-            chunkIds: searchResults.map(r => r.chunkId),
-            vectorScores: searchResults.map(r => r.vectorScore ?? 0),
-            bm25Scores: searchResults.map(r => r.bm25Score ?? 0),
-            fusedScores: searchResults.map(r => r.fusedScore ?? 0),
-            vectorRanks: searchResults.map(r => r.vectorRank ?? 0),
-            bm25Ranks: searchResults.map(r => r.bm25Rank ?? 0),
-            filenames: searchResults.map(r => r.filename),
+            chunkIds: searchResults.map((r) => r.chunkId),
+            vectorScores: searchResults.map((r) => r.vectorScore ?? 0),
+            bm25Scores: searchResults.map((r) => r.bm25Score ?? 0),
+            fusedScores: searchResults.map((r) => r.fusedScore ?? 0),
+            vectorRanks: searchResults.map((r) => r.vectorRank ?? 0),
+            bm25Ranks: searchResults.map((r) => r.bm25Rank ?? 0),
+            filenames: searchResults.map((r) => r.filename),
           };
         }
 
@@ -147,13 +150,13 @@ Now answer the user's question using the context above. Remember to cite sources
 
         // Capture full prompt for testing (Phase prompt-exposure)
         currentMessagePrompt = messagesToSend
-          .map(m => `[${m.role.toUpperCase()}]\n${m.content}`)
+          .map((m) => `[${m.role.toUpperCase()}]\n${m.content}`)
           .join('\n\n---\n\n');
       }
 
       const stream = await openai.chat.completions.create(
         {
-          messages: messagesToSend.map(m => ({ role: m.role, content: m.content })),
+          messages: messagesToSend.map((m) => ({ role: m.role, content: m.content })),
           model: chatModel,
           stream: true,
         },
@@ -161,14 +164,29 @@ Now answer the user's question using the context above. Remember to cite sources
       );
 
       let assistantContent = '';
-      setMessages(prev => [...prev, { role: 'assistant', content: '', sources: currentMessageSources, metadata: currentMessageMetadata, prompt: currentMessagePrompt }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: '',
+          sources: currentMessageSources,
+          metadata: currentMessageMetadata,
+          prompt: currentMessagePrompt,
+        },
+      ]);
 
       for await (const chunk of stream) {
         const content = chunk.choices[0]?.delta?.content || '';
         assistantContent += content;
-        setMessages(prev => {
+        setMessages((prev) => {
           const newMsgs = [...prev];
-          newMsgs[newMsgs.length - 1] = { role: 'assistant', content: assistantContent, sources: currentMessageSources, metadata: currentMessageMetadata, prompt: currentMessagePrompt };
+          newMsgs[newMsgs.length - 1] = {
+            role: 'assistant',
+            content: assistantContent,
+            sources: currentMessageSources,
+            metadata: currentMessageMetadata,
+            prompt: currentMessagePrompt,
+          };
           return newMsgs;
         });
       }
@@ -204,7 +222,7 @@ Now answer the user's question using the context above. Remember to cite sources
   };
 
   // Get sources from the last assistant message for backward compatibility
-  const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant');
+  const lastAssistantMessage = [...messages].reverse().find((m) => m.role === 'assistant');
   const sources = lastAssistantMessage?.sources || [];
 
   return {

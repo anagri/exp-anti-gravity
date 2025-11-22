@@ -182,11 +182,11 @@ export class DocumentPage extends BasePage {
 
   // URL validation helpers
   async expectURLHasKBParam(kbId: string) {
-    await this.page.waitForURL(url => url.searchParams.get('kb') === kbId);
+    await this.page.waitForURL((url) => url.searchParams.get('kb') === kbId);
   }
 
   async expectURLHasNoKBParam() {
-    await this.page.waitForURL(url => !url.searchParams.has('kb'));
+    await this.page.waitForURL((url) => !url.searchParams.has('kb'));
   }
 
   async expectURLContains(substring: string) {

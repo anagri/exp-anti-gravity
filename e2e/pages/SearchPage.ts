@@ -27,8 +27,8 @@ export class SearchPage extends BasePage {
   }
 
   async waitForLunrReady() {
-    await this.page.waitForFunction(() =>
-      document.querySelector('[data-lunr-ready="true"]') !== null
+    await this.page.waitForFunction(
+      () => document.querySelector('[data-lunr-ready="true"]') !== null
     );
   }
 

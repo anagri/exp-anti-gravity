@@ -34,6 +34,4 @@ describe('useChat', () => {
     expect(result.current.messages[1].role).toBe('assistant');
     expect(result.current.messages[1].content).toContain('gpt-3.5-turbo');
   });
-
 });
-

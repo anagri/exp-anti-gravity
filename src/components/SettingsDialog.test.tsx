@@ -1,29 +1,29 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { BrowserRouter } from 'react-router-dom'
-import SettingsDialog from './SettingsDialog'
-import { setSearchSetting } from '@/lib/feature-flags'
-import { ApiKeyProvider } from '@/contexts/ApiKeyContext'
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { BrowserRouter } from 'react-router-dom';
+import SettingsDialog from './SettingsDialog';
+import { setSearchSetting } from '@/lib/feature-flags';
+import { ApiKeyProvider } from '@/contexts/ApiKeyContext';
 
 const renderSettingsDialog = (props = {}) => {
   const defaultProps = {
     isOpen: true,
     onClose: vi.fn(),
-  }
+  };
   return render(
     <BrowserRouter>
       <ApiKeyProvider>
         <SettingsDialog {...defaultProps} {...props} />
       </ApiKeyProvider>
     </BrowserRouter>
-  )
-}
+  );
+};
 
 describe('SettingsDialog', () => {
   beforeEach(() => {
-    localStorage.clear()
-    vi.clearAllMocks()
-  })
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
 
   it('does not render when isOpen is false', () => {
     render(
@@ -32,146 +32,146 @@ describe('SettingsDialog', () => {
           <SettingsDialog isOpen={false} onClose={vi.fn()} />
         </ApiKeyProvider>
       </BrowserRouter>
-    )
+    );
 
-    expect(screen.queryByTestId('div-settings-modal')).not.toBeInTheDocument()
-  })
+    expect(screen.queryByTestId('div-settings-modal')).not.toBeInTheDocument();
+  });
 
   it('renders when isOpen is true', () => {
-    renderSettingsDialog()
+    renderSettingsDialog();
 
-    expect(screen.getByTestId('div-settings-modal')).toBeInTheDocument()
-    expect(screen.getByText('Settings')).toBeInTheDocument()
-  })
+    expect(screen.getByTestId('div-settings-modal')).toBeInTheDocument();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+  });
 
   it('renders feature flags section', () => {
-    renderSettingsDialog()
+    renderSettingsDialog();
 
-    expect(screen.getByText('Feature Flags')).toBeInTheDocument()
-    expect(screen.getByTestId('table-feature-flags')).toBeInTheDocument()
-  })
+    expect(screen.getByText('Feature Flags')).toBeInTheDocument();
+    expect(screen.getByTestId('table-feature-flags')).toBeInTheDocument();
+  });
 
   it('renders search settings section with all inputs', () => {
-    renderSettingsDialog()
+    renderSettingsDialog();
 
-    expect(screen.getByText('Hybrid Search Settings')).toBeInTheDocument()
-    expect(screen.getByTestId('input-VECTOR_TOP_K')).toBeInTheDocument()
-    expect(screen.getByTestId('input-SIMILARITY_THRESHOLD')).toBeInTheDocument()
-    expect(screen.getByTestId('input-BM25_LIMIT')).toBeInTheDocument()
-  })
+    expect(screen.getByText('Hybrid Search Settings')).toBeInTheDocument();
+    expect(screen.getByTestId('input-VECTOR_TOP_K')).toBeInTheDocument();
+    expect(screen.getByTestId('input-SIMILARITY_THRESHOLD')).toBeInTheDocument();
+    expect(screen.getByTestId('input-BM25_LIMIT')).toBeInTheDocument();
+  });
 
   it('displays default values for search settings', () => {
-    renderSettingsDialog()
+    renderSettingsDialog();
 
-    expect(screen.getByTestId('input-VECTOR_TOP_K')).toHaveValue(3)
-    expect(screen.getByTestId('input-SIMILARITY_THRESHOLD')).toHaveValue(0.3)
-    expect(screen.getByTestId('input-BM25_LIMIT')).toHaveValue(10)
-  })
+    expect(screen.getByTestId('input-VECTOR_TOP_K')).toHaveValue(3);
+    expect(screen.getByTestId('input-SIMILARITY_THRESHOLD')).toHaveValue(0.3);
+    expect(screen.getByTestId('input-BM25_LIMIT')).toHaveValue(10);
+  });
 
   it('displays stored values when they exist', () => {
-    setSearchSetting('VECTOR_TOP_K', 5)
-    setSearchSetting('SIMILARITY_THRESHOLD', 0.7)
+    setSearchSetting('VECTOR_TOP_K', 5);
+    setSearchSetting('SIMILARITY_THRESHOLD', 0.7);
 
-    renderSettingsDialog()
+    renderSettingsDialog();
 
-    expect(screen.getByTestId('input-VECTOR_TOP_K')).toHaveValue(5)
-    expect(screen.getByTestId('input-SIMILARITY_THRESHOLD')).toHaveValue(0.7)
-  })
+    expect(screen.getByTestId('input-VECTOR_TOP_K')).toHaveValue(5);
+    expect(screen.getByTestId('input-SIMILARITY_THRESHOLD')).toHaveValue(0.7);
+  });
 
   it('updates search setting on input change', async () => {
-    const eventListener = vi.fn()
-    window.addEventListener('searchSettingChanged', eventListener)
+    const eventListener = vi.fn();
+    window.addEventListener('searchSettingChanged', eventListener);
 
-    renderSettingsDialog()
+    renderSettingsDialog();
 
-    const input = screen.getByTestId('input-VECTOR_TOP_K')
-    fireEvent.change(input, { target: { value: '7' } })
+    const input = screen.getByTestId('input-VECTOR_TOP_K');
+    fireEvent.change(input, { target: { value: '7' } });
 
     await waitFor(() => {
-      expect(localStorage.getItem('search-setting-VECTOR_TOP_K')).toBe('7')
-      expect(eventListener).toHaveBeenCalled()
-    })
+      expect(localStorage.getItem('search-setting-VECTOR_TOP_K')).toBe('7');
+      expect(eventListener).toHaveBeenCalled();
+    });
 
-    window.removeEventListener('searchSettingChanged', eventListener)
-  })
+    window.removeEventListener('searchSettingChanged', eventListener);
+  });
 
   it('validates min/max bounds for inputs', async () => {
-    renderSettingsDialog()
+    renderSettingsDialog();
 
-    const input = screen.getByTestId('input-VECTOR_TOP_K')
-    fireEvent.change(input, { target: { value: '25' } })
+    const input = screen.getByTestId('input-VECTOR_TOP_K');
+    fireEvent.change(input, { target: { value: '25' } });
 
     await waitFor(() => {
-      expect(screen.getByText('Value must be between 1 and 20')).toBeInTheDocument()
-    })
-  })
+      expect(screen.getByText('Value must be between 1 and 20')).toBeInTheDocument();
+    });
+  });
 
   it('validates numeric input', async () => {
-    renderSettingsDialog()
+    renderSettingsDialog();
 
-    const input = screen.getByTestId('input-VECTOR_TOP_K')
-    fireEvent.change(input, { target: { value: 'abc' } })
+    const input = screen.getByTestId('input-VECTOR_TOP_K');
+    fireEvent.change(input, { target: { value: 'abc' } });
 
     await waitFor(() => {
-      expect(screen.getByText('Invalid number')).toBeInTheDocument()
-    })
-  })
+      expect(screen.getByText('Invalid number')).toBeInTheDocument();
+    });
+  });
 
   it('closes dialog when close button clicked', () => {
-    const onClose = vi.fn()
-    renderSettingsDialog({ onClose })
+    const onClose = vi.fn();
+    renderSettingsDialog({ onClose });
 
-    const closeButton = screen.getByTestId('btn-close-settings')
-    fireEvent.click(closeButton)
+    const closeButton = screen.getByTestId('btn-close-settings');
+    fireEvent.click(closeButton);
 
-    expect(onClose).toHaveBeenCalled()
-  })
+    expect(onClose).toHaveBeenCalled();
+  });
 
   it('closes dialog when footer close button clicked', () => {
-    const onClose = vi.fn()
-    renderSettingsDialog({ onClose })
+    const onClose = vi.fn();
+    renderSettingsDialog({ onClose });
 
-    const closeButton = screen.getByTestId('btn-close-settings-footer')
-    fireEvent.click(closeButton)
+    const closeButton = screen.getByTestId('btn-close-settings-footer');
+    fireEvent.click(closeButton);
 
-    expect(onClose).toHaveBeenCalled()
-  })
+    expect(onClose).toHaveBeenCalled();
+  });
 
   it('shows reload warning when feature flag changed', async () => {
-    renderSettingsDialog()
+    renderSettingsDialog();
 
-    const toggleButton = screen.getByTestId('toggle-FEATURE_INDEXING_ENABLED')
-    fireEvent.click(toggleButton)
+    const toggleButton = screen.getByTestId('toggle-FEATURE_INDEXING_ENABLED');
+    fireEvent.click(toggleButton);
 
     await waitFor(() => {
-      expect(screen.getByTestId('reload-warning')).toBeInTheDocument()
-      expect(screen.getByText(/Feature flag changes require page reload/)).toBeInTheDocument()
-    })
-  })
+      expect(screen.getByTestId('reload-warning')).toBeInTheDocument();
+      expect(screen.getByText(/Feature flag changes require page reload/)).toBeInTheDocument();
+    });
+  });
 
   it('does not show reload warning for search setting changes', async () => {
-    renderSettingsDialog()
+    renderSettingsDialog();
 
-    const input = screen.getByTestId('input-VECTOR_TOP_K')
-    fireEvent.change(input, { target: { value: '5' } })
+    const input = screen.getByTestId('input-VECTOR_TOP_K');
+    fireEvent.change(input, { target: { value: '5' } });
 
     await waitFor(() => {
-      expect(localStorage.getItem('search-setting-VECTOR_TOP_K')).toBe('5')
-    })
+      expect(localStorage.getItem('search-setting-VECTOR_TOP_K')).toBe('5');
+    });
 
-    expect(screen.queryByTestId('reload-warning')).not.toBeInTheDocument()
-  })
+    expect(screen.queryByTestId('reload-warning')).not.toBeInTheDocument();
+  });
 
   it('shows reload button when feature flag changed', async () => {
-    renderSettingsDialog()
+    renderSettingsDialog();
 
-    const toggleButton = screen.getByTestId('toggle-FEATURE_INDEXING_ENABLED')
-    fireEvent.click(toggleButton)
+    const toggleButton = screen.getByTestId('toggle-FEATURE_INDEXING_ENABLED');
+    fireEvent.click(toggleButton);
 
     await waitFor(() => {
-      const reloadButton = screen.getByTestId('btn-reload-now')
-      expect(reloadButton).toBeInTheDocument()
-      expect(reloadButton).toHaveTextContent('Reload Now')
-    })
-  })
-})
+      const reloadButton = screen.getByTestId('btn-reload-now');
+      expect(reloadButton).toBeInTheDocument();
+      expect(reloadButton).toHaveTextContent('Reload Now');
+    });
+  });
+});

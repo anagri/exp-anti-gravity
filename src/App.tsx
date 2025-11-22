@@ -20,7 +20,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<ErrorBoundary><WelcomePage /></ErrorBoundary>} />
+      <Route
+        path="/"
+        element={
+          <ErrorBoundary>
+            <WelcomePage />
+          </ErrorBoundary>
+        }
+      />
       <Route
         path="/chat"
         element={

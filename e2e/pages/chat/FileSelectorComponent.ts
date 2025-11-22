@@ -4,7 +4,10 @@ export class FileSelectorComponent {
   constructor(private page: Page) {}
 
   async expectOpen() {
-    await expect(this.page.locator('[data-testid="modal-file-selector"]')).toHaveAttribute('data-state', 'open');
+    await expect(this.page.locator('[data-testid="modal-file-selector"]')).toHaveAttribute(
+      'data-state',
+      'open'
+    );
   }
 
   async expectFileVisible(filename: string) {

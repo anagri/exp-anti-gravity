@@ -4,11 +4,7 @@ interface IndexingProgressProps {
   message: string;
 }
 
-export default function IndexingProgress({
-  progress,
-  stage,
-  message,
-}: IndexingProgressProps) {
+export default function IndexingProgress({ progress, stage, message }: IndexingProgressProps) {
   return (
     <div
       className="space-y-2"

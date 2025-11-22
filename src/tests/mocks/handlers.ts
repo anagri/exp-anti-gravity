@@ -1,4 +1,4 @@
-import { http, HttpResponse } from 'msw'
+import { http, HttpResponse } from 'msw';
 
 export const handlers = [
   // Mock Models API
@@ -12,23 +12,19 @@ export const handlers = [
         { id: 'whisper-1' },
         { id: 'dall-e-3' },
       ],
-    })
+    });
   }),
 
   // Mock Chat Completions API
   http.post('https://api.openai.com/v1/chat/completions', async ({ request }) => {
-    const body = await request.json() as any;
+    const body = (await request.json()) as any;
     const { model, stream } = body;
 
     if (stream) {
-      const encoder = new TextEncoder()
+      const encoder = new TextEncoder();
       const stream = new ReadableStream({
         async start(controller) {
-          const chunks = [
-            'Hello ',
-            'from ',
-            `${model}!`,
-          ]
+          const chunks = ['Hello ', 'from ', `${model}!`];
 
           for (const chunk of chunks) {
             const data = JSON.stringify({
@@ -37,21 +33,21 @@ export const handlers = [
                   delta: { content: chunk },
                 },
               ],
-            })
-            controller.enqueue(encoder.encode(`data: ${data}\n\n`))
-            await new Promise((resolve) => setTimeout(resolve, 100))
+            });
+            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+            await new Promise((resolve) => setTimeout(resolve, 100));
           }
 
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'))
-          controller.close()
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
         },
-      })
+      });
 
       return new HttpResponse(stream, {
         headers: {
           'Content-Type': 'text/event-stream',
         },
-      })
+      });
     }
 
     return HttpResponse.json({
@@ -63,6 +59,6 @@ export const handlers = [
           },
         },
       ],
-    })
+    });
   }),
-]
+];

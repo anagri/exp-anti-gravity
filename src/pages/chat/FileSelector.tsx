@@ -34,15 +34,13 @@ export default function FileSelector({
 }: FileSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedKBId, setSelectedKBId] = useState<string>('all');
-  const [localSelection, setLocalSelection] = useState<Set<string>>(
-    new Set(selectedDocumentIds)
-  );
+  const [localSelection, setLocalSelection] = useState<Set<string>>(new Set(selectedDocumentIds));
   const isAutoFilterRef = useRef(false);
 
   // Track which KB is "locked" based on current selection
   const lockedKBId = useMemo(() => {
     if (localSelection.size === 0) return null;
-    const firstSelectedDoc = documents.find(doc => localSelection.has(doc.id));
+    const firstSelectedDoc = documents.find((doc) => localSelection.has(doc.id));
     return firstSelectedDoc?.knowledge_base_id || null;
   }, [localSelection, documents]);
 
@@ -77,15 +75,13 @@ export default function FileSelector({
     if (!searchQuery.trim()) return sortedDocuments;
 
     const query = searchQuery.toLowerCase();
-    return sortedDocuments.filter((doc) =>
-      doc.filename.toLowerCase().includes(query)
-    );
+    return sortedDocuments.filter((doc) => doc.filename.toLowerCase().includes(query));
   }, [sortedDocuments, searchQuery]);
 
   // Get KB name for selection summary
   const selectedKBName = useMemo(() => {
     if (selectedKBId === 'all') return null;
-    return knowledgeBases.find(kb => kb.id === selectedKBId)?.name || null;
+    return knowledgeBases.find((kb) => kb.id === selectedKBId)?.name || null;
   }, [selectedKBId, knowledgeBases]);
 
   const handleToggle = (documentId: string, isCompleted: boolean, docKBId: string | null) => {
@@ -140,12 +136,7 @@ export default function FileSelector({
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-lg font-semibold">Select Documents</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            data-testid="btn-close-file-selector"
-          >
+          <Button variant="ghost" size="sm" onClick={onClose} data-testid="btn-close-file-selector">
             <X className="w-4 h-4" />
           </Button>
         </div>
@@ -153,9 +144,7 @@ export default function FileSelector({
         {/* KB Filter */}
         {knowledgeBases.length > 0 && (
           <div className="p-4 border-b bg-gray-50">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Knowledge Base
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Knowledge Base</label>
             <select
               data-testid="select-kb-filter-fileselector"
               value={selectedKBId}
@@ -227,7 +216,11 @@ export default function FileSelector({
                     ${isSelectable ? 'cursor-pointer hover:bg-gray-50' : 'opacity-60 cursor-not-allowed'}
                   `}
                   onClick={() => handleToggle(doc.id, isSelectable, doc.knowledge_base_id)}
-                  title={isFromDifferentKB ? 'Cannot mix documents from different Knowledge Bases' : undefined}
+                  title={
+                    isFromDifferentKB
+                      ? 'Cannot mix documents from different Knowledge Bases'
+                      : undefined
+                  }
                 >
                   {/* Checkbox */}
                   <input
@@ -271,25 +264,23 @@ export default function FileSelector({
               {localSelection.size === 0
                 ? 'No documents selected'
                 : selectedKBName
-                ? `${localSelection.size} ${localSelection.size === 1 ? 'document' : 'documents'} selected from ${selectedKBName}`
-                : `${localSelection.size} ${localSelection.size === 1 ? 'document' : 'documents'} selected`}
+                  ? `${localSelection.size} ${localSelection.size === 1 ? 'document' : 'documents'} selected from ${selectedKBName}`
+                  : `${localSelection.size} ${localSelection.size === 1 ? 'document' : 'documents'} selected`}
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleSelectAll}
-              disabled={filteredDocuments.filter(d => d.indexing_status === 'completed').length === 0}
+              disabled={
+                filteredDocuments.filter((d) => d.indexing_status === 'completed').length === 0
+              }
               data-testid="btn-select-all"
             >
               Select All
             </Button>
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              data-testid="btn-cancel-file-selector"
-            >
+            <Button variant="outline" onClick={onClose} data-testid="btn-cancel-file-selector">
               Cancel
             </Button>
             <Button

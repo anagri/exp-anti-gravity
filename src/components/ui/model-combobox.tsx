@@ -1,7 +1,7 @@
-import * as React from "react"
-import { Check, ChevronsUpDown } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import * as React from 'react';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import {
   Command,
   CommandEmpty,
@@ -9,31 +9,27 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+} from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface ModelComboboxProps {
-  models: string[]
-  value: string
-  onValueChange: (value: string) => void
-  placeholder?: string
-  disabled?: boolean
-  testId?: string
+  models: string[];
+  value: string;
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  testId?: string;
 }
 
 export function ModelCombobox({
   models,
   value,
   onValueChange,
-  placeholder = "Select model...",
+  placeholder = 'Select model...',
   disabled = false,
   testId,
 }: ModelComboboxProps) {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = React.useState(false);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -61,16 +57,13 @@ export function ModelCombobox({
                   key={model}
                   value={model}
                   onSelect={(currentValue) => {
-                    onValueChange(currentValue === value ? "" : currentValue)
-                    setOpen(false)
+                    onValueChange(currentValue === value ? '' : currentValue);
+                    setOpen(false);
                   }}
                   data-testid={testId ? `${testId}-item-${model}` : undefined}
                 >
                   <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === model ? "opacity-100" : "opacity-0"
-                    )}
+                    className={cn('mr-2 h-4 w-4', value === model ? 'opacity-100' : 'opacity-0')}
                   />
                   {model}
                 </CommandItem>
@@ -80,5 +73,5 @@ export function ModelCombobox({
         </Command>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

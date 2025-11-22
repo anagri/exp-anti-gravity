@@ -1,4 +1,3 @@
-
 import { test, expect } from '../fixtures/globalSetup';
 import { DocumentPage } from '../pages/DocumentPage';
 import { TEST_FILES, FILE_NAMES } from '../fixtures/test-files';
@@ -14,7 +13,7 @@ test.describe('Document Upload & Management', () => {
     // Disable indexing for this test (faster, file operations only)
     await documentsPage.setFeatureFlag('FEATURE_INDEXING_ENABLED', false);
 
-    await documentsPage.setup("sk-test-key-123");
+    await documentsPage.setup('sk-test-key-123');
 
     // Create a KB for testing
     await documentsPage.createKB(TEST_KB_NAME, 'KB for document upload tests');
@@ -29,7 +28,11 @@ test.describe('Document Upload & Management', () => {
     await documentsPage.expectFileCount(0);
     await documentsPage.expectEmptyDocumentsInKB();
 
-    await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, TEST_FILES.DOC_01_MD, FILE_NAMES.DOC_01_MD);
+    await documentsPage.uploadFilesToKBAndWait(
+      TEST_KB_NAME,
+      TEST_FILES.DOC_01_MD,
+      FILE_NAMES.DOC_01_MD
+    );
 
     await documentsPage.expectFileCount(1);
     await documentsPage.emptyState.expectNotVisible();
@@ -97,9 +100,9 @@ test.describe('Document Upload & Management', () => {
     await documentsPage.expectFileCount(2);
 
     let remainingNames = await documentsPage.documentList.getFileNames();
-    expect(remainingNames.some(name => name.includes(FILE_NAMES.DOC_01_MD))).toBe(true);
-    expect(remainingNames.some(name => name.includes(FILE_NAMES.DOC_03_MD))).toBe(true);
-    expect(remainingNames.some(name => name.includes(FILE_NAMES.DOC_02_TXT))).toBe(false);
+    expect(remainingNames.some((name) => name.includes(FILE_NAMES.DOC_01_MD))).toBe(true);
+    expect(remainingNames.some((name) => name.includes(FILE_NAMES.DOC_03_MD))).toBe(true);
+    expect(remainingNames.some((name) => name.includes(FILE_NAMES.DOC_02_TXT))).toBe(false);
 
     await documentsPage.reload();
     await documentsPage.waitForDBInitialized();
@@ -107,9 +110,9 @@ test.describe('Document Upload & Management', () => {
     await documentsPage.expectFileCount(2);
 
     const fileNamesAfterReload = await documentsPage.documentList.getFileNames();
-    expect(fileNamesAfterReload.some(name => name.includes(FILE_NAMES.DOC_01_MD))).toBe(true);
-    expect(fileNamesAfterReload.some(name => name.includes(FILE_NAMES.DOC_03_MD))).toBe(true);
-    expect(fileNamesAfterReload.some(name => name.includes(FILE_NAMES.DOC_02_TXT))).toBe(false);
+    expect(fileNamesAfterReload.some((name) => name.includes(FILE_NAMES.DOC_01_MD))).toBe(true);
+    expect(fileNamesAfterReload.some((name) => name.includes(FILE_NAMES.DOC_03_MD))).toBe(true);
+    expect(fileNamesAfterReload.some((name) => name.includes(FILE_NAMES.DOC_02_TXT))).toBe(false);
 
     await documentsPage.deleteFileByName(FILE_NAMES.DOC_01_MD);
     await documentsPage.deleteModal.waitForModal();
@@ -119,8 +122,8 @@ test.describe('Document Upload & Management', () => {
     await documentsPage.expectFileCount(1);
 
     const fileNamesAfterDelete = await documentsPage.documentList.getFileNames();
-    expect(fileNamesAfterDelete.some(name => name.includes(FILE_NAMES.DOC_03_MD))).toBe(true);
-    expect(fileNamesAfterDelete.some(name => name.includes(FILE_NAMES.DOC_01_MD))).toBe(false);
+    expect(fileNamesAfterDelete.some((name) => name.includes(FILE_NAMES.DOC_03_MD))).toBe(true);
+    expect(fileNamesAfterDelete.some((name) => name.includes(FILE_NAMES.DOC_01_MD))).toBe(false);
 
     await documentsPage.reload();
     await documentsPage.waitForDBInitialized();
@@ -129,7 +132,11 @@ test.describe('Document Upload & Management', () => {
     await documentsPage.expectFileCount(1);
 
     const fileNamesAfterSecondReload = await documentsPage.documentList.getFileNames();
-    expect(fileNamesAfterSecondReload.some(name => name.includes(FILE_NAMES.DOC_03_MD))).toBe(true);
-    expect(fileNamesAfterSecondReload.some(name => name.includes(FILE_NAMES.DOC_01_MD))).toBe(false);
+    expect(fileNamesAfterSecondReload.some((name) => name.includes(FILE_NAMES.DOC_03_MD))).toBe(
+      true
+    );
+    expect(fileNamesAfterSecondReload.some((name) => name.includes(FILE_NAMES.DOC_01_MD))).toBe(
+      false
+    );
   });
 });

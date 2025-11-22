@@ -83,7 +83,9 @@ export default function UploadZone({ onFilesSelected, disabled = false }: Upload
       />
 
       <div className="flex flex-col items-center justify-center text-center">
-        <div className={`p-4 rounded-full mb-4 transition-all duration-200 ${isDragging ? 'bg-blue-100' : 'bg-gray-100'}`}>
+        <div
+          className={`p-4 rounded-full mb-4 transition-all duration-200 ${isDragging ? 'bg-blue-100' : 'bg-gray-100'}`}
+        >
           {isDragging ? (
             <Download className="w-8 h-8 text-blue-600" />
           ) : (

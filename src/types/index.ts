@@ -81,7 +81,13 @@ export interface IndexingQueueItem {
 // Filter types
 export type FilterType = 'all' | 'markdown' | 'text' | 'indexed' | 'pending';
 export type SortBy = 'name' | 'date' | 'size';
-export type SortOption = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'size-asc' | 'size-desc';
+export type SortOption =
+  | 'date-desc'
+  | 'date-asc'
+  | 'name-asc'
+  | 'name-desc'
+  | 'size-asc'
+  | 'size-desc';
 
 // Message types (for chat)
 export interface MessageMetadata {

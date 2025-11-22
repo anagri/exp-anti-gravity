@@ -1,25 +1,25 @@
-import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Button } from './ui/button'
-import { LogOut, Settings } from 'lucide-react'
-import { useApiKey } from '@/contexts/ApiKeyContext'
-import SettingsDialog from './SettingsDialog'
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Button } from './ui/button';
+import { LogOut, Settings } from 'lucide-react';
+import { useApiKey } from '@/contexts/ApiKeyContext';
+import SettingsDialog from './SettingsDialog';
 
 interface TopBarProps {
-  title: string
-  icon: React.ReactNode
-  children?: React.ReactNode
+  title: string;
+  icon: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export default function TopBar({ title, icon, children }: TopBarProps) {
-  const navigate = useNavigate()
-  const { clearApiKey } = useApiKey()
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const navigate = useNavigate();
+  const { clearApiKey } = useApiKey();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleLogout = () => {
-    clearApiKey()
-    navigate('/')
-  }
+    clearApiKey();
+    navigate('/');
+  };
 
   return (
     <>
@@ -53,22 +53,14 @@ export default function TopBar({ title, icon, children }: TopBarProps) {
           >
             <Settings className="w-4 h-4" />
           </Button>
-          <Button
-            data-testid="btn-logout"
-            variant="ghost"
-            size="sm"
-            onClick={handleLogout}
-          >
+          <Button data-testid="btn-logout" variant="ghost" size="sm" onClick={handleLogout}>
             <LogOut className="w-4 h-4 mr-2" />
             Logout
           </Button>
         </div>
       </header>
 
-      <SettingsDialog
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
+      <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </>
-  )
+  );
 }

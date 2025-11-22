@@ -1,87 +1,86 @@
-const STORAGE_PREFIX = 'feature-flag-'
-const SEARCH_SETTINGS_PREFIX = 'search-setting-'
-const OPENAI_CONFIG_PREFIX = 'openai-config-'
+const STORAGE_PREFIX = 'feature-flag-';
+const SEARCH_SETTINGS_PREFIX = 'search-setting-';
+const OPENAI_CONFIG_PREFIX = 'openai-config-';
 
 export function isFeatureEnabled(flag: string): boolean {
-  const key = `${STORAGE_PREFIX}${flag}`
-  const value = localStorage.getItem(key)
+  const key = `${STORAGE_PREFIX}${flag}`;
+  const value = localStorage.getItem(key);
   // Default to true (enabled) if not set
-  return value !== 'false'
+  return value !== 'false';
 }
 
 export function setFeatureFlag(flag: string, enabled: boolean): void {
-  const key = `${STORAGE_PREFIX}${flag}`
-  localStorage.setItem(key, enabled.toString())
+  const key = `${STORAGE_PREFIX}${flag}`;
+  localStorage.setItem(key, enabled.toString());
 
   // Dispatch custom event for listeners
-  window.dispatchEvent(new CustomEvent('featureFlagChanged', {
-    detail: { flag, enabled }
-  }))
+  window.dispatchEvent(
+    new CustomEvent('featureFlagChanged', {
+      detail: { flag, enabled },
+    })
+  );
 }
 
 export const FEATURES = {
-  INDEXING_ENABLED: 'FEATURE_INDEXING_ENABLED'
-} as const
+  INDEXING_ENABLED: 'FEATURE_INDEXING_ENABLED',
+} as const;
 
 export function getAllFeatureFlags(): Record<string, boolean> {
   return {
-    FEATURE_INDEXING_ENABLED: isFeatureEnabled(FEATURES.INDEXING_ENABLED)
-  }
+    FEATURE_INDEXING_ENABLED: isFeatureEnabled(FEATURES.INDEXING_ENABLED),
+  };
 }
 
 // Search Settings
 export const SEARCH_SETTINGS = {
   VECTOR_TOP_K: 'VECTOR_TOP_K',
   SIMILARITY_THRESHOLD: 'SIMILARITY_THRESHOLD',
-  BM25_LIMIT: 'BM25_LIMIT'
-} as const
+  BM25_LIMIT: 'BM25_LIMIT',
+} as const;
 
 export interface SearchSettings {
-  VECTOR_TOP_K: number
-  SIMILARITY_THRESHOLD: number
-  BM25_LIMIT: number
-  RRF_K: number
+  VECTOR_TOP_K: number;
+  SIMILARITY_THRESHOLD: number;
+  BM25_LIMIT: number;
+  RRF_K: number;
 }
 
 const DEFAULT_SEARCH_SETTINGS: SearchSettings = {
   VECTOR_TOP_K: 3,
   SIMILARITY_THRESHOLD: 0.3,
   BM25_LIMIT: 10,
-  RRF_K: 0.6
-}
+  RRF_K: 0.6,
+};
 
 /**
  * Get a search setting value with type safety
  * Returns default if not set
  */
-export function getSearchSetting<T extends keyof SearchSettings>(
-  key: T
-): SearchSettings[T] {
-  const storageKey = `${SEARCH_SETTINGS_PREFIX}${key}`
-  const value = localStorage.getItem(storageKey)
+export function getSearchSetting<T extends keyof SearchSettings>(key: T): SearchSettings[T] {
+  const storageKey = `${SEARCH_SETTINGS_PREFIX}${key}`;
+  const value = localStorage.getItem(storageKey);
 
   if (value === null) {
-    return DEFAULT_SEARCH_SETTINGS[key]
+    return DEFAULT_SEARCH_SETTINGS[key];
   }
 
-  return Number(value) as SearchSettings[T]
+  return Number(value) as SearchSettings[T];
 }
 
 /**
  * Set a search setting value
  * Dispatches searchSettingChanged event for listeners
  */
-export function setSearchSetting<T extends keyof SearchSettings>(
-  key: T,
-  value: number
-): void {
-  const storageKey = `${SEARCH_SETTINGS_PREFIX}${key}`
-  localStorage.setItem(storageKey, value.toString())
+export function setSearchSetting<T extends keyof SearchSettings>(key: T, value: number): void {
+  const storageKey = `${SEARCH_SETTINGS_PREFIX}${key}`;
+  localStorage.setItem(storageKey, value.toString());
 
   // Dispatch custom event for listeners
-  window.dispatchEvent(new CustomEvent('searchSettingChanged', {
-    detail: { setting: key, value }
-  }))
+  window.dispatchEvent(
+    new CustomEvent('searchSettingChanged', {
+      detail: { setting: key, value },
+    })
+  );
 }
 
 /**
@@ -92,41 +91,39 @@ export function getAllSearchSettings(): SearchSettings {
     VECTOR_TOP_K: getSearchSetting('VECTOR_TOP_K'),
     SIMILARITY_THRESHOLD: getSearchSetting('SIMILARITY_THRESHOLD'),
     BM25_LIMIT: getSearchSetting('BM25_LIMIT'),
-    RRF_K: getSearchSetting('RRF_K')
-  }
+    RRF_K: getSearchSetting('RRF_K'),
+  };
 }
 
 // OpenAI Configuration
 export const OPENAI_CONFIG = {
   BASE_URL: 'BASE_URL',
-  CHAT_MODEL: 'CHAT_MODEL'
-} as const
+  CHAT_MODEL: 'CHAT_MODEL',
+} as const;
 
 export interface OpenAIConfig {
-  BASE_URL?: string
-  CHAT_MODEL: string
+  BASE_URL?: string;
+  CHAT_MODEL: string;
 }
 
 const DEFAULT_OPENAI_CONFIG: OpenAIConfig = {
   BASE_URL: undefined,
-  CHAT_MODEL: 'gpt-3.5-turbo'
-}
+  CHAT_MODEL: 'gpt-3.5-turbo',
+};
 
 /**
  * Get an OpenAI config value with type safety
  * Returns default if not set
  */
-export function getOpenAIConfig<T extends keyof OpenAIConfig>(
-  key: T
-): OpenAIConfig[T] {
-  const storageKey = `${OPENAI_CONFIG_PREFIX}${key}`
-  const value = localStorage.getItem(storageKey)
+export function getOpenAIConfig<T extends keyof OpenAIConfig>(key: T): OpenAIConfig[T] {
+  const storageKey = `${OPENAI_CONFIG_PREFIX}${key}`;
+  const value = localStorage.getItem(storageKey);
 
   if (value === null || value === '') {
-    return DEFAULT_OPENAI_CONFIG[key]
+    return DEFAULT_OPENAI_CONFIG[key];
   }
 
-  return value as OpenAIConfig[T]
+  return value as OpenAIConfig[T];
 }
 
 /**
@@ -137,18 +134,20 @@ export function setOpenAIConfig<T extends keyof OpenAIConfig>(
   key: T,
   value: string | undefined
 ): void {
-  const storageKey = `${OPENAI_CONFIG_PREFIX}${key}`
+  const storageKey = `${OPENAI_CONFIG_PREFIX}${key}`;
 
   if (value === undefined || value === '') {
-    localStorage.removeItem(storageKey)
+    localStorage.removeItem(storageKey);
   } else {
-    localStorage.setItem(storageKey, value)
+    localStorage.setItem(storageKey, value);
   }
 
   // Dispatch custom event for listeners
-  window.dispatchEvent(new CustomEvent('openaiConfigChanged', {
-    detail: { config: key, value }
-  }))
+  window.dispatchEvent(
+    new CustomEvent('openaiConfigChanged', {
+      detail: { config: key, value },
+    })
+  );
 }
 
 /**
@@ -157,6 +156,6 @@ export function setOpenAIConfig<T extends keyof OpenAIConfig>(
 export function getAllOpenAIConfig(): OpenAIConfig {
   return {
     BASE_URL: getOpenAIConfig('BASE_URL'),
-    CHAT_MODEL: getOpenAIConfig('CHAT_MODEL')
-  }
+    CHAT_MODEL: getOpenAIConfig('CHAT_MODEL'),
+  };
 }

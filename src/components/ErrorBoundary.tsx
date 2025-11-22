@@ -57,11 +57,10 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="flex items-start gap-4">
               <AlertCircle className="w-8 h-8 text-red-600 flex-shrink-0 mt-1" />
               <div className="flex-1">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Something went wrong
-                </h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Something went wrong</h2>
                 <p className="text-gray-600 mb-4">
-                  An unexpected error occurred. Please try refreshing the page or contact support if the problem persists.
+                  An unexpected error occurred. Please try refreshing the page or contact support if
+                  the problem persists.
                 </p>
 
                 {this.state.error && (
@@ -86,10 +85,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   <Button onClick={this.handleReset} variant="default">
                     Try Again
                   </Button>
-                  <Button
-                    onClick={() => window.location.reload()}
-                    variant="outline"
-                  >
+                  <Button onClick={() => window.location.reload()} variant="outline">
                     Reload Page
                   </Button>
                 </div>

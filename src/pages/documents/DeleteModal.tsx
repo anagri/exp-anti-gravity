@@ -19,25 +19,18 @@ export default function DeleteModal({ filename, onConfirm, onCancel }: DeleteMod
           <div>
             <h2 className="text-lg font-semibold mb-2">Delete Document</h2>
             <p className="text-sm text-gray-500">
-              Are you sure you want to delete <span className="font-medium text-gray-900">{filename}</span>?
-              This action cannot be undone.
+              Are you sure you want to delete{' '}
+              <span className="font-medium text-gray-900">{filename}</span>? This action cannot be
+              undone.
             </p>
           </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            data-testid="btn-delete-cancel"
-          >
+          <Button variant="outline" onClick={onCancel} data-testid="btn-delete-cancel">
             Cancel
           </Button>
-          <Button
-            variant="destructive"
-            onClick={onConfirm}
-            data-testid="btn-delete-confirm"
-          >
+          <Button variant="destructive" onClick={onConfirm} data-testid="btn-delete-confirm">
             Delete
           </Button>
         </div>

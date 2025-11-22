@@ -39,12 +39,17 @@ test.describe('Vector Search & RAG Workflow @live', () => {
 
     // Upload 3 files to expanded KB: startup (large), inequality, equity
     await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, PG_ESSAYS.STARTUP, STARTUP_FILENAME);
-    await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, PG_ESSAYS.INEQUALITY, INEQUALITY_FILENAME);
+    await documentsPage.uploadFilesToKBAndWait(
+      TEST_KB_NAME,
+      PG_ESSAYS.INEQUALITY,
+      INEQUALITY_FILENAME
+    );
     await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, PG_ESSAYS.EQUITY, EQUITY_FILENAME);
 
     // Get file IDs
     const startupFileId = await documentsPage.documentList.card.getFileByName(STARTUP_FILENAME);
-    const inequalityFileId = await documentsPage.documentList.card.getFileByName(INEQUALITY_FILENAME);
+    const inequalityFileId =
+      await documentsPage.documentList.card.getFileByName(INEQUALITY_FILENAME);
     const equityFileId = await documentsPage.documentList.card.getFileByName(EQUITY_FILENAME);
 
     // Wait for all files to complete indexing
