@@ -258,6 +258,7 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
                 onClick={fetchModels}
                 disabled={isLoadingModels || !apiKey}
                 data-testid="btn-refresh-models"
+                data-loading={isLoadingModels.toString()}
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingModels ? 'animate-spin' : ''}`} />
                 {isLoadingModels ? 'Loading...' : 'Refresh Models'}
