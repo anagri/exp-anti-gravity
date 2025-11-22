@@ -9,7 +9,7 @@ export function loadTestApiKey(): string {
   const envPath = join(__dirname, '..', '.env.test');
 
   if (existsSync(envPath)) {
-    config({ path: envPath });
+    config({ path: envPath, quiet: true });
   }
 
   const apiKey = process.env.TEST_OPENAI_API_KEY;
