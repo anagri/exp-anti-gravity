@@ -55,4 +55,9 @@ export class BasePage {
   async goForward() {
     await this.page.goForward();
   }
+
+  // Download helper
+  async waitForDownload() {
+    return await this.page.waitForEvent('download');
+  }
 }

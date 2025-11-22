@@ -21,7 +21,7 @@ test.describe('Document Upload & Management', () => {
     await documentsPage.expandKB(TEST_KB_NAME);
   });
 
-  test('comprehensive workflow: validation → lifecycle → multi-ops → persistence', async ({ page }) => {
+  test('comprehensive workflow: validation → lifecycle → multi-ops → persistence', async () => {
     await documentsPage.expectEmptyDocumentsInKB();
 
     await documentsPage.uploadFilesToKB(TEST_KB_NAME, TEST_FILES.INVALID_PDF);
@@ -34,7 +34,7 @@ test.describe('Document Upload & Management', () => {
     await documentsPage.expectFileCount(1);
     await documentsPage.emptyState.expectNotVisible();
 
-    const downloadPromise = page.waitForEvent('download');
+    const downloadPromise = documentsPage.waitForDownload();
     await documentsPage.downloadFileByName(FILE_NAMES.DOC_01_MD);
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe(FILE_NAMES.DOC_01_MD);
