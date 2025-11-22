@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ApiKeyProvider, useApiKey } from '@/contexts/ApiKeyContext';
 import { VectorDBProvider } from '@/contexts/VectorDBContext';
-import WelcomePage from '@/pages/WelcomePage';
+import WelcomePage from '@/pages/welcome';
 import ChatPage from '@/pages/chat';
 import DocumentsPage from '@/pages/documents';
 import SearchPage from '@/pages/SearchPage';
