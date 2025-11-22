@@ -1,13 +1,40 @@
 import { Page, expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 import { FileSelectorComponent } from './chat/FileSelectorComponent';
+import { MessagesComponent } from './chat/MessagesComponent';
+import { SourcesComponent } from './chat/SourcesComponent';
+import { CitationsComponent } from './chat/CitationsComponent';
+import { AttachmentsComponent } from './chat/AttachmentsComponent';
+import { ModelSelectorComponent } from './chat/ModelSelectorComponent';
+import { LoadingStateComponent } from './chat/LoadingStateComponent';
+import { ChatInputComponent } from './chat/ChatInputComponent';
+import { DebugComponent } from './chat/DebugComponent';
+import { SettingsComponent } from './shared/SettingsComponent';
 
 export class ChatPage extends BasePage {
   readonly fileSelector: FileSelectorComponent;
+  readonly messages: MessagesComponent;
+  readonly sources: SourcesComponent;
+  readonly citations: CitationsComponent;
+  readonly attachments: AttachmentsComponent;
+  readonly modelSelector: ModelSelectorComponent;
+  readonly loadingState: LoadingStateComponent;
+  readonly input: ChatInputComponent;
+  readonly debug: DebugComponent;
+  readonly settings: SettingsComponent;
 
   constructor(page: Page, baseUrl: string) {
     super(page, baseUrl);
     this.fileSelector = new FileSelectorComponent(page);
+    this.messages = new MessagesComponent(page);
+    this.sources = new SourcesComponent(page);
+    this.citations = new CitationsComponent(page);
+    this.attachments = new AttachmentsComponent(page);
+    this.modelSelector = new ModelSelectorComponent(page);
+    this.loadingState = new LoadingStateComponent(page);
+    this.input = new ChatInputComponent(page);
+    this.debug = new DebugComponent(page);
+    this.settings = new SettingsComponent(page);
   }
 
   async waitForReady() {
@@ -22,37 +49,31 @@ export class ChatPage extends BasePage {
   }
 
   async selectModel(modelId: string) {
-    await this.clickTestId('btn-chat-model-trigger');
-    await this.clickTestId(`select-chat-model-item-${modelId}`);
+    await this.modelSelector.select(modelId);
   }
 
   async expectSelectedModel(modelId: string) {
-    const button = await this.page.locator('[data-testid="btn-chat-model-trigger"]');
-    await expect(button).toHaveAttribute('data-selected-model', modelId);
+    await this.modelSelector.expectSelected(modelId);
   }
 
   async typeMessage(text: string) {
-    await this.fillTestId('inp-chat-message', text);
+    await this.input.typeMessage(text);
   }
 
   async clickSend() {
-    await this.clickTestId('btn-chat-send');
+    await this.input.clickSend();
   }
 
   async waitForThinkingToDisappear() {
-    await expect(this.page.locator('[data-testid="div-chat-loading"]')).not.toBeVisible({ timeout: 30000 });
+    await this.loadingState.waitForThinkingToDisappear();
   }
 
   async expectAssistantMessageContains(text: string) {
-    const lastMessage = this.page.locator('[data-testid="div-chat-assistant-msg"]').last();
-    await expect(lastMessage).toContainText(text, { ignoreCase: true });
+    await this.messages.expectAssistantContains(text);
   }
 
   async sendMessageAndWait(text: string) {
-    await this.typeMessage(text);
-    await this.clickSend();
-    await expect(this.page.locator('[data-testid="div-chat-loading"]')).toBeVisible();
-    await this.waitForThinkingToDisappear();
+    await this.input.sendMessageAndWait(text);
   }
 
   async expectChatPageLoaded() {
@@ -61,8 +82,7 @@ export class ChatPage extends BasePage {
 
   async logout() {
     await this.clickTestId('btn-logout');
-    // Wait for welcome page to appear
-    await expect(this.page.getByText('Welcome to AI Chat')).toBeVisible({ timeout: 10000 });
+    await expect(this.page.getByText('Welcome to AI Chat')).toBeVisible();
   }
 
   async clearChat() {
@@ -70,21 +90,19 @@ export class ChatPage extends BasePage {
   }
 
   async expectChatState(state: 'ready' | 'loading' | 'error') {
-    const card = await this.page.locator('[data-test-state]');
-    await expect(card).toHaveAttribute('data-test-state', state);
+    await this.loadingState.expectState(state);
   }
 
   async expectEmptyState() {
-    await expect(this.page.getByText('Start a conversation...')).toBeVisible();
+    await this.input.expectEmptyState();
   }
 
   async expectUserMessage(text: string) {
-    const userMessage = await this.page.locator('[data-testid="div-chat-user-msg"]').first();
-    await expect(userMessage).toContainText(text);
+    await this.messages.expectUserContains(text);
   }
 
   async expectMessageNotVisible(text: string) {
-    await expect(this.page.getByText(text)).not.toBeVisible();
+    await this.messages.expectNotVisible(text);
   }
 
   async navigate() {
@@ -93,144 +111,68 @@ export class ChatPage extends BasePage {
   }
 
   async expectReady() {
-    await this.expectChatState('ready');
+    await this.loadingState.expectReady();
   }
 
   async clickAttachButton() {
-    await this.clickTestId('btn-attach-files');
+    await this.input.clickAttach();
   }
 
   async sendMessage(text: string) {
-    await this.typeMessage(text);
-    await this.clickSend();
+    await this.input.sendMessage(text);
   }
 
   async waitForAssistantResponse() {
-    await expect(this.page.locator('[data-testid="div-chat-loading"]')).toBeVisible();
-    await this.waitForThinkingToDisappear();
+    await this.loadingState.expectThinking();
+    await this.loadingState.waitForThinkingToDisappear();
   }
 
   async getCitationCount(): Promise<number> {
-    const citations = await this.page.locator('[data-citation-index]').count();
-    return citations;
+    return await this.citations.getCount();
   }
 
   async getSourcesCount(): Promise<number> {
-    const sources = await this.page.locator('[data-source-index]').count();
-    return sources;
+    return await this.sources.getCount();
   }
 
   async getSourceFilenames(): Promise<string[]> {
-    const sources = await this.page.locator('[data-source-filename]').all();
-    const filenames = await Promise.all(
-      sources.map(s => s.getAttribute('data-source-filename'))
-    );
-    return filenames.filter((f): f is string => f !== null);
+    return await this.sources.getSourceFilenames();
   }
 
   async hoverCitation(index: number) {
-    const citation = this.page.locator(`[data-citation-index="${index}"]`).first();
-    await expect(citation).toBeVisible();
-    await citation.hover();
+    await this.citations.hover(index);
   }
 
   async expectCitationTooltipVisible() {
-    await expect(this.page.locator('[data-citation-tooltip]')).toBeVisible();
+    await this.citations.expectTooltipVisible();
   }
 
   async expectAttachmentBadges(count: number) {
-    const badges = await this.page.locator('[data-testid^="attachment-badge-"]').count();
-    expect(badges).toBe(count);
+    await this.attachments.expectBadges(count);
   }
 
   async expectAttachmentBadgeVisible(filename: string) {
-    await expect(this.page.locator(`[data-filename="${filename}"]`)).toBeVisible();
+    await this.attachments.expectBadgeVisible(filename);
   }
 
   async removeAttachment(filename: string) {
-    const badge = this.page.locator(`[data-filename="${filename}"]`);
-    const documentId = await badge.getAttribute('data-testid');
-    if (!documentId) throw new Error(`Could not find document ID for ${filename}`);
-    const id = documentId.replace('attachment-badge-', '');
-    await this.clickTestId(`btn-remove-attachment-${id}`);
+    await this.attachments.remove(filename);
   }
 
-  async getMessageMetadata(messageIndex: number): Promise<{
-    chunkIds: string[];
-    vectorScores: number[];
-    bm25Scores: number[];
-    fusedScores: number[];
-    vectorRanks: number[];
-    bm25Ranks: number[];
-    filenames: string[];
-  } | null> {
-    const messageDiv = this.page.locator('[data-testid="div-chat-assistant-msg"]').nth(messageIndex);
-    const metadataDiv = messageDiv.locator('[data-test-metadata]');
-    const metadataCount = await metadataDiv.count();
-
-    if (metadataCount === 0) {
-      return null;
-    }
-
-    const metadataText = await metadataDiv.textContent();
-    if (!metadataText) {
-      return null;
-    }
-
-    return JSON.parse(metadataText);
+  async getMessageMetadata(messageIndex: number) {
+    return await this.debug.getMetadata(messageIndex);
   }
 
-  async getSourceScores(messageIndex: number): Promise<{
-    vectorScores: number[];
-    bm25Scores: number[];
-    fusedScores: number[];
-  }> {
-    const messageDiv = this.page.locator('[data-testid="div-chat-assistant-msg"]').nth(messageIndex);
-    const sources = await messageDiv.locator('[data-source-index]').all();
-
-    const vectorScores: number[] = [];
-    const bm25Scores: number[] = [];
-    const fusedScores: number[] = [];
-
-    for (const source of sources) {
-      const vectorScore = await source.getAttribute('data-vector-score');
-      const bm25Score = await source.getAttribute('data-bm25-score');
-      const fusedScore = await source.getAttribute('data-fused-score');
-
-      vectorScores.push(parseFloat(vectorScore || '0'));
-      bm25Scores.push(parseFloat(bm25Score || '0'));
-      fusedScores.push(parseFloat(fusedScore || '0'));
-    }
-
-    return { vectorScores, bm25Scores, fusedScores };
+  async getSourceScores(messageIndex: number) {
+    return await this.sources.getSourceScores(messageIndex);
   }
 
   async verifyScoreOrdering(messageIndex: number, scoreType: 'fused' | 'vector' | 'bm25'): Promise<boolean> {
-    const scores = await this.getSourceScores(messageIndex);
-    const scoreArray = scoreType === 'fused' ? scores.fusedScores :
-                       scoreType === 'vector' ? scores.vectorScores :
-                       scores.bm25Scores;
-
-    for (let i = 1; i < scoreArray.length; i++) {
-      if (scoreArray[i] > scoreArray[i - 1]) {
-        return false;
-      }
-    }
-
-    return true;
+    return await this.sources.verifyScoreOrdering(messageIndex, scoreType);
   }
 
   async getMessagePrompt(messageIndex: number): Promise<string | null> {
-    const messageDiv = this.page.locator('[data-testid="div-chat-assistant-msg"]').nth(messageIndex);
-    const promptPre = messageDiv.locator('[data-test-prompt]');
-    const promptCount = await promptPre.count();
-
-    if (promptCount === 0) {
-      return null;
-    }
-
-    const promptText = await promptPre.textContent();
-    return promptText;
+    return await this.debug.getPrompt(messageIndex);
   }
 
 }

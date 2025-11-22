@@ -12,6 +12,11 @@ export class FileSelectorComponent {
     await expect(fileItem).toBeVisible();
   }
 
+  async expectFileNotVisible(filename: string) {
+    const fileItem = this.page.locator(`[data-filename="${filename}"]`);
+    await expect(fileItem).not.toBeVisible();
+  }
+
   async expectFileIndexed(filename: string, indexed: boolean) {
     const fileItem = this.page.locator(`[data-filename="${filename}"]`);
     const status = indexed ? 'completed' : 'pending';
