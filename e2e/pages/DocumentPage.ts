@@ -5,6 +5,8 @@ import { DocumentListComponent } from './documents/DocumentListComponent';
 import { DeleteModalComponent } from './documents/DeleteModalComponent';
 import { ToolbarComponent } from './documents/ToolbarComponent';
 import { EmptyStateComponent } from './documents/EmptyStateComponent';
+import { KnowledgeBaseComponent } from './documents/KnowledgeBaseComponent';
+import { SettingsComponent } from './shared/SettingsComponent';
 
 export class DocumentPage extends BasePage {
   readonly uploadZone: UploadZoneComponent;
@@ -12,6 +14,8 @@ export class DocumentPage extends BasePage {
   readonly deleteModal: DeleteModalComponent;
   readonly toolbar: ToolbarComponent;
   readonly emptyState: EmptyStateComponent;
+  readonly knowledgeBase: KnowledgeBaseComponent;
+  readonly settings: SettingsComponent;
 
   constructor(page: Page, baseUrl: string = 'http://127.0.0.1:4173') {
     super(page, baseUrl);
@@ -20,6 +24,8 @@ export class DocumentPage extends BasePage {
     this.deleteModal = new DeleteModalComponent(page);
     this.toolbar = new ToolbarComponent(page);
     this.emptyState = new EmptyStateComponent(page);
+    this.knowledgeBase = new KnowledgeBaseComponent(page);
+    this.settings = new SettingsComponent(page);
   }
 
   async setup(apiKey: string) {
@@ -101,62 +107,17 @@ export class DocumentPage extends BasePage {
     await this.emptyState.expectVisible();
   }
 
-  // KB-aware operations
+  // KB-aware operations (delegated to knowledgeBase component)
   async createKB(name: string, description?: string) {
-    const createButton = this.page.getByTestId('btn-create-kb');
-    await createButton.click();
-
-    const modal = this.page.getByTestId('modal-create-kb');
-    await modal.waitFor({ state: 'visible' });
-
-    const nameInput = this.page.getByTestId('input-kb-name');
-    await nameInput.fill(name);
-
-    if (description) {
-      const descriptionTextarea = this.page.getByTestId('textarea-kb-description');
-      await descriptionTextarea.fill(description);
-    }
-
-    const submitButton = this.page.getByTestId('btn-create-kb-submit');
-    await submitButton.scrollIntoViewIfNeeded();
-    await submitButton.click();
-
-    await modal.waitFor({ state: 'hidden' });
-
-    const kbCard = this.page.locator(`[data-kb-name="${name}"]`);
-    await kbCard.waitFor({ state: 'visible' });
+    await this.knowledgeBase.create(name, description);
   }
 
   async expandKB(kbName: string) {
-    const kbCard = this.page.locator(`[data-kb-name="${kbName}"]`);
-    await kbCard.waitFor({ state: 'visible' });
-
-    // Ensure KB starts collapsed (deterministic initial state)
-    await this.expectKbExpanded(kbName, false);
-
-    // Get KB ID for URL verification
-    const testId = await kbCard.getAttribute('data-testid');
-    const kbId = testId?.replace('kb-card-', '') || null;
-
-    // Click to expand
-    await kbCard.click();
-
-    // Wait for expansion to complete
-    await this.page.waitForFunction(
-      (name) => {
-        const card = document.querySelector(`[data-kb-name="${name}"]`);
-        return card?.getAttribute('data-expanded') === 'true';
-      },
-      kbName
-    );
-
-    // Verify URL updated with KB query param
-    await this.page.waitForURL(url => url.searchParams.get('kb') === kbId);
+    await this.knowledgeBase.expand(kbName);
   }
 
   async expectKbExpanded(kbName: string, expanded: boolean) {
-    const kbCard = this.page.locator(`[data-kb-name="${kbName}"]`);
-    await expect(kbCard).toHaveAttribute('data-expanded', expanded ? 'true' : 'false');
+    await this.knowledgeBase.expectExpanded(kbName, expanded);
   }
 
   async uploadFilesToKB(kbName: string, filePaths: string | string[]) {
@@ -184,104 +145,89 @@ export class DocumentPage extends BasePage {
   }
 
   async expectEmptyKBState() {
-    const emptyStateMessage = this.page.getByText('No knowledge bases yet');
-    await emptyStateMessage.waitFor({ state: 'visible' });
+    await this.knowledgeBase.expectEmptyState();
   }
 
   async expectEmptyDocumentsInKB() {
-    const emptyDocsMessage = this.page.getByText('No documents in this knowledge base yet');
-    await emptyDocsMessage.waitFor({ state: 'visible' });
+    await this.knowledgeBase.expectEmptyDocumentsInKB();
   }
 
   async expectKBVisible(kbName: string) {
-    const kbCard = this.page.locator(`[data-kb-name="${kbName}"]`);
-    await kbCard.waitFor({ state: 'visible' });
+    await this.knowledgeBase.expectVisible(kbName);
   }
 
   async expectKBNotVisible(kbName: string) {
-    const kbCard = this.page.locator(`[data-kb-name="${kbName}"]`);
-    await kbCard.waitFor({ state: 'hidden' });
+    await this.knowledgeBase.expectNotVisible(kbName);
   }
 
   async expectKBStats(kbName: string, docCount: number, chunkCount?: number) {
-    const kbCard = this.page.locator(`[data-kb-name="${kbName}"]`);
-    await kbCard.locator(`[data-doc-count="${docCount}"]`).waitFor({ state: 'visible' });
-    if (chunkCount !== undefined) {
-      await kbCard.locator(`[data-chunk-count="${chunkCount}"]`).waitFor({ state: 'visible' });
-    }
+    await this.knowledgeBase.expectStats(kbName, docCount, chunkCount);
   }
 
   async deleteKB(kbName: string) {
-    const kbCard = this.page.locator(`[data-kb-name="${kbName}"]`);
-    const kbId = (await kbCard.getAttribute('data-testid'))?.replace('kb-card-', '');
-
-    const moreButton = kbCard.getByRole('button', { name: '' }).last();
-    await moreButton.click();
-
-    const deleteButton = this.page.getByTestId(`btn-delete-kb-${kbId}`);
-    await deleteButton.click();
-
-    const deleteModal = this.page.getByTestId('modal-delete-kb');
-    await deleteModal.waitFor({ state: 'visible' });
-
-    const confirmButton = this.page.getByTestId('btn-delete-kb-confirm');
-    await confirmButton.click();
-
-    await deleteModal.waitFor({ state: 'hidden' });
-    await kbCard.waitFor({ state: 'hidden' });
+    await this.knowledgeBase.delete(kbName);
   }
 
   async collapseKB(kbName: string) {
-    const kbCard = this.page.locator(`[data-kb-name="${kbName}"]`);
-    const isExpanded = await kbCard.getAttribute('data-expanded');
-
-    if (isExpanded === 'true') {
-      await kbCard.click();
-      await this.page.waitForFunction(
-        (name) => document.querySelector(`[data-kb-name="${name}"]`)?.getAttribute('data-expanded') === 'false',
-        kbName
-      );
-    }
+    await this.knowledgeBase.collapse(kbName);
   }
 
   async expectKBExpanded(kbName: string, expanded: boolean) {
-    const kbCard = this.page.locator(`[data-kb-name="${kbName}"]`);
-    await kbCard.waitFor({ state: 'visible' });
-    await expect(kbCard).toHaveAttribute('data-expanded', expanded ? 'true' : 'false');
+    await this.knowledgeBase.expectExpanded(kbName, expanded);
   }
 
   async getKBId(kbName: string): Promise<string> {
-    const kbCard = this.page.locator(`[data-kb-name="${kbName}"]`);
-    const kbId = await kbCard.getAttribute('data-testid');
-    return kbId?.replace('kb-card-', '') || '';
+    return await this.knowledgeBase.getId(kbName);
   }
 
+  // URL validation helpers
+  async expectURLHasKBParam(kbId: string) {
+    await this.page.waitForURL(url => url.searchParams.get('kb') === kbId);
+  }
+
+  async expectURLHasNoKBParam() {
+    await this.page.waitForURL(url => !url.searchParams.has('kb'));
+  }
+
+  async expectURLContains(substring: string) {
+    expect(this.page.url()).toContain(substring);
+  }
+
+  async goBack() {
+    await this.page.goBack();
+  }
+
+  async goForward() {
+    await this.page.goForward();
+  }
+
+  async reload() {
+    await this.page.reload();
+  }
+
+  // Settings operations (delegated to settings component)
   async openSettings() {
-    await this.page.click('[data-testid="btn-settings"]');
-    await this.page.waitForSelector('[data-testid="div-settings-modal"]', { state: 'visible' });
+    await this.settings.open();
   }
 
   async closeSettings() {
-    await this.page.click('[data-testid="btn-close-settings"]');
-    await this.page.waitForSelector('[data-testid="div-settings-modal"]', { state: 'hidden' });
+    await this.settings.close();
   }
 
   async getFeatureFlagValue(flagName: string): Promise<boolean> {
-    const row = this.page.locator(`[data-testid="feature-flag-${flagName}"]`);
-    const enabled = await row.getAttribute('data-enabled');
-    return enabled === 'true';
+    return await this.settings.getFeatureFlagValue(flagName);
   }
 
   async toggleFeatureFlag(flagName: string) {
-    await this.page.click(`[data-testid="toggle-${flagName}"]`);
+    await this.settings.toggleFeatureFlag(flagName);
   }
 
   async expectReloadWarning() {
-    await this.page.waitForSelector('[data-testid="reload-warning"]', { state: 'visible' });
+    await this.settings.expectReloadWarning();
   }
 
   async reloadToApplyChanges() {
-    await this.page.click('[data-testid="btn-reload-now"]');
+    await this.settings.reloadToApplyChanges();
     await this.waitForDBInitialized();
   }
 }

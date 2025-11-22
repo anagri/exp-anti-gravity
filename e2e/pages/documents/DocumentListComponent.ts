@@ -19,14 +19,13 @@ export class DocumentListComponent {
     return null;
   }
 
-  async waitForFileToAppear(filename: string, timeout: number = 10000) {
+  async waitForFileToAppear(filename: string) {
     await this.page.waitForFunction(
       (name) => {
         const filenames = document.querySelectorAll('[data-testid^="span-doc-filename-"]');
         return Array.from(filenames).some(el => el.textContent?.includes(name));
       },
-      filename,
-      { timeout }
+      filename
     );
   }
 
