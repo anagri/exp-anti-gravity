@@ -1,6 +1,7 @@
 import { FileText, Download, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { formatDate, formatFileSize } from '@/lib/utils';
 import IndexingStatusBadge from './IndexingStatusBadge';
 import IndexingProgress from './IndexingProgress';
 
@@ -27,21 +28,6 @@ interface DocumentCardProps {
     stage: string;
     message: string;
   };
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 export default function DocumentCard({

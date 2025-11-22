@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { BookOpen, MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { formatDate } from '@/lib/utils'
 
 interface KBCardProps {
   id: string
@@ -28,14 +29,6 @@ export default function KBCard({
   onDelete,
 }: KBCardProps) {
   const [showMenu, setShowMenu] = useState(false)
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
-  }
 
   return (
     <div
