@@ -1,5 +1,5 @@
 import { X, Paperclip } from 'lucide-react';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 
 interface AttachmentBadgesProps {
   attachedDocuments: Array<{ id: string; filename: string }>;

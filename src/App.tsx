@@ -1,11 +1,11 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ApiKeyProvider, useApiKey } from './contexts/ApiKeyContext';
-import { VectorDBProvider } from './contexts/VectorDBContext';
-import WelcomePage from './pages/WelcomePage';
-import ChatPage from './pages/ChatPage';
-import DocumentsPage from './pages/documents';
-import SearchPage from './pages/SearchPage';
+import { ApiKeyProvider, useApiKey } from '@/contexts/ApiKeyContext';
+import { VectorDBProvider } from '@/contexts/VectorDBContext';
+import WelcomePage from '@/pages/WelcomePage';
+import ChatPage from '@/pages/chat';
+import DocumentsPage from '@/pages/documents';
+import SearchPage from '@/pages/SearchPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { apiKey } = useApiKey();

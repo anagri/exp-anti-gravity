@@ -1,18 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useChat } from '../hooks/useChat';
-import { useApiKey } from '../contexts/ApiKeyContext';
-import { useVectorDB } from '../contexts/VectorDBContext';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-// import { ScrollArea } from '../components/ui/scroll-area';
-import { Card } from '../components/ui/card';
+import { useChat } from '@/hooks/useChat';
+import { useApiKey } from '@/contexts/ApiKeyContext';
+import { useVectorDB } from '@/contexts/VectorDBContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+// import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card } from '@/components/ui/card';
 import { Send, Bot, User, Paperclip } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn } from '@/lib/utils';
 
-import FileSelector from '../components/FileSelector';
-import AttachmentBadges from '../components/AttachmentBadges';
-import { SourceCitations } from '../components/SourceCitations';
-import TopBar from '../components/TopBar';
+import FileSelector from './FileSelector';
+import AttachmentBadges from './AttachmentBadges';
+import { SourceCitations } from './SourceCitations';
+import TopBar from '@/components/TopBar';
 
 export default function ChatPage() {
   const { apiKey } = useApiKey();
