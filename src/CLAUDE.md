@@ -618,3 +618,32 @@ const chunks = chunkDocument(content, {
 - Use abort controllers for async ops
 - Lazy load heavy components if needed
 - Monitor bundle size (currently has warnings)
+
+## App/E2E Consistency Guidelines
+
+**Maintain alignment between app components and E2E page object models:**
+
+**Page Structure:**
+- All pages follow folder convention: `pages/{page-name}/index.tsx`
+- Page-specific components colocated in same folder
+- Shared components in top-level `src/components/`
+
+**Component Naming:**
+- E2E components add `Component` suffix to app names
+- Example: `AttachmentBadges.tsx` → `AttachmentBadgesComponent.ts`
+- Composite E2E components match app semantic grouping
+
+**Granularity:**
+- Prefer fine-grained components matching app structure
+- Complex sections may be extracted for clarity (e.g., MessagesList.tsx)
+- E2E components may aggregate related functionality pragmatically
+
+**Component Mapping:**
+- App shared components (`src/components/`) map to `e2e/pages/shared/`
+- Document mapping in comments: `// E2E: e2e/pages/[path]`
+- Maintain 1:1 or documented aggregation relationships
+
+**When Refactoring:**
+- Extract app components → create matching E2E components
+- Split large components → update both app and E2E
+- Ensure tests remain backward-compatible via wrapper methods

@@ -596,3 +596,52 @@ await documentsPage.settings.close();
 - Backward-compatible wrappers during migration
 - Run full suite before committing
 - Logical commits: separate component creation, integration, and test updates
+
+## E2E/App Consistency Guidelines
+
+**Maintain alignment between E2E page objects and app components:**
+
+**Component Naming:**
+- E2E components add `Component` suffix: `{AppComponentName}Component.ts`
+- Example: `AttachmentBadges.tsx` → `AttachmentBadgesComponent.ts`
+- Composite components describe aggregated functionality clearly
+
+**Structure Alignment:**
+- Mirror app page folder structure where logical
+- Page-specific: `e2e/pages/{page}/ComponentName.ts`
+- Shared: `e2e/pages/shared/` maps to `src/components/`
+
+**Granularity Principles:**
+- Follow app component granularity (fine-grained preferred)
+- May compose sub-components for complex UI sections
+- Use composition over large monolithic components
+- Document aggregation in comments when combining multiple app components
+
+**Component Mapping:**
+- Add mapping comment: `// Maps to src/pages/[path]/Component.tsx`
+- Maintain 1:1 relationships where possible
+- Document aggregations clearly (e.g., DocumentListComponent composes Card + StatusBadge + Progress)
+
+**When App Changes:**
+- New app component extracted → create matching E2E component
+- App component split → split E2E component to match
+- App component merged → merge E2E components
+- Add backward-compatible wrapper methods in parent page object during transition
+
+**Composition Pattern:**
+```typescript
+export class CompositeComponent {
+  readonly subComponent1: SubComponent1;
+  readonly subComponent2: SubComponent2;
+
+  constructor(page: Page) {
+    this.subComponent1 = new SubComponent1(page);
+    this.subComponent2 = new SubComponent2(page);
+  }
+
+  // Backward-compatible wrappers
+  async delegatedMethod() {
+    await this.subComponent1.method();
+  }
+}
+```
