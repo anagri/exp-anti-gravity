@@ -17,8 +17,6 @@ describe('Search Settings', () => {
       expect(getSearchSetting('VECTOR_TOP_K')).toBe(3)
       expect(getSearchSetting('SIMILARITY_THRESHOLD')).toBe(0.3)
       expect(getSearchSetting('BM25_LIMIT')).toBe(10)
-      expect(getSearchSetting('HNSW_M')).toBe(16)
-      expect(getSearchSetting('HNSW_EF_CONSTRUCTION')).toBe(64)
     })
 
     it('returns stored value when setting exists', () => {
@@ -73,8 +71,6 @@ describe('Search Settings', () => {
         VECTOR_TOP_K: 3,
         SIMILARITY_THRESHOLD: 0.3,
         BM25_LIMIT: 10,
-        HNSW_M: 16,
-        HNSW_EF_CONSTRUCTION: 64,
         RRF_K: 0.6,
       })
     })
@@ -89,8 +85,6 @@ describe('Search Settings', () => {
         VECTOR_TOP_K: 7,
         SIMILARITY_THRESHOLD: 0.3,
         BM25_LIMIT: 20,
-        HNSW_M: 16,
-        HNSW_EF_CONSTRUCTION: 64,
         RRF_K: 0.6,
       })
     })
@@ -99,8 +93,6 @@ describe('Search Settings', () => {
       setSearchSetting('VECTOR_TOP_K', 5)
       setSearchSetting('SIMILARITY_THRESHOLD', 0.8)
       setSearchSetting('BM25_LIMIT', 15)
-      setSearchSetting('HNSW_M', 32)
-      setSearchSetting('HNSW_EF_CONSTRUCTION', 128)
       setSearchSetting('RRF_K', 1.2)
 
       const settings = getAllSearchSettings()
@@ -109,8 +101,6 @@ describe('Search Settings', () => {
         VECTOR_TOP_K: 5,
         SIMILARITY_THRESHOLD: 0.8,
         BM25_LIMIT: 15,
-        HNSW_M: 32,
-        HNSW_EF_CONSTRUCTION: 128,
         RRF_K: 1.2,
       })
     })
@@ -121,8 +111,6 @@ describe('Search Settings', () => {
       expect(SEARCH_SETTINGS.VECTOR_TOP_K).toBe('VECTOR_TOP_K')
       expect(SEARCH_SETTINGS.SIMILARITY_THRESHOLD).toBe('SIMILARITY_THRESHOLD')
       expect(SEARCH_SETTINGS.BM25_LIMIT).toBe('BM25_LIMIT')
-      expect(SEARCH_SETTINGS.HNSW_M).toBe('HNSW_M')
-      expect(SEARCH_SETTINGS.HNSW_EF_CONSTRUCTION).toBe('HNSW_EF_CONSTRUCTION')
     })
   })
 })

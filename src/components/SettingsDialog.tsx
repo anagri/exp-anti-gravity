@@ -28,7 +28,6 @@ interface SearchSettingConfig {
   min: number
   max: number
   step: number
-  advanced?: boolean
 }
 
 const SEARCH_SETTING_CONFIGS: SearchSettingConfig[] = [
@@ -56,24 +55,6 @@ const SEARCH_SETTING_CONFIGS: SearchSettingConfig[] = [
     max: 50,
     step: 1,
   },
-  {
-    key: 'HNSW_M',
-    label: 'HNSW M',
-    description: 'Max connections per layer (requires re-index)',
-    min: 4,
-    max: 64,
-    step: 1,
-    advanced: true,
-  },
-  {
-    key: 'HNSW_EF_CONSTRUCTION',
-    label: 'HNSW ef_construction',
-    description: 'Dynamic candidate list size (requires re-index)',
-    min: 16,
-    max: 256,
-    step: 1,
-    advanced: true,
-  },
 ]
 
 export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
@@ -89,7 +70,6 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
   const [showApiKey, setShowApiKey] = useState(false)
   const [models, setModels] = useState<string[]>([])
   const [isLoadingModels, setIsLoadingModels] = useState(false)
-  const [embeddingModelWarning, setEmbeddingModelWarning] = useState(false)
 
   // Refresh config state when dialog opens
   useEffect(() => {
@@ -98,7 +78,6 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
       setLocalApiKey(apiKey || '')
       setSearchSettingsState(getAllSearchSettings())
       setFeatureFlagsState(getAllFeatureFlags())
-      setEmbeddingModelWarning(false)
     }
   }, [isOpen, apiKey])
 
@@ -173,18 +152,9 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
     setOpenaiConfigState({ ...openaiConfig, CHAT_MODEL: value })
   }
 
-  const handleEmbeddingModelChange = (value: string) => {
-    setOpenAIConfig('EMBEDDING_MODEL', value)
-    setOpenaiConfigState({ ...openaiConfig, EMBEDDING_MODEL: value })
-    setEmbeddingModelWarning(true)
-  }
-
   const handleReload = () => {
     window.location.reload()
   }
-
-  const basicSettings = SEARCH_SETTING_CONFIGS.filter((c) => !c.advanced)
-  const advancedSettings = SEARCH_SETTING_CONFIGS.filter((c) => c.advanced)
 
   return (
     <div
@@ -312,36 +282,6 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
                 />
               </div>
             )}
-
-            {/* Embeddings Model */}
-            {models.length > 0 && (
-              <div className="grid grid-cols-2 gap-4 items-start">
-                <div>
-                  <label htmlFor="embedding-model" className="text-sm font-medium text-gray-900 block mb-1">
-                    Embeddings Model
-                  </label>
-                  <p className="text-xs text-gray-600">Model for document embeddings</p>
-                </div>
-                <div className="space-y-2">
-                  <ModelCombobox
-                    models={models}
-                    value={openaiConfig.EMBEDDING_MODEL}
-                    onValueChange={handleEmbeddingModelChange}
-                    placeholder="Select embedding model..."
-                    testId="select-embedding-model"
-                  />
-                  {embeddingModelWarning && (
-                    <div
-                      className="p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800"
-                      data-testid="div-embedding-model-warning"
-                    >
-                      ⚠ Changing embeddings model requires re-indexing all documents.
-                      Existing vectors will be incompatible.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -405,53 +345,11 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
             Hybrid Search Settings
           </h3>
           <p className="text-xs text-gray-600 mb-4">
-            Basic settings apply immediately on next search
+            Settings apply immediately on next search
           </p>
 
           <div className="space-y-4">
-            {basicSettings.map((config) => (
-              <div key={config.key} className="grid grid-cols-2 gap-4 items-start">
-                <div>
-                  <label
-                    htmlFor={config.key}
-                    className="text-sm font-medium text-gray-900 block mb-1"
-                  >
-                    {config.label}
-                  </label>
-                  <p className="text-xs text-gray-600">{config.description}</p>
-                </div>
-                <div>
-                  <Input
-                    id={config.key}
-                    type="number"
-                    min={config.min}
-                    max={config.max}
-                    step={config.step}
-                    value={searchSettings[config.key]}
-                    onChange={(e) => handleSearchSettingChange(config.key, e.target.value)}
-                    data-testid={`input-${config.key}`}
-                    className={errors[config.key] ? 'border-red-500' : ''}
-                  />
-                  {errors[config.key] && (
-                    <p className="text-xs text-red-600 mt-1">{errors[config.key]}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Advanced Settings Section */}
-        <div className="mb-6">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">
-            Advanced Settings
-          </h3>
-          <p className="text-xs text-amber-700 mb-4 bg-amber-50 p-2 rounded border border-amber-200">
-            ⚠ Changes to HNSW index parameters require page reload and document re-indexing
-          </p>
-
-          <div className="space-y-4">
-            {advancedSettings.map((config) => (
+            {SEARCH_SETTING_CONFIGS.map((config) => (
               <div key={config.key} className="grid grid-cols-2 gap-4 items-start">
                 <div>
                   <label

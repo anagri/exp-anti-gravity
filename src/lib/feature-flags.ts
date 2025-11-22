@@ -33,17 +33,13 @@ export function getAllFeatureFlags(): Record<string, boolean> {
 export const SEARCH_SETTINGS = {
   VECTOR_TOP_K: 'VECTOR_TOP_K',
   SIMILARITY_THRESHOLD: 'SIMILARITY_THRESHOLD',
-  BM25_LIMIT: 'BM25_LIMIT',
-  HNSW_M: 'HNSW_M',
-  HNSW_EF_CONSTRUCTION: 'HNSW_EF_CONSTRUCTION'
+  BM25_LIMIT: 'BM25_LIMIT'
 } as const
 
 export interface SearchSettings {
   VECTOR_TOP_K: number
   SIMILARITY_THRESHOLD: number
   BM25_LIMIT: number
-  HNSW_M: number
-  HNSW_EF_CONSTRUCTION: number
   RRF_K: number
 }
 
@@ -51,8 +47,6 @@ const DEFAULT_SEARCH_SETTINGS: SearchSettings = {
   VECTOR_TOP_K: 3,
   SIMILARITY_THRESHOLD: 0.3,
   BM25_LIMIT: 10,
-  HNSW_M: 16,
-  HNSW_EF_CONSTRUCTION: 64,
   RRF_K: 0.6
 }
 
@@ -98,8 +92,6 @@ export function getAllSearchSettings(): SearchSettings {
     VECTOR_TOP_K: getSearchSetting('VECTOR_TOP_K'),
     SIMILARITY_THRESHOLD: getSearchSetting('SIMILARITY_THRESHOLD'),
     BM25_LIMIT: getSearchSetting('BM25_LIMIT'),
-    HNSW_M: getSearchSetting('HNSW_M'),
-    HNSW_EF_CONSTRUCTION: getSearchSetting('HNSW_EF_CONSTRUCTION'),
     RRF_K: getSearchSetting('RRF_K')
   }
 }
@@ -107,20 +99,17 @@ export function getAllSearchSettings(): SearchSettings {
 // OpenAI Configuration
 export const OPENAI_CONFIG = {
   BASE_URL: 'BASE_URL',
-  CHAT_MODEL: 'CHAT_MODEL',
-  EMBEDDING_MODEL: 'EMBEDDING_MODEL'
+  CHAT_MODEL: 'CHAT_MODEL'
 } as const
 
 export interface OpenAIConfig {
   BASE_URL?: string
   CHAT_MODEL: string
-  EMBEDDING_MODEL: string
 }
 
 const DEFAULT_OPENAI_CONFIG: OpenAIConfig = {
   BASE_URL: undefined,
-  CHAT_MODEL: 'gpt-3.5-turbo',
-  EMBEDDING_MODEL: 'text-embedding-3-small'
+  CHAT_MODEL: 'gpt-3.5-turbo'
 }
 
 /**
@@ -168,7 +157,6 @@ export function setOpenAIConfig<T extends keyof OpenAIConfig>(
 export function getAllOpenAIConfig(): OpenAIConfig {
   return {
     BASE_URL: getOpenAIConfig('BASE_URL'),
-    CHAT_MODEL: getOpenAIConfig('CHAT_MODEL'),
-    EMBEDDING_MODEL: getOpenAIConfig('EMBEDDING_MODEL')
+    CHAT_MODEL: getOpenAIConfig('CHAT_MODEL')
   }
 }

@@ -7,7 +7,7 @@ test.describe('Settings: Feature Flags & OpenAI Configuration & Search Settings'
   test('Phase settings: feature-flags → openai-config → search-settings → validation → persist', async ({ page, context }) => {
     // Phase feature-flags: verify defaults and toggle
     documentsPage = new DocumentPage(page);
-    await documentsPage.setup();
+    await documentsPage.setup("sk-test-key-123");
 
     await documentsPage.openSettings();
     await expect(page.getByTestId('div-settings-modal')).toBeVisible();
@@ -49,15 +49,11 @@ test.describe('Settings: Feature Flags & OpenAI Configuration & Search Settings'
 
     // Phase search-settings: verify hybrid search settings section exists
     await expect(page.getByText('Hybrid Search Settings')).toBeVisible();
-    await expect(page.getByText('Advanced Settings')).toBeVisible();
 
     await expect(page.getByTestId('input-VECTOR_TOP_K')).toHaveValue('3');
     await expect(page.getByTestId('input-SIMILARITY_THRESHOLD')).toHaveValue('0.3');
     await expect(page.getByTestId('input-BM25_LIMIT')).toHaveValue('10');
-    await expect(page.getByTestId('input-HNSW_M')).toHaveValue('16');
-    await expect(page.getByTestId('input-HNSW_EF_CONSTRUCTION')).toHaveValue('64');
-
-    await expect(page.getByText(/Changes to HNSW index parameters require page reload/)).toBeVisible();
+    // Note: HNSW settings moved to per-KB configuration (in CreateKBModal)
 
     // Phase validation: test input bounds validation
     await page.getByTestId('input-VECTOR_TOP_K').fill('25');

@@ -60,22 +60,12 @@ describe('SettingsDialog', () => {
     expect(screen.getByTestId('input-BM25_LIMIT')).toBeInTheDocument()
   })
 
-  it('renders advanced settings section', () => {
-    renderSettingsDialog()
-
-    expect(screen.getByText('Advanced Settings')).toBeInTheDocument()
-    expect(screen.getByTestId('input-HNSW_M')).toBeInTheDocument()
-    expect(screen.getByTestId('input-HNSW_EF_CONSTRUCTION')).toBeInTheDocument()
-  })
-
   it('displays default values for search settings', () => {
     renderSettingsDialog()
 
     expect(screen.getByTestId('input-VECTOR_TOP_K')).toHaveValue(3)
     expect(screen.getByTestId('input-SIMILARITY_THRESHOLD')).toHaveValue(0.3)
     expect(screen.getByTestId('input-BM25_LIMIT')).toHaveValue(10)
-    expect(screen.getByTestId('input-HNSW_M')).toHaveValue(16)
-    expect(screen.getByTestId('input-HNSW_EF_CONSTRUCTION')).toHaveValue(64)
   })
 
   it('displays stored values when they exist', () => {
@@ -183,13 +173,5 @@ describe('SettingsDialog', () => {
       expect(reloadButton).toBeInTheDocument()
       expect(reloadButton).toHaveTextContent('Reload Now')
     })
-  })
-
-  it('shows warning for HNSW parameter changes', () => {
-    renderSettingsDialog()
-
-    expect(
-      screen.getByText(/Changes to HNSW index parameters require page reload/)
-    ).toBeInTheDocument()
   })
 })
