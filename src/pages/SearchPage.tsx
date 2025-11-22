@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import DOMPurify from 'dompurify'
 import { useVectorDB } from '@/contexts/VectorDBContext'
+import { useDebounce } from '@/hooks/useDebounce'
 
 interface SearchResult {
   chunkId: string
@@ -19,6 +21,14 @@ export default function SearchPage() {
   const [selectedKBId, setSelectedKBId] = useState<string>('')
 
   const { searchBM25, lunrReady, knowledgeBases } = useVectorDB()
+  const debouncedQuery = useDebounce(query, 300)
+
+  // Auto-search when debounced query changes
+  useEffect(() => {
+    if (debouncedQuery.trim() && selectedKBId && lunrReady) {
+      handleSearch()
+    }
+  }, [debouncedQuery, selectedKBId])
 
   const handleSearch = async () => {
     if (!query.trim() || !selectedKBId) return
@@ -52,7 +62,7 @@ export default function SearchPage() {
   }
 
   const highlightQuery = (text: string, query: string): string => {
-    if (!query.trim()) return text
+    if (!query.trim()) return DOMPurify.sanitize(text)
 
     const words = query.toLowerCase().split(/\s+/)
     let highlightedText = text
@@ -64,7 +74,7 @@ export default function SearchPage() {
       highlightedText = highlightedText.replace(regex, '<mark>$1</mark>')
     })
 
-    return highlightedText
+    return DOMPurify.sanitize(highlightedText)
   }
 
   return (
