@@ -1,11 +1,11 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import { PGlite } from '@electric-sql/pglite';
 import { vector } from '@electric-sql/pglite/vector';
-import { v4 as uuidv4 } from 'uuid';
-import OpenAI from 'openai';
 import { Tiktoken, getEncoding } from 'js-tiktoken';
 import lunr from 'lunr';
-import { isFeatureEnabled, FEATURES, getSearchSetting, getOpenAIConfig } from '@/lib/feature-flags';
+import OpenAI from 'openai';
+import { v4 as uuidv4 } from 'uuid';
+import { FEATURES, getOpenAIConfig, getSearchSetting, isFeatureEnabled } from '@/lib/feature-flags';
 import { useApiKey } from './ApiKeyContext';
 
 // Global instance to prevent re-initialization in React StrictMode

@@ -1,13 +1,13 @@
 import { Page, expect } from '@playwright/test';
 import { BasePage } from './BasePage';
-import { FileSelectorComponent } from './chat/FileSelectorComponent';
-import { MessagesComponent } from './chat/MessagesComponent';
-import { SourceCitationsComponent } from './chat/SourceCitationsComponent';
 import { AttachmentBadgesComponent } from './chat/AttachmentBadgesComponent';
-import { ModelSelectorComponent } from './chat/ModelSelectorComponent';
-import { LoadingStateComponent } from './chat/LoadingStateComponent';
 import { ChatInputComponent } from './chat/ChatInputComponent';
 import { DebugComponent } from './chat/DebugComponent';
+import { FileSelectorComponent } from './chat/FileSelectorComponent';
+import { LoadingStateComponent } from './chat/LoadingStateComponent';
+import { MessagesComponent } from './chat/MessagesComponent';
+import { ModelSelectorComponent } from './chat/ModelSelectorComponent';
+import { SourceCitationsComponent } from './chat/SourceCitationsComponent';
 import { SettingsComponent } from './shared/SettingsComponent';
 
 export class ChatPage extends BasePage {

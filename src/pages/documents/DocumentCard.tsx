@@ -1,9 +1,9 @@
-import { FileText, Download, Trash2, RefreshCw } from 'lucide-react';
+import { Download, FileText, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { formatDate, formatFileSize } from '@/lib/utils';
-import IndexingStatusBadge from './IndexingStatusBadge';
 import IndexingProgress from './IndexingProgress';
+import IndexingStatusBadge from './IndexingStatusBadge';
 
 interface Document {
   id: string;

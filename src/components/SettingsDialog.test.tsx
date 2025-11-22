@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import SettingsDialog from './SettingsDialog';
-import { setSearchSetting } from '@/lib/feature-flags';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiKeyProvider } from '@/contexts/ApiKeyContext';
+import { setSearchSetting } from '@/lib/feature-flags';
+import SettingsDialog from './SettingsDialog';
 
 const renderSettingsDialog = (props = {}) => {
   const defaultProps = {

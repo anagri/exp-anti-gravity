@@ -1,8 +1,8 @@
 import { Page } from '@playwright/test';
 import { BasePage } from './BasePage';
+import { KBSelectorComponent } from './search/KBSelectorComponent';
 import { SearchInputComponent } from './search/SearchInputComponent';
 import { SearchResultsComponent } from './search/SearchResultsComponent';
-import { KBSelectorComponent } from './search/KBSelectorComponent';
 
 export class SearchPage extends BasePage {
   readonly input: SearchInputComponent;

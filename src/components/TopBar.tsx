@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Button } from './ui/button';
 import { LogOut, Settings } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApiKey } from '@/contexts/ApiKeyContext';
 import SettingsDialog from './SettingsDialog';
+import { Button } from './ui/button';
 
 interface TopBarProps {
   title: string;

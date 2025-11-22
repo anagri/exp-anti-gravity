@@ -1,7 +1,7 @@
 import { Page } from '@playwright/test';
 import { DocumentCardComponent } from './DocumentCardComponent';
-import { IndexingStatusBadgeComponent } from './IndexingStatusBadgeComponent';
 import { IndexingProgressComponent } from './IndexingProgressComponent';
+import { IndexingStatusBadgeComponent } from './IndexingStatusBadgeComponent';
 
 /**
  * Composite component for document list operations

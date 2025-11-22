@@ -2,10 +2,10 @@
  * Search service for vector and BM25 search operations
  */
 
-import type { PGlite } from '@electric-sql/pglite';
-import type OpenAI from 'openai';
 import { generateEmbeddings } from '@/lib/embeddings';
 import type { SearchResult } from '@/types';
+import type { PGlite } from '@electric-sql/pglite';
+import type OpenAI from 'openai';
 
 export interface HybridSearchOptions {
   vectorTopK: number;

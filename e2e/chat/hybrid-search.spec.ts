@@ -1,7 +1,7 @@
-import { test, expect } from '../fixtures/globalSetup';
+import { expect, test } from '../fixtures/globalSetup';
+import { PG_ESSAYS, PG_ESSAY_NAMES } from '../fixtures/pg-essays';
 import { ChatPage } from '../pages/ChatPage';
 import { DocumentPage } from '../pages/DocumentPage';
-import { PG_ESSAYS, PG_ESSAY_NAMES } from '../fixtures/pg-essays';
 import { loadTestApiKey } from '../utils/env';
 
 const EQUITY_FILENAME = PG_ESSAY_NAMES.EQUITY;

@@ -1,7 +1,7 @@
 import { Bot, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SourceCitations } from './SourceCitations';
 import type { Message } from '@/types';
+import { SourceCitations } from './SourceCitations';
 
 interface MessagesListProps {
   messages: Message[];

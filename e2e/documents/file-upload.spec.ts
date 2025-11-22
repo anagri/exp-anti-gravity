@@ -1,7 +1,7 @@
-import { test, expect } from '../fixtures/globalSetup';
-import { DocumentPage } from '../pages/DocumentPage';
-import { TEST_FILES, FILE_NAMES } from '../fixtures/test-files';
 import fs from 'fs';
+import { expect, test } from '../fixtures/globalSetup';
+import { FILE_NAMES, TEST_FILES } from '../fixtures/test-files';
+import { DocumentPage } from '../pages/DocumentPage';
 
 test.describe('Document Upload & Management', () => {
   let documentsPage: DocumentPage;
@@ -99,7 +99,7 @@ test.describe('Document Upload & Management', () => {
 
     await documentsPage.expectFileCount(2);
 
-    let remainingNames = await documentsPage.documentList.getFileNames();
+    const remainingNames = await documentsPage.documentList.getFileNames();
     expect(remainingNames.some((name) => name.includes(FILE_NAMES.DOC_01_MD))).toBe(true);
     expect(remainingNames.some((name) => name.includes(FILE_NAMES.DOC_03_MD))).toBe(true);
     expect(remainingNames.some((name) => name.includes(FILE_NAMES.DOC_02_TXT))).toBe(false);

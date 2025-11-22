@@ -2,24 +2,24 @@
  * Settings dialog component for feature flags, OpenAI config, and search settings
  * E2E: e2e/pages/shared/SettingsComponent.ts
  */
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Eye, EyeOff, RefreshCw, Settings, X } from 'lucide-react';
+import OpenAI from 'openai';
 import { toast } from 'sonner';
-import { Settings, X, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ModelCombobox } from '@/components/ui/model-combobox';
-import OpenAI from 'openai';
-import {
-  getAllFeatureFlags,
-  setFeatureFlag,
-  getAllSearchSettings,
-  setSearchSetting,
-  SearchSettings,
-  getAllOpenAIConfig,
-  setOpenAIConfig,
-  getOpenAIConfig,
-} from '@/lib/feature-flags';
 import { useApiKey } from '@/contexts/ApiKeyContext';
+import {
+  SearchSettings,
+  getAllFeatureFlags,
+  getAllOpenAIConfig,
+  getAllSearchSettings,
+  getOpenAIConfig,
+  setFeatureFlag,
+  setOpenAIConfig,
+  setSearchSetting,
+} from '@/lib/feature-flags';
 
 interface SettingsDialogProps {
   isOpen: boolean;

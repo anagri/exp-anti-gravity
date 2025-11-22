@@ -1,11 +1,11 @@
 import { expect, Page } from '@playwright/test';
 import { BasePage } from './BasePage';
-import { UploadZoneComponent } from './documents/UploadZoneComponent';
-import { DocumentListComponent } from './documents/DocumentListComponent';
 import { DeleteModalComponent } from './documents/DeleteModalComponent';
-import { ToolbarComponent } from './documents/ToolbarComponent';
+import { DocumentListComponent } from './documents/DocumentListComponent';
 import { EmptyStateComponent } from './documents/EmptyStateComponent';
 import { KnowledgeBaseComponent } from './documents/KnowledgeBaseComponent';
+import { ToolbarComponent } from './documents/ToolbarComponent';
+import { UploadZoneComponent } from './documents/UploadZoneComponent';
 import { SettingsComponent } from './shared/SettingsComponent';
 
 export class DocumentPage extends BasePage {

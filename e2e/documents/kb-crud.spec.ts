@@ -1,7 +1,7 @@
-import { test, expect } from '../fixtures/globalSetup';
-import { DocumentPage } from '../pages/DocumentPage';
+import { test } from '../fixtures/globalSetup';
+import { FILE_NAMES, TEST_FILES } from '../fixtures/test-files';
 import { ChatPage } from '../pages/ChatPage';
-import { TEST_FILES, FILE_NAMES } from '../fixtures/test-files';
+import { DocumentPage } from '../pages/DocumentPage';
 
 test.describe('Knowledge Base Workflow', () => {
   let documentsPage: DocumentPage;
@@ -17,7 +17,7 @@ test.describe('Knowledge Base Workflow', () => {
     await documentsPage.setup('sk-test-key-123');
   });
 
-  test('Phase crud → upload → filtering → persistence', async ({ page }) => {
+  test('Phase crud → upload → filtering → persistence', async () => {
     // ─────────────────────────────────────────────────────────
     // PHASE CRUD: Create → Verify → Multiple → Validation → Delete
     // ─────────────────────────────────────────────────────────

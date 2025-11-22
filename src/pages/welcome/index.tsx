@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
+import { Key, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useApiKey } from '@/contexts/ApiKeyContext';
+import SettingsDialog from '@/components/SettingsDialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
 } from '@/components/ui/card';
-import { Key, Settings } from 'lucide-react';
-import SettingsDialog from '@/components/SettingsDialog';
+import { Input } from '@/components/ui/input';
+import { useApiKey } from '@/contexts/ApiKeyContext';
 
 export default function WelcomePage() {
   const [inputKey, setInputKey] = useState('');

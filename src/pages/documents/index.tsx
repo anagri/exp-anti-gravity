@@ -1,16 +1,16 @@
-import { useState, useEffect } from 'react';
-import { useVectorDB } from '@/contexts/VectorDBContext';
+import { useEffect, useState } from 'react';
 import { BookOpen } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import TopBar from '@/components/TopBar';
 import { Button } from '@/components/ui/button';
-import KBCard from './KBCard';
+import { useVectorDB } from '@/contexts/VectorDBContext';
 import CreateKBModal from './CreateKBModal';
 import DeleteKBModal from './DeleteKBModal';
 import DeleteModal from './DeleteModal';
 import DocumentCard from './DocumentCard';
-import UploadZone from './UploadZone';
 import DocumentToolbar from './DocumentToolbar';
-import TopBar from '@/components/TopBar';
-import { useSearchParams } from 'react-router-dom';
+import KBCard from './KBCard';
+import UploadZone from './UploadZone';
 
 export default function DocumentsPage() {
   const {

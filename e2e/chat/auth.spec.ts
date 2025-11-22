@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test';
-import { WelcomePage } from '../pages/WelcomePage';
+import { test } from '@playwright/test';
 import { ChatPage } from '../pages/ChatPage';
+import { WelcomePage } from '../pages/WelcomePage';
 import { loadTestApiKey } from '../utils/env';
 
 test.describe('Chat with Real OpenAI API @live', () => {

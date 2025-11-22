@@ -1,17 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useChat } from '@/hooks/useChat';
+import React, { useEffect, useRef, useState } from 'react';
+import { Bot, Paperclip, Send } from 'lucide-react';
+import TopBar from '@/components/TopBar';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { useApiKey } from '@/contexts/ApiKeyContext';
 import { useVectorDB } from '@/contexts/VectorDBContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useChat } from '@/hooks/useChat';
 // import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card } from '@/components/ui/card';
-import { Send, Bot, Paperclip } from 'lucide-react';
-
-import FileSelector from './FileSelector';
 import AttachmentBadges from './AttachmentBadges';
+import FileSelector from './FileSelector';
 import MessagesList from './MessagesList';
-import TopBar from '@/components/TopBar';
 
 export default function ChatPage() {
   const { apiKey } = useApiKey();

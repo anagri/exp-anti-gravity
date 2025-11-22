@@ -1,7 +1,7 @@
 import { Page } from '@playwright/test';
-import { KBCardComponent } from './KBCardComponent';
 import { CreateKBModalComponent } from './CreateKBModalComponent';
 import { DeleteKBModalComponent } from './DeleteKBModalComponent';
+import { KBCardComponent } from './KBCardComponent';
 
 /**
  * Composite component for all KB operations

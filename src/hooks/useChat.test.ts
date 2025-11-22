@@ -1,6 +1,6 @@
-import { renderHook, act } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { useChat } from './useChat';
-import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('useChat', () => {
   beforeEach(() => {

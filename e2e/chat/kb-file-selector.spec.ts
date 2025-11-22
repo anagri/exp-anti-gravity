@@ -1,7 +1,7 @@
 import { test } from '../fixtures/globalSetup';
-import { DocumentPage } from '../pages/DocumentPage';
+import { FILE_NAMES, TEST_FILES } from '../fixtures/test-files';
 import { ChatPage } from '../pages/ChatPage';
-import { TEST_FILES, FILE_NAMES } from '../fixtures/test-files';
+import { DocumentPage } from '../pages/DocumentPage';
 import { loadTestApiKey } from '../utils/env';
 
 test.describe('KB Workflow with Indexing @live', () => {

@@ -1,13 +1,13 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ApiKeyProvider, useApiKey } from '@/contexts/ApiKeyContext';
 import { VectorDBProvider } from '@/contexts/VectorDBContext';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import WelcomePage from '@/pages/welcome';
 import ChatPage from '@/pages/chat';
 import DocumentsPage from '@/pages/documents';
 import SearchPage from '@/pages/search';
+import WelcomePage from '@/pages/welcome';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { apiKey } = useApiKey();

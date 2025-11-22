@@ -1,6 +1,6 @@
-import { test, expect } from '../fixtures/globalSetup';
-import { DocumentPage } from '../pages/DocumentPage';
+import { expect, test } from '../fixtures/globalSetup';
 import { PG_ESSAYS, PG_ESSAY_NAMES } from '../fixtures/pg-essays';
+import { DocumentPage } from '../pages/DocumentPage';
 import { loadTestApiKey } from '../utils/env';
 
 const EQUITY_FILENAME = PG_ESSAY_NAMES.EQUITY;
@@ -19,9 +19,7 @@ test.describe('Indexing Workflow @live', () => {
     await documentsPage.setup(apiKey);
   });
 
-  test('Phase embeddings: upload → queue → chunk → embed → store → persist after reload', async ({
-    page,
-  }) => {
+  test('Phase embeddings: upload → queue → chunk → embed → store → persist after reload', async () => {
     await documentsPage.expectEmptyKBState();
 
     await documentsPage.createKB(TEST_KB_NAME);

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import OpenAI from 'openai';
 import type { SearchResult } from '@/contexts/VectorDBContext';
 import { getOpenAIConfig } from '@/lib/feature-flags';

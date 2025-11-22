@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { useVectorDB } from '@/contexts/VectorDBContext';
 import { useDebounce } from '@/hooks/useDebounce';

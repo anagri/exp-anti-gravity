@@ -1,8 +1,8 @@
-import { config } from 'dotenv';
 import { existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { expect } from '@playwright/test';
+import { config } from 'dotenv';
 
 export function loadTestApiKey(): string {
   const __filename = fileURLToPath(import.meta.url);

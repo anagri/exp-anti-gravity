@@ -3,8 +3,8 @@
  * Separates DB logic from React context
  */
 
+import type { Document, KnowledgeBase } from '@/types';
 import type { PGlite } from '@electric-sql/pglite';
-import type { KnowledgeBase, Document } from '@/types';
 
 export class DBService {
   constructor(private db: PGlite) {}
