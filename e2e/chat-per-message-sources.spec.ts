@@ -21,11 +21,19 @@ test.describe('Per-Message Sources @live', () => {
   });
 
   test('Phase per-message-sources: first message → verify sources → second message → verify both persist', async ({ page }) => {
-    // Setup: Upload and index document for RAG
+    // Setup: Create KB, upload and index document for RAG
     await documentsPage.setup(apiKey);
-    await documentsPage.expectEmptyState();
-    await documentsPage.uploadFiles(PG_ESSAYS.EQUITY);
-    await documentsPage.documentList.waitForFileToAppear(EQUITY_FILENAME);
+    await documentsPage.expectEmptyKBState();
+
+    // Create KB for document upload
+    await documentsPage.createKB('Test KB');
+    await documentsPage.expectKBVisible('Test KB');
+
+    // Expand KB before upload (deterministic - KB starts collapsed)
+    await documentsPage.expandKB('Test KB');
+
+    // Upload to KB and wait for indexing
+    await documentsPage.uploadFilesToKBAndWait('Test KB', PG_ESSAYS.EQUITY, EQUITY_FILENAME);
 
     const fileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
     if (!fileId) throw new Error('File not found after upload');
@@ -36,7 +44,14 @@ test.describe('Per-Message Sources @live', () => {
     await chatPage.navigate();
     await chatPage.clickAttachButton();
     await chatPage.fileSelector.expectOpen();
+
+    // Wait for file to appear in FileSelector with completed status
+    await chatPage.fileSelector.expectFileVisible(EQUITY_FILENAME);
+    await chatPage.fileSelector.expectFileIndexed(EQUITY_FILENAME, true);
+
+    // Select file (will auto-filter to the file's KB if currently on "All")
     await chatPage.fileSelector.selectFile(EQUITY_FILENAME);
+
     await chatPage.fileSelector.confirmSelection();
     await chatPage.expectAttachmentBadgeVisible(EQUITY_FILENAME);
 

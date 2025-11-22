@@ -4,6 +4,7 @@ import { PG_ESSAYS, PG_ESSAY_NAMES } from './fixtures/pg-essays';
 import { loadTestApiKey } from './utils/env';
 
 const EQUITY_FILENAME = PG_ESSAY_NAMES.EQUITY;
+const TEST_KB_NAME = 'Indexing Test KB';
 
 test.describe('Indexing Workflow @live', () => {
   let documentsPage: DocumentPage;
@@ -19,10 +20,15 @@ test.describe('Indexing Workflow @live', () => {
   });
 
   test('Phase embeddings: upload → queue → chunk → embed → store → persist after reload', async ({ page }) => {
-    await documentsPage.expectEmptyState();
+    await documentsPage.expectEmptyKBState();
 
-    await documentsPage.uploadFiles(PG_ESSAYS.EQUITY);
-    await documentsPage.documentList.waitForFileToAppear(EQUITY_FILENAME);
+    await documentsPage.createKB(TEST_KB_NAME);
+    await documentsPage.expectKBVisible(TEST_KB_NAME);
+
+    // Expand KB before upload (deterministic - KB starts collapsed)
+    await documentsPage.expandKB(TEST_KB_NAME);
+
+    await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, PG_ESSAYS.EQUITY, EQUITY_FILENAME);
 
     const fileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
     if (!fileId) throw new Error('File not found after upload');
@@ -35,6 +41,7 @@ test.describe('Indexing Workflow @live', () => {
 
     await page.reload();
     await documentsPage.waitForDBInitialized();
+    // KB auto-expands from URL (?kb={id}) after reload, no need to expand manually
 
     await documentsPage.documentList.waitForFileToAppear(EQUITY_FILENAME);
 

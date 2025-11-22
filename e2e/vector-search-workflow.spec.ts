@@ -7,6 +7,7 @@ import { loadTestApiKey } from './utils/env';
 const STARTUP_FILENAME = PG_ESSAY_NAMES.STARTUP;
 const INEQUALITY_FILENAME = PG_ESSAY_NAMES.INEQUALITY;
 const EQUITY_FILENAME = PG_ESSAY_NAMES.EQUITY;
+const TEST_KB_NAME = 'RAG Workflow Test KB';
 
 test.describe('Vector Search & RAG Workflow @live', () => {
   let documentsPage: DocumentPage;
@@ -27,17 +28,19 @@ test.describe('Vector Search & RAG Workflow @live', () => {
     // ─────────────────────────────────────────────────────────
     // PHASE 1: Upload & Index Three Essays
     // ─────────────────────────────────────────────────────────
-    await documentsPage.expectEmptyState();
+    await documentsPage.expectEmptyKBState();
 
-    // Upload 3 files: startup (large), inequality, equity
-    await documentsPage.uploadFiles(PG_ESSAYS.STARTUP);
-    await documentsPage.documentList.waitForFileToAppear(STARTUP_FILENAME);
+    // Create KB for document upload
+    await documentsPage.createKB(TEST_KB_NAME);
+    await documentsPage.expectKBVisible(TEST_KB_NAME);
 
-    await documentsPage.uploadFiles(PG_ESSAYS.INEQUALITY);
-    await documentsPage.documentList.waitForFileToAppear(INEQUALITY_FILENAME);
+    // Expand KB once before uploads (deterministic - KB starts collapsed)
+    await documentsPage.expandKB(TEST_KB_NAME);
 
-    await documentsPage.uploadFiles(PG_ESSAYS.EQUITY);
-    await documentsPage.documentList.waitForFileToAppear(EQUITY_FILENAME);
+    // Upload 3 files to expanded KB: startup (large), inequality, equity
+    await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, PG_ESSAYS.STARTUP, STARTUP_FILENAME);
+    await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, PG_ESSAYS.INEQUALITY, INEQUALITY_FILENAME);
+    await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, PG_ESSAYS.EQUITY, EQUITY_FILENAME);
 
     // Get file IDs
     const startupFileId = await documentsPage.documentList.findFileByName(STARTUP_FILENAME);

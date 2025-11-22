@@ -4,6 +4,7 @@ import { PG_ESSAYS, PG_ESSAY_NAMES } from './fixtures/pg-essays';
 import { loadTestApiKey } from './utils/env';
 
 const EQUITY_FILENAME = PG_ESSAY_NAMES.EQUITY;
+const TEST_KB_NAME = 'BM25 Search Test KB';
 
 test.describe('BM25 Search @live', () => {
   let documentsPage: DocumentPage;
@@ -20,15 +21,24 @@ test.describe('BM25 Search @live', () => {
 
   test('BM25 search returns relevant results for exact keyword match', async ({ page }) => {
     // Upload document and wait for indexing to complete
-    await documentsPage.expectEmptyState();
-    await documentsPage.uploadFiles(PG_ESSAYS.EQUITY);
-    await documentsPage.documentList.waitForFileToAppear(EQUITY_FILENAME);
+    await documentsPage.expectEmptyKBState();
+
+    await documentsPage.createKB(TEST_KB_NAME);
+    await documentsPage.expectKBVisible(TEST_KB_NAME);
+
+    // Expand KB before upload (deterministic - KB starts collapsed)
+    await documentsPage.expandKB(TEST_KB_NAME);
+
+    await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, PG_ESSAYS.EQUITY, EQUITY_FILENAME);
 
     const fileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
     if (!fileId) throw new Error('File not found after upload');
 
     // Wait for indexing (embeddings + Lunr index) to complete
     await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
+
+    // Get KB ID before navigating away from documents page
+    const kbId = await documentsPage.getKBId(TEST_KB_NAME);
 
     // Navigate to search page (use BasePage navigateTo for basename handling)
     await documentsPage.navigateTo('/search');
@@ -38,6 +48,9 @@ test.describe('BM25 Search @live', () => {
     await page.waitForFunction(() =>
       document.querySelector('[data-lunr-ready="true"]') !== null
     );
+
+    // Select KB from dropdown
+    await page.selectOption('[data-testid="select-kb-search"]', kbId);
 
     // Perform BM25 search for exact keyword "equity"
     await page.fill('[data-testid="input-search-query"]', 'equity');
@@ -63,14 +76,23 @@ test.describe('BM25 Search @live', () => {
 
   test('BM25 search returns empty results for non-existent keyword', async ({ page }) => {
     // Upload document and wait for indexing
-    await documentsPage.expectEmptyState();
-    await documentsPage.uploadFiles(PG_ESSAYS.EQUITY);
-    await documentsPage.documentList.waitForFileToAppear(EQUITY_FILENAME);
+    await documentsPage.expectEmptyKBState();
+
+    await documentsPage.createKB(TEST_KB_NAME);
+    await documentsPage.expectKBVisible(TEST_KB_NAME);
+
+    // Expand KB before upload (deterministic - KB starts collapsed)
+    await documentsPage.expandKB(TEST_KB_NAME);
+
+    await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, PG_ESSAYS.EQUITY, EQUITY_FILENAME);
 
     const fileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
     if (!fileId) throw new Error('File not found after upload');
 
     await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
+
+    // Get KB ID before navigating away from documents page
+    const kbId = await documentsPage.getKBId(TEST_KB_NAME);
 
     // Navigate to search page (use BasePage navigateTo for basename handling)
     await documentsPage.navigateTo('/search');
@@ -78,6 +100,9 @@ test.describe('BM25 Search @live', () => {
     await page.waitForFunction(() =>
       document.querySelector('[data-lunr-ready="true"]') !== null
     );
+
+    // Select KB from dropdown
+    await page.selectOption('[data-testid="select-kb-search"]', kbId);
 
     // Search for keyword that doesn't exist
     await page.fill('[data-testid="input-search-query"]', 'xyznonexistentkeyword123');

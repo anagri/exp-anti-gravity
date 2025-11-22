@@ -23,9 +23,13 @@ test.describe('Hybrid Search @live', () => {
   test('Phase hybrid-search: upload → index → hybrid RAG → verify sources have fused scores', async ({ page }) => {
     // Setup: Upload and index document for RAG
     await documentsPage.setup(apiKey);
-    await documentsPage.expectEmptyState();
-    await documentsPage.uploadFiles(PG_ESSAYS.EQUITY);
-    await documentsPage.documentList.waitForFileToAppear(EQUITY_FILENAME);
+    await documentsPage.createKB('Test KB');
+    await documentsPage.expectKBVisible('Test KB');
+
+    // Expand KB before upload (deterministic - KB starts collapsed)
+    await documentsPage.expandKB('Test KB');
+
+    await documentsPage.uploadFilesToKBAndWait('Test KB', PG_ESSAYS.EQUITY, EQUITY_FILENAME);
 
     const fileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
     if (!fileId) throw new Error('File not found after upload');
