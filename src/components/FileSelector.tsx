@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import IndexingStatusBadge from '@/pages/documents/components/IndexingStatusBadge';
+import IndexingStatusBadge from '@/pages/documents/IndexingStatusBadge';
 
 interface Document {
   id: string;
