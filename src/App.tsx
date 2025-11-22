@@ -7,7 +7,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import WelcomePage from '@/pages/welcome';
 import ChatPage from '@/pages/chat';
 import DocumentsPage from '@/pages/documents';
-import SearchPage from '@/pages/SearchPage';
+import SearchPage from '@/pages/search';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { apiKey } = useApiKey();
