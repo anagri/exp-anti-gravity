@@ -162,6 +162,97 @@ export class MessagesComponent {
 - Can assume page context
 - Import: `import { MessagesComponent } from './chat/MessagesComponent'`
 
+### Assertion Helpers
+
+**Use assertion helpers instead of find + throw patterns** to maintain deterministic tests without if-else/try-catch blocks.
+
+**Pattern: Assertion Helpers Return After Asserting**
+
+Components should provide two types of methods for nullable operations:
+1. **Finder methods** - Return nullable values (e.g., `findFileByName()` returns `string | null`)
+2. **Assertion helpers** - Assert existence and return non-null values (e.g., `getFileByName()` returns `string`)
+
+```typescript
+// ❌ WRONG: Manual null checking in test
+const fileId = await documentsPage.documentList.findFileByName(FILENAME);
+if (!fileId) throw new Error('File not found');
+await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
+
+// ✅ CORRECT: Use assertion helper
+const fileId = await documentsPage.documentList.card.getFileByName(FILENAME);
+await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
+```
+
+**Component Implementation Pattern:**
+
+```typescript
+export class DocumentCardComponent {
+  // Finder method - returns nullable
+  async findFileByName(filename: string): Promise<string | null> {
+    const cards = await this.page.locator('[data-testid^="div-doc-item-"]').all();
+    for (const card of cards) {
+      const filenameLoc = card.locator('[data-testid^="span-doc-filename-"]');
+      const text = await filenameLoc.textContent();
+      if (text?.includes(filename)) {
+        const testId = await card.getAttribute('data-testid');
+        return testId?.replace('div-doc-item-', '') || null;
+      }
+    }
+    return null;
+  }
+
+  // Assertion helper - asserts and returns non-null
+  async getFileByName(filename: string): Promise<string> {
+    const fileId = await this.findFileByName(filename);
+    expect(fileId, `File not found: ${filename}`).toBeTruthy();
+    return fileId!;
+  }
+}
+```
+
+**Additional Assertion Helper Examples:**
+
+```typescript
+// DebugComponent - Assert metadata exists
+async expectMetadataExists(messageIndex: number): Promise<Metadata> {
+  const metadata = await this.getMetadata(messageIndex);
+  expect(metadata, `Message ${messageIndex} has no metadata`).not.toBeNull();
+  return metadata!;
+}
+
+async expectNoMetadata(messageIndex: number): Promise<void> {
+  const metadata = await this.getMetadata(messageIndex);
+  expect(metadata, `Message ${messageIndex} unexpectedly has metadata`).toBeNull();
+}
+
+// SourceCitationsComponent - Assert internally instead of returning boolean
+async verifyScoreOrdering(messageIndex: number, scoreType: 'fused' | 'vector' | 'bm25'): Promise<void> {
+  const scores = await this.getSourceScores(messageIndex);
+  const scoreArray = scoreType === 'fused' ? scores.fusedScores :
+                     scoreType === 'vector' ? scores.vectorScores :
+                     scores.bm25Scores;
+
+  for (let i = 1; i < scoreArray.length; i++) {
+    expect(
+      scoreArray[i],
+      `${scoreType} score at index ${i} (${scoreArray[i]}) is greater than previous (${scoreArray[i - 1]})`
+    ).toBeLessThanOrEqual(scoreArray[i - 1]);
+  }
+}
+```
+
+**When to Use Assertion Helpers:**
+- Replace `if (!value) throw new Error()` patterns
+- Replace methods returning boolean for assertions
+- Operations that should always succeed in valid test scenarios
+- Provide clear error messages with context (message index, filename, etc.)
+
+**Benefits:**
+- Tests remain deterministic (no if-else/try-catch)
+- Clear error messages when assertions fail
+- Type safety (non-null return values)
+- Reusable across multiple tests
+
 ### Encapsulation Rules
 
 **Never use `page.*` directly in tests** - all interactions must go through page objects:

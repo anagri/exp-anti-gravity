@@ -31,8 +31,7 @@ test.describe('Hybrid Search @live', () => {
 
     await documentsPage.uploadFilesToKBAndWait('Test KB', PG_ESSAYS.EQUITY, EQUITY_FILENAME);
 
-    const fileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
-    if (!fileId) throw new Error('File not found after upload');
+    const fileId = await documentsPage.documentList.card.getFileByName(EQUITY_FILENAME);
 
     await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
 
@@ -122,8 +121,7 @@ test.describe('Hybrid Search @live', () => {
     console.log(`Source attributes verified: chunkId=${scoreData.chunkId}, fusedScore=${scoreData.fusedScore}`);
 
     // Step 10: Verify fused scores are in descending order
-    const scoresOrdered = await chatPage.verifyScoreOrdering(0, 'fused');
-    expect(scoresOrdered).toBe(true);
+    await chatPage.verifyScoreOrdering(0, 'fused');
     console.log(`Fused scores correctly ordered in descending order`);
 
     // Step 11: Verify prompt is exposed (Phase prompt-exposure)

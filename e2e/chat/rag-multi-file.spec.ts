@@ -43,13 +43,9 @@ test.describe('Vector Search & RAG Workflow @live', () => {
     await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, PG_ESSAYS.EQUITY, EQUITY_FILENAME);
 
     // Get file IDs
-    const startupFileId = await documentsPage.documentList.findFileByName(STARTUP_FILENAME);
-    const inequalityFileId = await documentsPage.documentList.findFileByName(INEQUALITY_FILENAME);
-    const equityFileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
-
-    if (!startupFileId) throw new Error('Startup file not found');
-    if (!inequalityFileId) throw new Error('Inequality file not found');
-    if (!equityFileId) throw new Error('Equity file not found');
+    const startupFileId = await documentsPage.documentList.card.getFileByName(STARTUP_FILENAME);
+    const inequalityFileId = await documentsPage.documentList.card.getFileByName(INEQUALITY_FILENAME);
+    const equityFileId = await documentsPage.documentList.card.getFileByName(EQUITY_FILENAME);
 
     // Wait for all files to complete indexing
     await documentsPage.documentList.waitForIndexingStatus(startupFileId, 'completed');

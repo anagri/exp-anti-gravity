@@ -66,4 +66,11 @@ export class DocumentCardComponent {
 
     return chunkCount;
   }
+
+  // Assertion helper - throws if file not found
+  async getFileByName(filename: string): Promise<string> {
+    const fileId = await this.findFileByName(filename);
+    expect(fileId, `File not found: ${filename}`).toBeTruthy();
+    return fileId!;
+  }
 }

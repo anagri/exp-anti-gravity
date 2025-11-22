@@ -34,8 +34,7 @@ test.describe('BM25 Search @live', () => {
 
     await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, PG_ESSAYS.EQUITY, EQUITY_FILENAME);
 
-    const fileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
-    if (!fileId) throw new Error('File not found after upload');
+    const fileId = await documentsPage.documentList.card.getFileByName(EQUITY_FILENAME);
 
     // Wait for indexing (embeddings + Lunr index) to complete
     await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
@@ -74,8 +73,7 @@ test.describe('BM25 Search @live', () => {
 
     await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, PG_ESSAYS.EQUITY, EQUITY_FILENAME);
 
-    const fileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
-    if (!fileId) throw new Error('File not found after upload');
+    const fileId = await documentsPage.documentList.card.getFileByName(EQUITY_FILENAME);
 
     await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
 

@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 
 interface Metadata {
   chunkIds: string[];
@@ -41,5 +41,28 @@ export class DebugComponent {
 
     const promptText = await promptPre.textContent();
     return promptText;
+  }
+
+  // Assertion helpers
+  async expectMetadataExists(messageIndex: number): Promise<Metadata> {
+    const metadata = await this.getMetadata(messageIndex);
+    expect(metadata, `Message ${messageIndex} has no metadata`).not.toBeNull();
+    return metadata!;
+  }
+
+  async expectNoMetadata(messageIndex: number): Promise<void> {
+    const metadata = await this.getMetadata(messageIndex);
+    expect(metadata, `Message ${messageIndex} unexpectedly has metadata`).toBeNull();
+  }
+
+  async expectPromptExists(messageIndex: number): Promise<string> {
+    const prompt = await this.getPrompt(messageIndex);
+    expect(prompt, `Message ${messageIndex} has no prompt`).not.toBeNull();
+    return prompt!;
+  }
+
+  async expectNoPrompt(messageIndex: number): Promise<void> {
+    const prompt = await this.getPrompt(messageIndex);
+    expect(prompt, `Message ${messageIndex} unexpectedly has prompt`).toBeNull();
   }
 }

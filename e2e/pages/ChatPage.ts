@@ -164,8 +164,8 @@ export class ChatPage extends BasePage {
     return await this.sourceCitations.getSourceScores(messageIndex);
   }
 
-  async verifyScoreOrdering(messageIndex: number, scoreType: 'fused' | 'vector' | 'bm25'): Promise<boolean> {
-    return await this.sourceCitations.verifyScoreOrdering(messageIndex, scoreType);
+  async verifyScoreOrdering(messageIndex: number, scoreType: 'fused' | 'vector' | 'bm25'): Promise<void> {
+    await this.sourceCitations.verifyScoreOrdering(messageIndex, scoreType);
   }
 
   async getMessagePrompt(messageIndex: number): Promise<string | null> {

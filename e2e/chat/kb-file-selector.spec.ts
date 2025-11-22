@@ -36,8 +36,7 @@ test.describe('KB Workflow with Indexing @live', () => {
     await documentsPage.uploadFilesToKBAndWait('KB A', TEST_FILES.DOC_01_MD, FILE_NAMES.DOC_01_MD);
 
     // Wait for indexing to complete
-    const fileAId = await documentsPage.documentList.findFileByName(FILE_NAMES.DOC_01_MD);
-    if (!fileAId) throw new Error('File A not found');
+    const fileAId = await documentsPage.documentList.card.getFileByName(FILE_NAMES.DOC_01_MD);
     await documentsPage.documentList.waitForIndexedText(fileAId);
 
     await documentsPage.createKB('KB B');
@@ -48,8 +47,7 @@ test.describe('KB Workflow with Indexing @live', () => {
 
     await documentsPage.uploadFilesToKBAndWait('KB B', TEST_FILES.DOC_02_TXT, FILE_NAMES.DOC_02_TXT);
 
-    const fileBId = await documentsPage.documentList.findFileByName(FILE_NAMES.DOC_02_TXT);
-    if (!fileBId) throw new Error('File B not found');
+    const fileBId = await documentsPage.documentList.card.getFileByName(FILE_NAMES.DOC_02_TXT);
     await documentsPage.documentList.waitForIndexedText(fileBId);
 
     console.log('Documents uploaded and indexed');

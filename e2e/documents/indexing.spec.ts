@@ -30,8 +30,7 @@ test.describe('Indexing Workflow @live', () => {
 
     await documentsPage.uploadFilesToKBAndWait(TEST_KB_NAME, PG_ESSAYS.EQUITY, EQUITY_FILENAME);
 
-    const fileId = await documentsPage.documentList.findFileByName(EQUITY_FILENAME);
-    if (!fileId) throw new Error('File not found after upload');
+    const fileId = await documentsPage.documentList.card.getFileByName(EQUITY_FILENAME);
 
     await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
 

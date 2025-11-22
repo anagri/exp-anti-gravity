@@ -92,19 +92,18 @@ export class SourceCitationsComponent {
     return { vectorScores, bm25Scores, fusedScores };
   }
 
-  async verifyScoreOrdering(messageIndex: number, scoreType: 'fused' | 'vector' | 'bm25'): Promise<boolean> {
+  async verifyScoreOrdering(messageIndex: number, scoreType: 'fused' | 'vector' | 'bm25'): Promise<void> {
     const scores = await this.getSourceScores(messageIndex);
     const scoreArray = scoreType === 'fused' ? scores.fusedScores :
                        scoreType === 'vector' ? scores.vectorScores :
                        scores.bm25Scores;
 
     for (let i = 1; i < scoreArray.length; i++) {
-      if (scoreArray[i] > scoreArray[i - 1]) {
-        return false;
-      }
+      expect(
+        scoreArray[i],
+        `${scoreType} score at index ${i} (${scoreArray[i]}) is greater than previous (${scoreArray[i - 1]})`
+      ).toBeLessThanOrEqual(scoreArray[i - 1]);
     }
-
-    return true;
   }
 
   // Backward-compatible aliases
