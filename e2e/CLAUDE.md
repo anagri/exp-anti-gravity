@@ -41,7 +41,7 @@ All page objects extend `BasePage` (handles `/exp-anti-gravity` basename automat
 // ✅ Test usage
 const documentsPage = new DocumentPage(page);
 await documentsPage.setup();
-await documentsPage.navigateTo('/documents');  // basename added automatically
+await documentsPage.navigateTo('/documents'); // basename added automatically
 
 // ❌ Never hardcode URLs
 await page.goto('/exp-anti-gravity/documents');
@@ -52,6 +52,7 @@ await page.goto('/exp-anti-gravity/documents');
 BasePage provides common utilities inherited by all page objects:
 
 **Navigation & Routing:**
+
 - `navigateTo(path)` - Navigate with basename handling
 - `waitForPath(path)` - Wait for URL path
 - `expectCurrentPath(pathname)` - Assert current path
@@ -60,9 +61,11 @@ BasePage provides common utilities inherited by all page objects:
 - `goForward()` - Browser forward navigation
 
 **Feature Flag Management:**
+
 - `setFeatureFlag(flagName, enabled)` - Set feature flags via localStorage
 
 **Element Helpers:**
+
 - `clickTestId(testId)` - Click element by test ID
 - `fillTestId(testId, value)` - Fill input by test ID
 - `getTextByTestId(testId)` - Get text content by test ID
@@ -101,30 +104,33 @@ export class ChatPage extends BasePage {
   readonly input: ChatInputComponent;
   readonly debug: DebugComponent;
   readonly fileSelector: FileSelectorComponent;
-  readonly settings: SettingsComponent;  // Shared component
+  readonly settings: SettingsComponent; // Shared component
 
   constructor(page: Page, baseUrl: string) {
     super(page, baseUrl);
     this.messages = new MessagesComponent(page);
     this.sources = new SourcesComponent(page);
     // ... instantiate all components
-    this.settings = new SettingsComponent(page);  // Shared across pages
+    this.settings = new SettingsComponent(page); // Shared across pages
   }
 }
 ```
 
 **When to Create Components:**
+
 1. **Logical UI Grouping** - Messages, sources, attachments are distinct UI sections
 2. **Single Responsibility** - Each component handles one concern
 3. **Reusability** - Multiple tests use the same interactions
 4. **Complexity Threshold** - 5+ related methods warrant a component
 
 **Component Naming:**
+
 - Page-specific: `e2e/pages/chat/MessagesComponent.ts`
 - Shared: `e2e/pages/shared/SettingsComponent.ts`
 - Search: `e2e/pages/search/SearchInputComponent.ts`
 
 **Component Structure:**
+
 ```typescript
 export class MessagesComponent {
   constructor(private readonly page: Page) {}
@@ -151,12 +157,14 @@ export class MessagesComponent {
 ### Shared vs Page-Specific Components
 
 **Shared Components** (`e2e/pages/shared/`):
+
 - Used by multiple page objects
 - Example: `SettingsComponent` (used by DocumentPage, ChatPage, WelcomePage)
 - Must be stateless, no page-specific assumptions
 - Import: `import { SettingsComponent } from './shared/SettingsComponent'`
 
 **Page-Specific Components** (`e2e/pages/{pagename}/`):
+
 - Used only by one page object
 - Example: `MessagesComponent` (only ChatPage), `KnowledgeBaseComponent` (only DocumentPage)
 - Can assume page context
@@ -169,6 +177,7 @@ export class MessagesComponent {
 **Pattern: Assertion Helpers Return After Asserting**
 
 Components should provide two types of methods for nullable operations:
+
 1. **Finder methods** - Return nullable values (e.g., `findFileByName()` returns `string | null`)
 2. **Assertion helpers** - Assert existence and return non-null values (e.g., `getFileByName()` returns `string`)
 
@@ -242,12 +251,14 @@ async verifyScoreOrdering(messageIndex: number, scoreType: 'fused' | 'vector' | 
 ```
 
 **When to Use Assertion Helpers:**
+
 - Replace `if (!value) throw new Error()` patterns
 - Replace methods returning boolean for assertions
 - Operations that should always succeed in valid test scenarios
 - Provide clear error messages with context (message index, filename, etc.)
 
 **Benefits:**
+
 - Tests remain deterministic (no if-else/try-catch)
 - Clear error messages when assertions fail
 - Type safety (non-null return values)
@@ -276,6 +287,7 @@ test('upload file', async ({ page }) => {
 ```
 
 **Zero `page.*` Tolerance:**
+
 - Tests should only use `page` parameter for page object constructors
 - All `page.click()`, `page.fill()`, `page.waitFor*()` calls violate encapsulation
 - All `page.locator()`, `page.getByTestId()` calls belong in page objects
@@ -317,6 +329,7 @@ async expandKB(kbName: string) {
 ```
 
 Tests can use either:
+
 - `documentsPage.createKB('KB A')` - Convenience wrapper
 - `documentsPage.knowledgeBase.create('KB A')` - Direct component access
 
@@ -339,6 +352,7 @@ await documentsPage.documentList.waitForIndexingStatus(fileId, 'completed');
 ### Keep in Sync with UI
 
 When UI changes, update page objects:
+
 - Remove methods for removed elements
 - Add methods for new elements
 - Update selectors when testids change
@@ -349,17 +363,23 @@ When UI changes, update page objects:
 ### Phase-Based Refactoring
 
 **Phase 1: Create Components** (no test changes)
+
 ```typescript
 // Create e2e/pages/documents/KnowledgeBaseComponent.ts
 export class KnowledgeBaseComponent {
   constructor(private readonly page: Page) {}
-  async create(name: string, description?: string) { /* ... */ }
-  async expand(kbName: string) { /* ... */ }
+  async create(name: string, description?: string) {
+    /* ... */
+  }
+  async expand(kbName: string) {
+    /* ... */
+  }
   // Extract all KB-related logic from DocumentPage
 }
 ```
 
 **Phase 2: Integrate into Page Object** (backward compatible)
+
 ```typescript
 // DocumentPage.ts
 export class DocumentPage extends BasePage {
@@ -378,6 +398,7 @@ export class DocumentPage extends BasePage {
 ```
 
 **Phase 3: Update Tests** (one test at a time)
+
 ```typescript
 // Before
 await page.getByTestId('btn-create-kb').click();
@@ -390,6 +411,7 @@ await documentsPage.knowledgeBase.create('KB A');
 ```
 
 **Phase 4: Run Tests** (verify no regressions)
+
 ```bash
 npm run test:e2e:all
 ```
@@ -399,11 +421,13 @@ npm run test:e2e:all
 ### Refactoring Checklist
 
 Before starting:
+
 - ✅ Identify direct `page.*` violations in tests
 - ✅ Group related violations (messages, sources, KB operations, etc.)
 - ✅ Plan component structure (one component per logical group)
 
 During refactoring:
+
 - ✅ Create components first (no test changes)
 - ✅ Integrate into page object with backward-compatible wrappers
 - ✅ Update one test at a time
@@ -411,6 +435,7 @@ During refactoring:
 - ✅ Run full suite before committing
 
 After refactoring:
+
 - ✅ All tests passing
 - ✅ Zero direct `page.*` usage in tests
 - ✅ Logical commits (component creation → integration → test updates)
@@ -452,6 +477,7 @@ await chatPage.loadingState.waitForThinkingToDisappear();
 ### When Adding Background Operations
 
 Always expose completion state via data attributes:
+
 - `data-db-initialized="true|false"`
 - `data-uploading="true|false"`
 - `data-indexing-status="completed|failed"` (not "processing")
@@ -459,6 +485,7 @@ Always expose completion state via data attributes:
 - Use boolean flags for completion, avoid intermediate states
 
 **Example - Add loading state to button:**
+
 ```tsx
 // Component
 <Button
@@ -479,9 +506,10 @@ async refreshModels() {
 ## Selectors & Assertions
 
 **Use `data-testid`** (preferred) or semantic selectors:
+
 ```typescript
 await page.getByTestId('btn-create-kb').click();
-await page.getByRole('button', { name: 'Start' }).click();  // acceptable
+await page.getByRole('button', { name: 'Start' }).click(); // acceptable
 ```
 
 **Never CSS selectors** like `.btn-primary` or generic locators.
@@ -502,6 +530,7 @@ import { loadTestApiKey } from './utils/env';
 ### Test Organization
 
 **Feature-Based Structure:**
+
 ```
 e2e/
 ├── chat/              # Chat page tests
@@ -530,14 +559,18 @@ e2e/
 ### Live Tests
 
 Tag with `@live` (hits real OpenAI API, costs money):
+
 ```typescript
 test.describe('Indexing Workflow @live', () => {
-  test.beforeAll(() => { apiKey = loadTestApiKey(); });
+  test.beforeAll(() => {
+    apiKey = loadTestApiKey();
+  });
   // ...
 });
 ```
 
 **About @live Tests:**
+
 - `@live` tests hit real OpenAI APIs (chat completions + embeddings) and cost money
 - Tests without `@live` tag do not hit OpenAI APIs
 - Embedding pipeline automatically triggers when uploading files
@@ -554,6 +587,7 @@ test.describe('Indexing Workflow @live', () => {
 ### Feature Flags
 
 **✅ CORRECT: Use page object method**
+
 ```typescript
 test.beforeEach(async ({ page }) => {
   documentsPage = new DocumentPage(page);
@@ -566,6 +600,7 @@ test.beforeEach(async ({ page }) => {
 ```
 
 **❌ WRONG: Direct page usage**
+
 ```typescript
 await page.addInitScript(() => {
   localStorage.setItem('feature-flag-FEATURE_INDEXING_ENABLED', 'false');
@@ -575,6 +610,7 @@ await page.addInitScript(() => {
 ### Separate Test Files for Different Setups
 
 When features require different configurations, create separate test files:
+
 - `kb-crud.spec.ts`: Tests with indexing disabled (faster, UI-only)
 - `indexing.spec.ts`: Tests with indexing enabled (requires API, slower)
 
@@ -618,6 +654,7 @@ await chatPage.sources.expectScoreOrdering(0, 'fused');
 ### Persistence
 
 **✅ CORRECT: Use page object reload**
+
 ```typescript
 const preReload = await documentsPage.documentList.getChunkCount(fileId);
 await documentsPage.reload();
@@ -627,6 +664,7 @@ expect(postReload).toBe(preReload);
 ```
 
 **❌ WRONG: Direct page reload**
+
 ```typescript
 await page.reload();
 ```
@@ -656,6 +694,7 @@ await documentsPage.settings.close();
 ## Quick Reference
 
 ### Test Organization
+
 - Search existing tests before creating new files, add phases to existing tests when possible
 - Feature-based folders: `e2e/chat/`, `e2e/documents/`, `e2e/settings/`
 - **Preserve coverage**: Don't remove test scenarios when refactoring; if unsure, ask user
@@ -663,6 +702,7 @@ await documentsPage.settings.close();
 - Separate test files for different setups (indexing on/off, @live vs mocked)
 
 ### Page Objects
+
 - **All page objects**: Never direct `page.*` in tests, encapsulate all interactions
 - **Component-based**: Break complex pages into focused components
 - **Shared components**: Use `e2e/pages/shared/` for cross-page components
@@ -670,9 +710,10 @@ await documentsPage.settings.close();
 - Keep page objects synced with UI (remove old, add new elements)
 
 ### Best Practices
+
 - **Group patterns**: Extract repeated find → action → wait into single methods
 - **No inline timeouts**: Use framework defaults, configure globally if needed
-- **Zero page.* in tests**: All interactions through page objects
+- **Zero page.\* in tests**: All interactions through page objects
 - Phase naming: kebab-case with → notation (`validation → lifecycle → persistence`)
 - State waiting: use data attributes, never `waitForTimeout`, test final states only
 - Always add UI indicators for background ops (`data-loading`, `data-indexing-status`)
@@ -682,6 +723,7 @@ await documentsPage.settings.close();
 - Assertion order: `expect(actual).toBe(expected)`
 
 ### Refactoring
+
 - Phase-based: components → integration → tests → verify
 - One test at a time with immediate verification
 - Backward-compatible wrappers during migration
@@ -693,33 +735,39 @@ await documentsPage.settings.close();
 **Maintain alignment between E2E page objects and app components:**
 
 **Component Naming:**
+
 - E2E components add `Component` suffix: `{AppComponentName}Component.ts`
 - Example: `AttachmentBadges.tsx` → `AttachmentBadgesComponent.ts`
 - Composite components describe aggregated functionality clearly
 
 **Structure Alignment:**
+
 - Mirror app page folder structure where logical
 - Page-specific: `e2e/pages/{page}/ComponentName.ts`
 - Shared: `e2e/pages/shared/` maps to `src/components/`
 
 **Granularity Principles:**
+
 - Follow app component granularity (fine-grained preferred)
 - May compose sub-components for complex UI sections
 - Use composition over large monolithic components
 - Document aggregation in comments when combining multiple app components
 
 **Component Mapping:**
+
 - Add mapping comment: `// Maps to src/pages/[path]/Component.tsx`
 - Maintain 1:1 relationships where possible
 - Document aggregations clearly (e.g., DocumentListComponent composes Card + StatusBadge + Progress)
 
 **When App Changes:**
+
 - New app component extracted → create matching E2E component
 - App component split → split E2E component to match
 - App component merged → merge E2E components
 - Add backward-compatible wrapper methods in parent page object during transition
 
 **Composition Pattern:**
+
 ```typescript
 export class CompositeComponent {
   readonly subComponent1: SubComponent1;

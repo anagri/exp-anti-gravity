@@ -3,12 +3,7 @@
   "compilerOptions": {
     "composite": true,
     "noEmit": false,
-    "lib": [
-      "ES2020",
-      "WebWorker"
-    ]
+    "lib": ["ES2020", "WebWorker"]
   },
-  "include": [
-    "src/workers/**/*"
-  ]
+  "include": ["src/workers/**/*"]
 }

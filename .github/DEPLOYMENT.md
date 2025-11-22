@@ -25,14 +25,17 @@ git push origin main
 ## Configuration Details
 
 ### Base Path
+
 - Configured in `vite.config.ts` as `base: '/exp-anti-gravity/'`
 - Matches repository name for GitHub Pages subdirectory deployment
 
 ### Workflow Triggers
+
 - **Push to main branch**: Auto-deploys on every push
 - **Manual dispatch**: Can trigger manually via Actions tab
 
 ### Build Process
+
 1. Checkout code
 2. Setup Node.js 20
 3. Install dependencies with `npm ci`
@@ -43,25 +46,30 @@ git push origin main
 ## Local Testing
 
 Test production build locally:
+
 ```bash
 npm run build
 npm run preview
 ```
+
 Visit: http://127.0.0.1:4173
 
 ## Troubleshooting
 
 **404 on GitHub Pages?**
+
 - Verify base path in `vite.config.ts` matches repo name
 - Check GitHub Pages is enabled in Settings
 - Wait 1-2 minutes for DNS propagation
 
 **Build failing?**
+
 - Check Actions tab for error logs
 - Verify all dependencies in package.json
 - Test build locally first
 
 **Assets not loading?**
+
 - Ensure base path is correct
 - Check browser console for 404 errors
 - Verify asset paths use relative imports

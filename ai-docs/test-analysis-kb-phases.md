@@ -8,6 +8,7 @@
 ## Test Suite Results
 
 ### ✅ Unit Tests: ALL PASSING (37/37)
+
 - `src/test/example.test.ts` - ✅ PASSING
 - `src/lib/feature-flags.test.ts` - ✅ PASSING (10 tests)
 - `src/contexts/ApiKeyContext.test.tsx` - ✅ PASSING (3 tests)
@@ -51,6 +52,7 @@
 ### Test: `documents-upload.spec.ts`
 
 **Test Intent:**
+
 - Navigate to /documents page
 - Expect empty state for documents
 - Upload files via drag-and-drop
@@ -61,6 +63,7 @@
 - Test persistence across page reload
 
 **Current Behavior:**
+
 - Page now shows "Knowledge Bases" instead of "Documents"
 - Empty state is "No knowledge bases yet" (no `data-testid="div-doc-empty"`)
 - No upload zone at page level (will be inside expanded KB)
@@ -68,10 +71,13 @@
 
 **Root Cause:**
 Page structure fundamentally changed from:
+
 ```
 /documents → UploadZone + DocumentList
 ```
+
 To:
+
 ```
 /documents → KBList → [Expanded KB] → DocumentList (inside KB)
                     → UploadZone (inside KB)
@@ -87,14 +93,15 @@ This test will be **FIXED and UPDATED in Phase kb-upload** because:
    - Documents uploaded to specific KB
 
 2. **Test Updates Required:**
+
    ```typescript
    // BEFORE (old flow)
    await documentsPage.expectEmptyState(); // ❌ Wrong page structure
    await documentsPage.uploadFiles(files); // ❌ No page-level upload zone
 
    // AFTER (new flow - Phase kb-upload)
-   await documentsPage.createKB('Test KB');  // 1. Create KB
-   await documentsPage.expandKB('Test KB');  // 2. Expand KB
+   await documentsPage.createKB('Test KB'); // 1. Create KB
+   await documentsPage.expandKB('Test KB'); // 2. Expand KB
    await documentsPage.expectEmptyDocumentsInKB(); // 3. Empty docs (not empty KBs)
    await documentsPage.uploadFilesToKB('Test KB', files); // 4. Upload to KB
    await documentsPage.expectDocumentsInKB('Test KB', 1); // 5. Verify in KB
@@ -117,9 +124,11 @@ This test will be **FIXED and UPDATED in Phase kb-upload** because:
 ## Phase-by-Phase Fix Plan
 
 ### Phase kb-upload (CURRENT - NEXT TO IMPLEMENT)
+
 **Will Fix:** `documents-upload.spec.ts`
 
 **Implementation Order:**
+
 1. ✅ Add UploadZone component inside expanded KB card
 2. ✅ Modify `uploadFiles()` to accept `kbId` parameter
 3. ✅ Wire up KB context to upload flow
@@ -133,6 +142,7 @@ This test will be **FIXED and UPDATED in Phase kb-upload** because:
 7. ✅ Create new test: `02-kb-upload.spec.ts` for KB-specific scenarios
 
 **Acceptance Criteria:**
+
 - ✅ `documents-upload.spec.ts` passes with updated KB-aware assertions
 - ✅ `02-kb-upload.spec.ts` passes (new test)
 - ✅ Upload only works inside expanded KB context
@@ -141,9 +151,11 @@ This test will be **FIXED and UPDATED in Phase kb-upload** because:
 ---
 
 ### Phase kb-filtering (PARTIALLY COMPLETE)
+
 **Status:** Expansion/collapse UI done, getDocuments JOIN pending
 
 **Remaining Work:**
+
 1. Update `getDocuments()` query with LEFT JOIN to knowledge_bases
 2. Expose KB metadata (name, color) in Document interface for display
 3. Write `03-kb-filtering.spec.ts`:
@@ -157,9 +169,11 @@ This test will be **FIXED and UPDATED in Phase kb-upload** because:
 ---
 
 ### Phase kb-selection-chat (NOT STARTED)
+
 **Will Fix:** None (no existing tests broken)
 
 **New Tests:**
+
 - `04-kb-selection-chat.spec.ts`
 - Tests chat FileSelector with KB filter
 - No impact on existing document upload flow
@@ -167,6 +181,7 @@ This test will be **FIXED and UPDATED in Phase kb-upload** because:
 ---
 
 ### Phase kb-persistence (ALREADY COMPLETE)
+
 **Status:** URL query param persistence already implemented
 **Will Fix:** None
 
@@ -175,19 +190,23 @@ This test will be **FIXED and UPDATED in Phase kb-upload** because:
 ## Summary
 
 ### Tests Passing: 41/42 (97.6%)
+
 - ✅ Unit tests: 37/37 (100%)
 - ✅ E2E tests: 4/5 (80%)
 
 ### Tests Failing: 1/42 (2.4%)
+
 - ❌ `documents-upload.spec.ts` → **Fix in Phase kb-upload**
 
 ### Test Update Strategy
+
 1. **Phase kb-upload:** Update `documents-upload.spec.ts` for KB-aware flow
 2. **Phase kb-upload:** Write new `02-kb-upload.spec.ts` for KB-specific scenarios
 3. **Phase kb-filtering:** Write `03-kb-filtering.spec.ts` for expansion/filtering
 4. **Phase kb-selection-chat:** Write `04-kb-selection-chat.spec.ts` for chat integration
 
 ### No Regression Risk
+
 - All new KB functionality has passing tests
 - Single failing test has clear fix path in next phase
 - Unit tests remain stable (no business logic changes)
@@ -199,12 +218,14 @@ This test will be **FIXED and UPDATED in Phase kb-upload** because:
 ✅ **PROCEED with Phase kb-upload**
 
 Rationale:
+
 - 97.6% test pass rate indicates solid foundation
 - Single failure is expected architectural change
 - Clear fix path identified and documented
 - No blocking issues for continued development
 
 Next Steps:
+
 1. Implement Phase kb-upload (upload zone in expanded KB)
 2. Update `documents-upload.spec.ts` with KB-aware flow
 3. Write `02-kb-upload.spec.ts` for new scenarios

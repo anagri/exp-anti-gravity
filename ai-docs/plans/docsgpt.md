@@ -9,33 +9,40 @@ This PRD outlines the development of a browser-only, client-side RAG (Retrieval-
 ## Phase 1: Core RAG Foundation
 
 ### Objective
+
 Establish the fundamental RAG pipeline: document ingestion, chunking, embedding, storage, and basic question-answering.
 
 ### Features
 
 #### 1.1 Document Upload
+
 - **Description**: Users can upload a single document (PDF, TXT, MD) through a drag-and-drop interface
-- **Reference**: DocsGPT supports multiple formats including PDF, DOCX, CSV, XLSX, EPUB, MD, and more [1](#0-0) 
+- **Reference**: DocsGPT supports multiple formats including PDF, DOCX, CSV, XLSX, EPUB, MD, and more [1](#0-0)
 
 #### 1.2 Document Processing Pipeline
+
 - **Description**: Automatically parse, chunk (150-1250 token chunks), and prepare documents for embedding
-- **Reference**: The embedding pipeline handles document chunking and preparation [2](#0-1) 
+- **Reference**: The embedding pipeline handles document chunking and preparation [2](#0-1)
 
 #### 1.3 In-Browser Vector Storage
+
 - **Description**: Generate embeddings and store in PGLite+pgvector for similarity search
-- **Reference**: DocsGPT uses vectorstores with search capabilities [3](#0-2) 
+- **Reference**: DocsGPT uses vectorstores with search capabilities [3](#0-2)
 
 #### 1.4 Basic Chat Interface
+
 - **Description**: Simple text input for questions with streaming response display
-- **Reference**: The conversation interface handles message input and display [4](#0-3) 
+- **Reference**: The conversation interface handles message input and display [4](#0-3)
 
 #### 1.5 Simple RAG Query Flow
+
 - **Description**: User asks a question → retrieve relevant chunks → send to LLM → display answer
-- **Reference**: ClassicRAG implements the retrieval logic [5](#0-4) 
+- **Reference**: ClassicRAG implements the retrieval logic [5](#0-4)
 
 ### Functional Tests (Phase 1 Complete)
 
 **Test 1.1: Document Upload Success**
+
 ```
 GIVEN a user is on the home screen
 WHEN they drag and drop a PDF file
@@ -45,6 +52,7 @@ AND complete with a success message
 ```
 
 **Test 1.2: Chunk Generation**
+
 ```
 GIVEN a document has been uploaded
 WHEN processing completes
@@ -54,6 +62,7 @@ AND user should see confirmation of X chunks created
 ```
 
 **Test 1.3: Basic Question Answering**
+
 ```
 GIVEN a document has been processed and stored
 WHEN user types "What is the main topic of this document?"
@@ -63,6 +72,7 @@ AND display the answer in the chat interface
 ```
 
 **Test 1.4: Source Context Retrieval**
+
 ```
 GIVEN a user asks a question
 WHEN the RAG system retrieves information
@@ -71,6 +81,7 @@ AND these chunks should be used to augment the LLM prompt
 ```
 
 **Test 1.5: Answer Streaming**
+
 ```
 GIVEN a question is submitted
 WHEN the LLM generates a response
@@ -83,33 +94,40 @@ AND display progressively as it's generated
 ## Phase 2: Enhanced Conversation Experience
 
 ### Objective
+
 Build a complete conversational interface with history, context, and source attribution.
 
 ### Features
 
 #### 2.1 Conversation History
+
 - **Description**: Maintain full conversation context with messages persisted in browser storage
-- **Reference**: Conversations are stored and managed [6](#0-5) 
+- **Reference**: Conversations are stored and managed [6](#0-5)
 
 #### 2.2 Query Rephrasing with Context
+
 - **Description**: Use conversation history to rephrase follow-up questions for better retrieval
-- **Reference**: ClassicRAG rephrases queries with conversation context [7](#0-6) 
+- **Reference**: ClassicRAG rephrases queries with conversation context [7](#0-6)
 
 #### 2.3 Source Citations
+
 - **Description**: Display source documents and specific chunks used to generate each answer
-- **Reference**: Retrieved documents include title, text, source, and filename metadata [8](#0-7) 
+- **Reference**: Retrieved documents include title, text, source, and filename metadata [8](#0-7)
 
 #### 2.4 Conversation Management
+
 - **Description**: Create new conversations, switch between conversations, view history
-- **Reference**: The navigation component handles conversation management [9](#0-8) 
+- **Reference**: The navigation component handles conversation management [9](#0-8)
 
 #### 2.5 Message Display
+
 - **Description**: Styled message bubbles showing user questions and AI responses with sources
-- **Reference**: ConversationBubble displays messages with formatting [10](#0-9) 
+- **Reference**: ConversationBubble displays messages with formatting [10](#0-9)
 
 ### Functional Tests (Phase 2 Complete)
 
 **Test 2.1: Multi-Turn Conversation**
+
 ```
 GIVEN a user has asked "What is machine learning?"
 AND received an answer
@@ -119,6 +137,7 @@ AND provide relevant follow-up answer
 ```
 
 **Test 2.2: Source Attribution Display**
+
 ```
 GIVEN a user receives an answer
 WHEN the answer is displayed
@@ -128,6 +147,7 @@ AND allow clicking to see full source chunk
 ```
 
 **Test 2.3: Conversation Persistence**
+
 ```
 GIVEN a user has had a conversation
 WHEN they refresh the page
@@ -136,6 +156,7 @@ AND they can continue where they left off
 ```
 
 **Test 2.4: New Conversation Creation**
+
 ```
 GIVEN a user is in an existing conversation
 WHEN they click "New Chat"
@@ -145,6 +166,7 @@ AND be accessible from the sidebar
 ```
 
 **Test 2.5: Context-Aware Retrieval**
+
 ```
 GIVEN a conversation history exists
 WHEN a follow-up question is asked
@@ -158,33 +180,40 @@ AND return more contextually relevant results
 ## Phase 3: Knowledge Base Management
 
 ### Objective
+
 Enable users to manage multiple document sources, creating comprehensive knowledge bases.
 
 ### Features
 
 #### 3.1 Multiple Document Upload
+
 - **Description**: Upload multiple documents and organize them as sources
-- **Reference**: DocsGPT supports multiple source management [11](#0-10) 
+- **Reference**: DocsGPT supports multiple source management [11](#0-10)
 
 #### 3.2 Source Library
+
 - **Description**: View all uploaded sources with metadata (name, file count, chunk count, upload date)
-- **Reference**: Sources are tracked with metadata in the system [12](#0-11) 
+- **Reference**: Sources are tracked with metadata in the system [12](#0-11)
 
 #### 3.3 Source Selection
+
 - **Description**: Choose which sources to query in each conversation
-- **Reference**: Vectorstores can be specified for retrieval [13](#0-12) 
+- **Reference**: Vectorstores can be specified for retrieval [13](#0-12)
 
 #### 3.4 Source Management
+
 - **Description**: Delete sources, view source details, re-index sources
-- **Reference**: The worker handles document ingestion tasks [14](#0-13) 
+- **Reference**: The worker handles document ingestion tasks [14](#0-13)
 
 #### 3.5 Multi-Format Support
+
 - **Description**: Support PDF, DOCX, TXT, MD, CSV, HTML, and other common formats
-- **Reference**: DocsGPT reads multiple formats [1](#0-0) 
+- **Reference**: DocsGPT reads multiple formats [1](#0-0)
 
 ### Functional Tests (Phase 3 Complete)
 
 **Test 3.1: Multiple Document Upload**
+
 ```
 GIVEN a user is on the sources page
 WHEN they select and upload 5 different PDF files
@@ -194,6 +223,7 @@ AND show individual chunk counts
 ```
 
 **Test 3.2: Source Selection for Query**
+
 ```
 GIVEN a user has uploaded documents about "Python" and "JavaScript"
 WHEN they create a new conversation
@@ -204,6 +234,7 @@ AND answers should only reference Python content
 ```
 
 **Test 3.3: Cross-Source Querying**
+
 ```
 GIVEN a user has multiple sources uploaded
 WHEN they select 2 or more sources for a conversation
@@ -213,6 +244,7 @@ AND properly attribute each source in citations
 ```
 
 **Test 3.4: Source Deletion**
+
 ```
 GIVEN a user has uploaded 3 sources
 WHEN they delete one source
@@ -222,6 +254,7 @@ AND conversations using that source should show a warning
 ```
 
 **Test 3.5: Format Support Verification**
+
 ```
 GIVEN a user has documents in PDF, DOCX, TXT, and MD formats
 WHEN they upload each format
@@ -235,29 +268,35 @@ AND be searchable in conversations
 ## Phase 4: Hybrid Search System
 
 ### Objective
+
 Implement BM25 keyword search alongside vector search for improved retrieval accuracy.
 
 ### Features
 
 #### 4.1 BM25 Keyword Indexing
+
 - **Description**: Build Lunr.js keyword index alongside vector embeddings
-- **Reference**: Elasticsearch vectorstore uses hybrid search combining vector and text matching [15](#0-14) 
+- **Reference**: Elasticsearch vectorstore uses hybrid search combining vector and text matching [15](#0-14)
 
 #### 4.2 Hybrid Search Algorithm
+
 - **Description**: Combine vector similarity search with keyword search using RRF (Reciprocal Rank Fusion)
-- **Reference**: Elasticsearch implementation uses RRF ranking [16](#0-15) 
+- **Reference**: Elasticsearch implementation uses RRF ranking [16](#0-15)
 
 #### 4.3 Search Mode Selection
+
 - **Description**: Allow users to choose between vector-only, keyword-only, or hybrid search
-- **Reference**: Different vectorstore implementations support different search methods [17](#0-16) 
+- **Reference**: Different vectorstore implementations support different search methods [17](#0-16)
 
 #### 4.4 Chunk Limit Configuration
+
 - **Description**: Let users adjust how many chunks to retrieve (0, 2, 4, 6, 8, 10)
-- **Reference**: Chunks are configurable in settings [18](#0-17) 
+- **Reference**: Chunks are configurable in settings [18](#0-17)
 
 ### Functional Tests (Phase 4 Complete)
 
 **Test 4.1: Keyword Search Accuracy**
+
 ```
 GIVEN documents contain specific terms like "neural network"
 WHEN a user searches with exact keywords
@@ -266,6 +305,7 @@ AND retrieve chunks containing those exact terms
 ```
 
 **Test 4.2: Semantic Search Accuracy**
+
 ```
 GIVEN documents discuss "machine learning"
 WHEN a user asks "What is AI training?"
@@ -274,6 +314,7 @@ AND retrieve relevant chunks even without exact keyword matches
 ```
 
 **Test 4.3: Hybrid Search Superiority**
+
 ```
 GIVEN a query with both semantic intent and specific keywords
 WHEN hybrid search is used
@@ -282,6 +323,7 @@ AND RRF ranking should balance both approaches
 ```
 
 **Test 4.4: Chunk Limit Adjustment**
+
 ```
 GIVEN a user sets chunk limit to 4
 WHEN they ask a question
@@ -291,6 +333,7 @@ AND adjusting to 2 should retrieve only 2 chunks
 ```
 
 **Test 4.5: No-Retrieval Mode**
+
 ```
 GIVEN a user sets chunks to 0
 WHEN they ask a question
@@ -304,33 +347,40 @@ AND function as a general chatbot
 ## Phase 5: Agent System Foundation
 
 ### Objective
+
 Introduce configurable agents with custom prompts and behavior.
 
 ### Features
 
 #### 5.1 Agent Creation
+
 - **Description**: Create named agents with descriptions and custom system prompts
-- **Reference**: NewAgent component handles agent creation [19](#0-18) 
+- **Reference**: NewAgent component handles agent creation [19](#0-18)
 
 #### 5.2 System Prompt Management
+
 - **Description**: Define and manage reusable system prompts (instructions)
-- **Reference**: Prompts are managed and stored [20](#0-19) 
+- **Reference**: Prompts are managed and stored [20](#0-19)
 
 #### 5.3 Agent-Source Binding
+
 - **Description**: Bind specific knowledge sources to agents
-- **Reference**: Agents can be configured with specific sources [21](#0-20) 
+- **Reference**: Agents can be configured with specific sources [21](#0-20)
 
 #### 5.4 Agent Library
+
 - **Description**: View, edit, and manage multiple agents
-- **Reference**: AgentsList displays available agents [22](#0-21) 
+- **Reference**: AgentsList displays available agents [22](#0-21)
 
 #### 5.5 Agent Selection in Chat
+
 - **Description**: Choose which agent to chat with for different purposes
-- **Reference**: Selected agent is managed in state [23](#0-22) 
+- **Reference**: Selected agent is managed in state [23](#0-22)
 
 ### Functional Tests (Phase 5 Complete)
 
 **Test 5.1: Agent Creation with Custom Prompt**
+
 ```
 GIVEN a user creates a new agent named "Technical Writer"
 AND sets system prompt to "You are a technical documentation expert..."
@@ -339,6 +389,7 @@ THEN responses should follow the specified persona and instructions
 ```
 
 **Test 5.2: Agent-Source Specificity**
+
 ```
 GIVEN an agent is configured with only "Python Docs" source
 WHEN a user asks this agent about JavaScript
@@ -347,6 +398,7 @@ AND not retrieve unrelated sources
 ```
 
 **Test 5.3: Multiple Agent Management**
+
 ```
 GIVEN a user has created 3 different agents
 WHEN they view the agent library
@@ -356,6 +408,7 @@ AND allow editing or deleting any agent
 ```
 
 **Test 5.4: Agent Switching**
+
 ```
 GIVEN a user is chatting with "Agent A"
 WHEN they switch to "Agent B"
@@ -364,6 +417,7 @@ AND maintain separate conversation histories
 ```
 
 **Test 5.5: Prompt Templates**
+
 ```
 GIVEN preset prompt templates exist (Creative, Strict, Default)
 WHEN a user creates an agent
@@ -376,33 +430,40 @@ AND customize the template for their needs
 ## Phase 6: Tools & Function Calling
 
 ### Objective
+
 Enable agents to use tools and perform actions beyond document retrieval.
 
 ### Features
 
 #### 6.1 Tool Definition Interface
+
 - **Description**: Define custom tools with names, descriptions, and parameters
-- **Reference**: Tools are configured in the system [24](#0-23) 
+- **Reference**: Tools are configured in the system [24](#0-23)
 
 #### 6.2 API Tool Actions
+
 - **Description**: Create tools that call external APIs with configurable endpoints, methods, headers, and bodies
-- **Reference**: APITool executes custom API actions [25](#0-24) 
+- **Reference**: APITool executes custom API actions [25](#0-24)
 
 #### 6.3 Tool Binding to Agents
+
 - **Description**: Attach specific tools to agents, making them available during conversations
-- **Reference**: Agents can be configured with tools [26](#0-25) 
+- **Reference**: Agents can be configured with tools [26](#0-25)
 
 #### 6.4 Function Calling
+
 - **Description**: LLM decides when to call tools based on user queries
-- **Reference**: BaseAgent prepares tools and executes tool actions [27](#0-26) 
+- **Reference**: BaseAgent prepares tools and executes tool actions [27](#0-26)
 
 #### 6.5 Tool Call Display
+
 - **Description**: Show tool invocations and results in the chat interface
-- **Reference**: ConversationBubble displays tool calls [10](#0-9) 
+- **Reference**: ConversationBubble displays tool calls [10](#0-9)
 
 ### Functional Tests (Phase 6 Complete)
 
 **Test 6.1: Tool Creation**
+
 ```
 GIVEN a user creates a new tool "Weather API"
 AND configures it to call "api.weather.com/current"
@@ -412,6 +473,7 @@ AND be available for agent binding
 ```
 
 **Test 6.2: Agent with Tool**
+
 ```
 GIVEN an agent has the "Weather API" tool attached
 WHEN a user asks "What's the weather in New York?"
@@ -421,6 +483,7 @@ AND incorporate the API response in the answer
 ```
 
 **Test 6.3: Tool Call Visibility**
+
 ```
 GIVEN an agent calls a tool during conversation
 WHEN the tool is invoked
@@ -431,6 +494,7 @@ AND the final answer incorporating that result
 ```
 
 **Test 6.4: Multiple Tool Availability**
+
 ```
 GIVEN an agent has 3 tools attached
 WHEN a user's query could use multiple tools
@@ -439,6 +503,7 @@ AND call them in the correct sequence if needed
 ```
 
 **Test 6.5: Tool Error Handling**
+
 ```
 GIVEN a tool call fails (network error, bad response)
 WHEN the tool returns an error
@@ -452,33 +517,40 @@ AND suggest alternatives if possible
 ## Phase 7: Sharing & Collaboration
 
 ### Objective
+
 Enable users to share conversations and agents publicly or with specific people.
 
 ### Features
 
 #### 7.1 Conversation Sharing
+
 - **Description**: Generate public links to share conversation history
-- **Reference**: ShareConversationModal handles conversation sharing [28](#0-27) 
+- **Reference**: ShareConversationModal handles conversation sharing [28](#0-27)
 
 #### 7.2 Promptable vs View-Only Sharing
+
 - **Description**: Choose whether shared conversation allows continued interaction or is read-only
-- **Reference**: Sharing supports isPromptable flag for interaction control [6](#0-5) 
+- **Reference**: Sharing supports isPromptable flag for interaction control [6](#0-5)
 
 #### 7.3 Agent Sharing
+
 - **Description**: Share agents publicly so others can use them
-- **Reference**: Agents can be shared publicly [29](#0-28) 
+- **Reference**: Agents can be shared publicly [29](#0-28)
 
 #### 7.4 Shared Resource Access
+
 - **Description**: Access shared conversations and agents via public URLs
-- **Reference**: SharedConversation and SharedAgent components handle shared access [30](#0-29) 
+- **Reference**: SharedConversation and SharedAgent components handle shared access [30](#0-29)
 
 #### 7.5 Export/Import
+
 - **Description**: Export conversations, agents, and knowledge bases for backup or sharing
 - **Note**: This feature would be implemented for the browser-only version
 
 ### Functional Tests (Phase 7 Complete)
 
 **Test 7.1: Share Conversation Link**
+
 ```
 GIVEN a user has a conversation with multiple messages
 WHEN they click "Share" and generate a link
@@ -488,6 +560,7 @@ AND preserve all messages and sources
 ```
 
 **Test 7.2: View-Only Shared Conversation**
+
 ```
 GIVEN a conversation is shared as view-only
 WHEN someone accesses the shared link
@@ -497,6 +570,7 @@ AND they cannot add new messages
 ```
 
 **Test 7.3: Promptable Shared Conversation**
+
 ```
 GIVEN a conversation is shared as promptable
 WHEN someone accesses the shared link
@@ -506,6 +580,7 @@ AND receive answers from the same agent/sources
 ```
 
 **Test 7.4: Share Agent**
+
 ```
 GIVEN a user has created a custom agent
 WHEN they share the agent publicly
@@ -515,6 +590,7 @@ BUT cannot modify the agent configuration
 ```
 
 **Test 7.5: Export Knowledge Base**
+
 ```
 GIVEN a user has built a knowledge base with 10 documents
 WHEN they export it
@@ -528,45 +604,55 @@ AND be importable to restore the knowledge base
 ## Phase 8: Advanced Configuration & Polish
 
 ### Objective
+
 Add settings, customization options, and quality-of-life improvements.
 
 ### Features
 
 #### 8.1 Settings Panel
+
 - **Description**: Centralized settings for theme, language, defaults
-- **Reference**: Settings component manages preferences [31](#0-30) 
+- **Reference**: Settings component manages preferences [31](#0-30)
 
 #### 8.2 Theme Customization
+
 - **Description**: Light/dark mode with system preference detection
-- **Reference**: Theme selection is available in settings [32](#0-31) 
+- **Reference**: Theme selection is available in settings [32](#0-31)
 
 #### 8.3 Language Localization
+
 - **Description**: Support multiple languages (English, Spanish, Japanese, Chinese, Russian)
-- **Reference**: Multiple languages are supported [33](#0-32) 
+- **Reference**: Multiple languages are supported [33](#0-32)
 
 #### 8.4 Token Limit Configuration
+
 - **Description**: Set conversation context window size (Low, Medium, Default, High, Unlimited)
-- **Reference**: Token limits are configurable [34](#0-33) 
+- **Reference**: Token limits are configurable [34](#0-33)
 
 #### 8.5 Conversation Deletion
+
 - **Description**: Delete individual or all conversations
-- **Reference**: Conversation deletion is supported [6](#0-5) 
+- **Reference**: Conversation deletion is supported [6](#0-5)
 
 #### 8.6 File Attachments in Chat
+
 - **Description**: Attach files directly to messages for one-off queries
-- **Reference**: MessageInput handles file attachments [35](#0-34) 
+- **Reference**: MessageInput handles file attachments [35](#0-34)
 
 #### 8.7 Search Within Conversations
+
 - **Description**: Filter and search through conversation history
 - **Note**: Quality of life feature for the browser version
 
 #### 8.8 Keyboard Shortcuts
+
 - **Description**: Power user features (Cmd/Ctrl+N for new chat, etc.)
 - **Note**: Enhancement for user experience
 
 ### Functional Tests (Phase 8 Complete)
 
 **Test 8.1: Theme Switching**
+
 ```
 GIVEN a user is in light mode
 WHEN they switch to dark mode
@@ -575,6 +661,7 @@ AND the preference should persist on reload
 ```
 
 **Test 8.2: Language Change**
+
 ```
 GIVEN a user selects Japanese language
 WHEN the setting is applied
@@ -583,6 +670,7 @@ AND maintain functionality in the new language
 ```
 
 **Test 8.3: Token Limit Effect**
+
 ```
 GIVEN a user sets token limit to "Low"
 WHEN they have a long conversation
@@ -591,6 +679,7 @@ AND only recent messages within token limit are used
 ```
 
 **Test 8.4: Delete All Conversations**
+
 ```
 GIVEN a user has 20 conversations
 WHEN they click "Delete All Conversations"
@@ -600,6 +689,7 @@ AND conversation list should be empty
 ```
 
 **Test 8.5: File Attachment in Message**
+
 ```
 GIVEN a user is asking a question
 WHEN they attach an image or PDF
@@ -609,6 +699,7 @@ AND the AI should reference the attachment content
 ```
 
 **Test 8.6: Conversation Search**
+
 ```
 GIVEN a user has many conversations
 WHEN they search for "machine learning"
@@ -617,6 +708,7 @@ AND matching text should be highlighted
 ```
 
 **Test 8.7: Keyboard Shortcuts**
+
 ```
 GIVEN a user presses Cmd/Ctrl+N
 THEN a new conversation should start
@@ -624,6 +716,7 @@ AND pressing Cmd/Ctrl+K should focus the search
 ```
 
 **Test 8.8: Data Persistence**
+
 ```
 GIVEN a user has used the app extensively
 WHEN they close and reopen the browser
@@ -639,28 +732,35 @@ THEN all data should be restored:
 ## Phase 9: Performance & Optimization
 
 ### Objective
+
 Ensure the app performs well with large knowledge bases and long conversations.
 
 ### Features
 
 #### 9.1 Lazy Loading
+
 - **Description**: Load conversations and documents on-demand rather than all at once
 
 #### 9.2 Embedding Caching
+
 - **Description**: Cache embeddings to avoid recomputing on every load
 
 #### 9.3 Chunked Processing
+
 - **Description**: Process large documents in chunks to avoid UI blocking
 
 #### 9.4 Virtual Scrolling
+
 - **Description**: Efficiently render long conversation histories
 
 #### 9.5 IndexedDB Optimization
+
 - **Description**: Optimize PGLite storage queries for faster retrieval
 
 ### Functional Tests (Phase 9 Complete)
 
 **Test 9.1: Large Document Performance**
+
 ```
 GIVEN a user uploads a 500-page PDF
 WHEN processing begins
@@ -670,6 +770,7 @@ AND complete within 2 minutes
 ```
 
 **Test 9.2: Many Conversations**
+
 ```
 GIVEN a user has 100 conversations
 WHEN they open the app
@@ -679,6 +780,7 @@ AND selecting a conversation should be instant
 ```
 
 **Test 9.3: Large Knowledge Base Search**
+
 ```
 GIVEN a knowledge base with 10,000 chunks
 WHEN a user asks a question
@@ -687,6 +789,7 @@ AND top results should be accurate
 ```
 
 **Test 9.4: Long Conversation Rendering**
+
 ```
 GIVEN a conversation with 100 messages
 WHEN the user scrolls through it
@@ -695,6 +798,7 @@ AND messages should render without lag
 ```
 
 **Test 9.5: Memory Usage**
+
 ```
 GIVEN extensive app usage
 WHEN monitoring browser memory
@@ -719,35 +823,41 @@ Since this PRD is based on DocsGPT which has a backend, the browser-only version
 ### Core Flow Reference
 
 The RAG pipeline in DocsGPT follows this pattern:
-1. **Document Ingestion** [14](#0-13) 
-2. **Embedding Generation** [2](#0-1) 
-3. **Vector Storage** [3](#0-2) 
-4. **Query Retrieval** [36](#0-35) 
-5. **Agent Orchestration** [27](#0-26) 
-6. **Streaming Response** [37](#0-36) 
+
+1. **Document Ingestion** [14](#0-13)
+2. **Embedding Generation** [2](#0-1)
+3. **Vector Storage** [3](#0-2)
+4. **Query Retrieval** [36](#0-35)
+5. **Agent Orchestration** [27](#0-26)
+6. **Streaming Response** [37](#0-36)
 
 ### Feature Priority Recommendations
 
 **Must-Have (MVP)**: Phases 1-3
+
 - Core RAG with single documents
 - Basic chat interface
 - Knowledge base management
 
 **Should-Have**: Phases 4-5
+
 - Hybrid search for better accuracy
 - Agent system for customization
 
 **Nice-to-Have**: Phases 6-8
+
 - Tools and function calling
 - Sharing capabilities
 - Advanced settings
 
 **Optimization**: Phase 9
+
 - Performance enhancements for scale
 
 ### Testing Strategy
 
 Each phase should have:
+
 - **Unit Tests**: For individual functions (chunking, embedding, search)
 - **Integration Tests**: For flow combinations (upload → embed → search)
 - **E2E Tests**: For complete user journeys using Playwright
@@ -758,11 +868,13 @@ The functional tests provided above serve as E2E test specifications that can be
 ### Citations
 
 **File:** README.md (L45-45)
+
 ```markdown
     <li><strong>🗂️ Wide Format Support:</strong> Reads PDF, DOCX, CSV, XLSX, EPUB, MD, RST, HTML, MDX, JSON, PPTX, and images.</li>
 ```
 
 **File:** application/parser/embedding_pipeline.py (L1-50)
+
 ```python
 import os
 import logging
@@ -775,10 +887,10 @@ from application.vectorstore.vector_creator import VectorCreator
 def sanitize_content(content: str) -> str:
     """
     Remove NUL characters that can cause vector store ingestion to fail.
-    
+
     Args:
         content (str): Raw content that may contain NUL characters
-        
+
     Returns:
         str: Sanitized content with NUL characters removed
     """
@@ -799,7 +911,7 @@ def add_text_to_store_with_retry(store, doc, source_id):
     try:
         # Sanitize content to remove NUL characters that cause ingestion failures
         doc.page_content = sanitize_content(doc.page_content)
-        
+
         doc.metadata["source_id"] = str(source_id)
         store.add_texts([doc.page_content], metadatas=[doc.metadata])
     except Exception as e:
@@ -817,6 +929,7 @@ def embed_and_store_documents(docs, folder_name, source_id, task_status):
 ```
 
 **File:** application/vectorstore/base.py (L1-50)
+
 ```python
 import logging
 import os
@@ -871,6 +984,7 @@ class EmbeddingsSingleton:
 ```
 
 **File:** frontend/src/conversation/Conversation.tsx (L1-50)
+
 ```typescript
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -925,6 +1039,7 @@ export default function Conversation() {
 ```
 
 **File:** application/retriever/classic_rag.py (L1-208)
+
 ```python
 import logging
 import os
@@ -1137,6 +1252,7 @@ class ClassicRAG(BaseRetriever):
 ```
 
 **File:** application/api/user/conversations/routes.py (L1-50)
+
 ```python
 """Conversation management routes."""
 
@@ -1191,6 +1307,7 @@ class DeleteAllConversations(Resource):
 ```
 
 **File:** frontend/src/Navigation.tsx (L1-50)
+
 ```typescript
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -1245,6 +1362,7 @@ import {
 ```
 
 **File:** frontend/src/conversation/ConversationBubble.tsx (L1-50)
+
 ```typescript
 import 'katex/dist/katex.min.css';
 
@@ -1299,6 +1417,7 @@ const ConversationBubble = forwardRef<
 ```
 
 **File:** frontend/src/settings/Sources.tsx (L1-50)
+
 ```typescript
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -1353,6 +1472,7 @@ export default function Sources({
 ```
 
 **File:** application/api/user/sources/upload.py (L1-50)
+
 ```python
 """Source document management upload functionality."""
 
@@ -1407,6 +1527,7 @@ class UploadFile(Resource):
 ```
 
 **File:** application/worker.py (L1-50)
+
 ```python
 import datetime
 import json
@@ -1461,6 +1582,7 @@ RECURSION_DEPTH = 2
 ```
 
 **File:** application/vectorstore/elasticsearch.py (L1-100)
+
 ```python
 from application.vectorstore.base import BaseVectorStore
 from application.core.settings import settings
@@ -1475,7 +1597,7 @@ class ElasticsearchStore(BaseVectorStore):
         self.source_id = source_id.replace("application/indexes/", "").rstrip("/")
         self.embeddings_key = embeddings_key
         self.index_name = index_name
-        
+
         if ElasticsearchStore._es_connection is None:
             connection_params = {}
             if settings.ELASTIC_URL:
@@ -1489,7 +1611,7 @@ class ElasticsearchStore(BaseVectorStore):
 
             import elasticsearch
             ElasticsearchStore._es_connection = elasticsearch.Elasticsearch(**connection_params)
-            
+
         self.docsearch = ElasticsearchStore._es_connection
 
     def connect_to_elasticsearch(
@@ -1565,6 +1687,7 @@ class ElasticsearchStore(BaseVectorStore):
 ```
 
 **File:** application/vectorstore/vector_creator.py (L1-50)
+
 ```python
 from application.vectorstore.faiss import FaissStore
 from application.vectorstore.elasticsearch import ElasticsearchStore
@@ -1594,6 +1717,7 @@ class VectorCreator:
 ```
 
 **File:** frontend/src/settings/General.tsx (L1-50)
+
 ```typescript
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -1648,6 +1772,7 @@ export default function General() {
 ```
 
 **File:** frontend/src/agents/NewAgent.tsx (L33-62)
+
 ```typescript
 export default function NewAgent({ mode }: { mode: 'new' | 'edit' | 'draft' }) {
   const { t } = useTranslation();
@@ -1682,17 +1807,17 @@ export default function NewAgent({ mode }: { mode: 'new' | 'edit' | 'draft' }) {
 ```
 
 **File:** frontend/src/agents/NewAgent.tsx (L67-73)
+
 ```typescript
-  const [userTools, setUserTools] = useState<OptionType[]>([]);
-  const [isSourcePopupOpen, setIsSourcePopupOpen] = useState(false);
-  const [isToolsPopupOpen, setIsToolsPopupOpen] = useState(false);
-  const [selectedSourceIds, setSelectedSourceIds] = useState<
-    Set<string | number>
-  >(new Set());
-  const [selectedTools, setSelectedTools] = useState<ToolSummary[]>([]);
+const [userTools, setUserTools] = useState<OptionType[]>([]);
+const [isSourcePopupOpen, setIsSourcePopupOpen] = useState(false);
+const [isToolsPopupOpen, setIsToolsPopupOpen] = useState(false);
+const [selectedSourceIds, setSelectedSourceIds] = useState<Set<string | number>>(new Set());
+const [selectedTools, setSelectedTools] = useState<ToolSummary[]>([]);
 ```
 
 **File:** frontend/src/settings/Prompts.tsx (L1-50)
+
 ```typescript
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -1747,6 +1872,7 @@ export default function Prompts({
 ```
 
 **File:** frontend/src/agents/AgentsList.tsx (L1-50)
+
 ```typescript
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -1801,6 +1927,7 @@ function AgentSection({
 ```
 
 **File:** frontend/src/preferences/preferenceSlice.ts (L1-50)
+
 ```typescript
 import {
   createListenerMiddleware,
@@ -1855,6 +1982,7 @@ const initialState: Preference = {
 ```
 
 **File:** frontend/src/settings/Tools.tsx (L1-50)
+
 ```typescript
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -1909,6 +2037,7 @@ export default function Tools() {
 ```
 
 **File:** application/agents/tools/api_tool.py (L1-50)
+
 ```python
 import json
 
@@ -1963,6 +2092,7 @@ class APITool(Tool):
 ```
 
 **File:** application/agents/base.py (L1-50)
+
 ```python
 import logging
 import uuid
@@ -2017,6 +2147,7 @@ class BaseAgent(ABC):
 ```
 
 **File:** frontend/src/modals/ShareConversationModal.tsx (L1-50)
+
 ```typescript
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -2071,6 +2202,7 @@ export const ShareConversationModal = ({
 ```
 
 **File:** application/api/user/agents/sharing.py (L1-50)
+
 ```python
 """Agent management sharing functionality."""
 
@@ -2125,6 +2257,7 @@ class SharedAgent(Resource):
 ```
 
 **File:** frontend/src/conversation/SharedConversation.tsx (L1-50)
+
 ```typescript
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -2179,6 +2312,7 @@ export const SharedConversation = () => {
 ```
 
 **File:** frontend/src/components/MessageInput.tsx (L1-50)
+
 ```typescript
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -2233,6 +2367,7 @@ export default function MessageInput({
 ```
 
 **File:** application/api/answer/services/stream_processor.py (L1-50)
+
 ```python
 import datetime
 import json

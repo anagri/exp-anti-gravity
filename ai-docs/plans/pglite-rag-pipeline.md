@@ -27,6 +27,7 @@ For **EVERY PHASE**, you MUST:
    - Add proper TypeScript types
 
 3. ✅ **Run All Tests**
+
    ```bash
    npm test                    # Run unit tests
    npm run test:e2e           # Run E2E tests (if applicable)
@@ -41,10 +42,12 @@ For **EVERY PHASE**, you MUST:
    - Fix any issues before proceeding
 
 5. ✅ **Commit Changes**
+
    ```bash
    git add .
    git commit -m "<type>(scope): description"
    ```
+
    - Use conventional commit format
    - Include test files in commit
    - Verify commit doesn't break tests
@@ -58,6 +61,7 @@ For **EVERY PHASE**, you MUST:
 **Format:** `<type>(scope): <description>`
 
 **Types:**
+
 - `feat(scope)`: New feature implementation
 - `fix(scope)`: Bug fix
 - `test(scope)`: Test additions or modifications
@@ -67,9 +71,11 @@ For **EVERY PHASE**, you MUST:
 - `chore(scope)`: Maintenance tasks
 
 **Scopes:**
+
 - `setup`, `worker`, `upload`, `indexing`, `rag`, `ui`, `state`, `perf`, `build`, `deploy`
 
 **Examples:**
+
 ```bash
 git commit -m "feat(worker): implement PGlite worker with pgvector schema"
 git commit -m "test(upload): add file upload integration tests"
@@ -79,6 +85,7 @@ git commit -m "fix(indexing): handle rate limit errors with exponential backoff"
 ### Testing Strategy
 
 **E2E-First Approach (Fewer Tests, More Steps):**
+
 - E2E tests are expensive to run and maintain
 - Write 2-3 comprehensive tests per phase covering complete workflows
 - Each test should have multiple steps and assertions
@@ -86,28 +93,30 @@ git commit -m "fix(indexing): handle rate limit errors with exponential backoff"
 - Avoid 10+ granular E2E tests - combine related actions
 
 **Unit Tests - Selective:**
+
 - Only for complex component interaction, state updates, algorithms
 - NOT for: TypeScript types, schema definitions, third-party libraries
 - NOT for: Worker internals (use E2E instead due to Vitest+jsdom+Comlink compatibility issues)
 - Focus on behavior, not implementation details
 
 **Integration Tests:**
+
 - Component + context interaction
 - Data flow between layers
 - Mock external APIs (OpenAI) using MSW
 
 #### Test Types by Phase
 
-| Phase | Unit Tests | Integration Tests | E2E Tests |
-|-------|-----------|-------------------|-----------|
-| worker-setup: Worker + Documents Page | ✅ Core logic | ✅ Context integration | ✅ Document CRUD |
-| indexing-pipeline: Indexing | ✅ Chunking/Retry | ✅ API mocking | ✅ Full pipeline |
-| vector-search: Search | ✅ Query logic | ✅ HNSW queries | ✅ RAG flow |
-| ui-components: UI | ✅ Components | ✅ Interactions | ✅ UI workflows |
-| state-management: State | ✅ Hooks/Context | ✅ Propagation | ✅ Persistence |
-| performance: Perf | ✅ Algorithms | ✅ Benchmarks | ✅ Large datasets |
-| build-config: Build | ✅ Config | ✅ Build output | ❌ |
-| deployment: Deploy | ✅ All passing | ✅ All passing | ✅ Production |
+| Phase                                 | Unit Tests        | Integration Tests      | E2E Tests         |
+| ------------------------------------- | ----------------- | ---------------------- | ----------------- |
+| worker-setup: Worker + Documents Page | ✅ Core logic     | ✅ Context integration | ✅ Document CRUD  |
+| indexing-pipeline: Indexing           | ✅ Chunking/Retry | ✅ API mocking         | ✅ Full pipeline  |
+| vector-search: Search                 | ✅ Query logic    | ✅ HNSW queries        | ✅ RAG flow       |
+| ui-components: UI                     | ✅ Components     | ✅ Interactions        | ✅ UI workflows   |
+| state-management: State               | ✅ Hooks/Context  | ✅ Propagation         | ✅ Persistence    |
+| performance: Perf                     | ✅ Algorithms     | ✅ Benchmarks          | ✅ Large datasets |
+| build-config: Build                   | ✅ Config         | ✅ Build output        | ❌                |
+| deployment: Deploy                    | ✅ All passing    | ✅ All passing         | ✅ Production     |
 
 #### Test File Organization
 
@@ -162,6 +171,7 @@ npm run build                             # Must compile successfully
 ```
 
 **If ANY of these fail:**
+
 - ❌ DO NOT COMMIT
 - ❌ DO NOT PROCEED TO NEXT PHASE
 - ✅ FIX THE ISSUES FIRST
@@ -174,12 +184,14 @@ Use this checklist for EVERY phase:
 ### Phase <phase-id> Completion Checklist
 
 Implementation:
+
 - [ ] Code written following plan specifications
 - [ ] TypeScript types properly defined
 - [ ] Error handling implemented
 - [ ] Code follows existing patterns
 
 Testing:
+
 - [ ] Unit tests written and passing
 - [ ] Integration tests written and passing (if required)
 - [ ] E2E tests written and passing (if required)
@@ -187,17 +199,20 @@ Testing:
 - [ ] Test coverage adequate (>80% for new code)
 
 Quality:
+
 - [ ] No TypeScript errors (npm run build)
 - [ ] No lint errors (npm run lint)
 - [ ] No console errors in browser
 - [ ] Manual testing completed successfully
 
 Documentation:
+
 - [ ] Code comments added for complex logic
 - [ ] Type definitions documented
 - [ ] README updated (if needed)
 
 Git:
+
 - [ ] Changes committed with conventional commit message
 - [ ] Commit verified (tests still pass after commit)
 - [ ] Ready to proceed to next phase
@@ -212,12 +227,14 @@ If tests fail:
    - What was expected vs actual?
 
 2. **Run single test in isolation**
+
    ```bash
    npx vitest run path/to/test.test.ts    # Single test file
    npx playwright test path/to/spec.ts    # Single E2E test
    ```
 
 3. **Use debugging tools**
+
    ```bash
    npx vitest --ui                        # Vitest UI mode
    npx playwright test --debug            # Playwright debug mode
@@ -238,6 +255,7 @@ If tests fail:
 ## Executive Summary
 
 Transform the existing React + OpenAI chat application into a fully client-side RAG (Retrieval-Augmented Generation) application using:
+
 - **PGlite + pgvector**: PostgreSQL WASM with vector search (3MB, IndexedDB persistence)
 - **OPFS**: Raw file storage for uploaded markdown/text files
 - **Web Workers**: Background processing for chunking and embedding
@@ -255,6 +273,7 @@ All processing happens in the browser. No backend required. Deployable to GitHub
 After comprehensive research comparing all browser vector database options, PGlite + pgvector emerged as the best choice:
 
 **Alternatives Evaluated:**
+
 1. **Orama** - 2KB bundle, built-in RAG, but proprietary algorithms, smaller ecosystem
 2. **DuckDB-WASM + vss** - Excellent for analytics + vectors, but heavier for simple RAG
 3. **hnswlib-wasm** - Pure HNSW, but experimental and no SQL layer
@@ -262,6 +281,7 @@ After comprehensive research comparing all browser vector database options, PGli
 5. **MeMemo** - Research project, 94 min to index 1M vectors
 
 **PGlite Advantages:**
+
 - ✅ Full PostgreSQL compatibility (battle-tested)
 - ✅ pgvector = industry standard (Supabase, Neon, etc.)
 - ✅ HNSW indexes for fast approximate search
@@ -272,6 +292,7 @@ After comprehensive research comparing all browser vector database options, PGli
 - ✅ Future-proof: can sync with cloud Postgres later
 
 **Key Performance Metrics:**
+
 - CRUD queries: <0.3ms
 - Multi-row selects: sub-frame
 - HNSW: no training step, incremental build
@@ -279,18 +300,20 @@ After comprehensive research comparing all browser vector database options, PGli
 
 ### Storage Technology Decisions
 
-| Technology | Choice | Rationale |
-|------------|--------|-----------|
-| Vector DB | PGlite (IndexedDB) | Safari support, mature, 60% disk quota |
-| Raw Files | OPFS (optional) or IndexedDB | OPFS faster but Safari limited, IndexedDB safer |
-| Processing | Web Worker (not Service Worker) | OPFS sync access handles require Web Worker |
+| Technology | Choice                          | Rationale                                       |
+| ---------- | ------------------------------- | ----------------------------------------------- |
+| Vector DB  | PGlite (IndexedDB)              | Safari support, mature, 60% disk quota          |
+| Raw Files  | OPFS (optional) or IndexedDB    | OPFS faster but Safari limited, IndexedDB safer |
+| Processing | Web Worker (not Service Worker) | OPFS sync access handles require Web Worker     |
 
 **Storage Limits (Chromium):**
+
 - IndexedDB: Up to 60% of disk space (~307GB on 512GB disk)
 - OPFS: Same quota as IndexedDB
 - Safari: ~20% of disk space (iOS 17+)
 
 **IMPORTANT:** PGlite recommends IndexedDB over OPFS for browser usage due to Safari limitations:
+
 - OPFS requires Web Worker (not available in main thread)
 - Safari has 252 sync access handle limit (Postgres needs 300+ files)
 - IndexedDB works everywhere with relaxedDurability mode
@@ -299,14 +322,15 @@ After comprehensive research comparing all browser vector database options, PGli
 
 **Our Choice: Web Worker (Dedicated Worker)**
 
-| Feature | Web Worker | Service Worker |
-|---------|-----------|----------------|
-| OPFS Sync Access | ✅ Yes | ❌ No |
-| Multi-tab Shared | ❌ No (use PGliteWorker) | ✅ Yes |
-| Lifecycle | Page-bound | Persistent |
-| Use Case | Computation, DB access | Caching, offline, proxy |
+| Feature          | Web Worker               | Service Worker          |
+| ---------------- | ------------------------ | ----------------------- |
+| OPFS Sync Access | ✅ Yes                   | ❌ No                   |
+| Multi-tab Shared | ❌ No (use PGliteWorker) | ✅ Yes                  |
+| Lifecycle        | Page-bound               | Persistent              |
+| Use Case         | Computation, DB access   | Caching, offline, proxy |
 
 **Pattern:**
+
 - Main Thread: React UI, file upload, progress display
 - Web Worker: PGlite instance, chunking, embedding coordination
 - Multi-tab: PGliteWorker with leader election
@@ -314,22 +338,26 @@ After comprehensive research comparing all browser vector database options, PGli
 ### OpenAI Embeddings Best Practices
 
 **Model:** text-embedding-3-small
+
 - Dimensions: 1536
 - Cost: $0.13 per 1M tokens
 - Max input: 8,191 tokens per request
 - Rate limits: 3,000 RPM, 200,000 TPM (default tier)
 
 **Batching Strategy:**
+
 - Batch size: 100 chunks per API call (recommended by OpenAI)
 - Exponential backoff on 429 rate limit errors
 - Token estimation: ~666 tokens per 500-word markdown page
 
 **Cost Estimation:**
+
 - 100 documents: ~$0.01
 - 1,000 documents: ~$0.10
 - 10,000 documents: ~$1.00
 
 **Alternative: Batch API**
+
 - 50% cost reduction
 - 24-hour processing time
 - Good for large initial uploads (1000+ docs)
@@ -338,12 +366,14 @@ After comprehensive research comparing all browser vector database options, PGli
 ### pgvector HNSW Index Parameters
 
 **Index Creation:**
+
 ```sql
 CREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops)
   WITH (m = 16, ef_construction = 64);
 ```
 
 **Parameters Explained:**
+
 - **m**: Max edges per vector in graph (default: 16)
   - Higher = better recall, more memory
   - Small datasets: 16
@@ -362,12 +392,14 @@ CREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops)
   - Default: 40, increase for better recall
 
 **Performance Optimization:**
+
 - HNSW has no training step (unlike IVFFlat)
 - Can create index on empty table, builds incrementally
 - For bulk insert: use COPY with FORMAT BINARY
 - Set `max_parallel_maintenance_workers` for faster builds
 
 **Insert Performance:**
+
 - Inserts are slower with HNSW active
 - Options:
   1. Build index after all inserts (fast bulk, slow first query)
@@ -377,30 +409,33 @@ CREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops)
 ### LangChain Text Splitting
 
 **Markdown-Specific Splitter:**
+
 ```typescript
-import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 
 const splitter = RecursiveCharacterTextSplitter.fromLanguage('markdown', {
-  chunkSize: 1000,        // ~750 words
-  chunkOverlap: 200,      // 20% overlap for context preservation
-})
+  chunkSize: 1000, // ~750 words
+  chunkOverlap: 200, // 20% overlap for context preservation
+});
 ```
 
 **Why These Values:**
+
 - 1000 tokens = good balance (context vs granularity)
 - 200 overlap = prevents losing info at boundaries
 - Recursive splitting: `\n\n` → `\n` → ` ` (preserves structure)
 
 **Alternative: Header-Aware Splitting**
+
 ```typescript
-import { MarkdownHeaderTextSplitter } from '@langchain/textsplitters'
+import { MarkdownHeaderTextSplitter } from '@langchain/textsplitters';
 
 const headerSplitter = new MarkdownHeaderTextSplitter({
   headersToSplitOn: [
-    ["##", "Section"],
-    ["###", "Subsection"],
+    ['##', 'Section'],
+    ['###', 'Subsection'],
   ],
-})
+});
 ```
 
 Captures heading hierarchy as metadata (improves retrieval context).
@@ -413,33 +448,34 @@ Captures heading hierarchy as metadata (improves retrieval context).
 
 ```typescript
 // worker.ts
-import { PGlite } from '@electric-sql/pglite'
-import { vector } from '@electric-sql/pglite/vector'
-import { worker } from '@electric-sql/pglite/worker'
+import { PGlite } from '@electric-sql/pglite';
+import { vector } from '@electric-sql/pglite/vector';
+import { worker } from '@electric-sql/pglite/worker';
 
 const pg = await PGlite.create({
   dataDir: 'idb://rag-vectors',
-  extensions: { vector }
-})
+  extensions: { vector },
+});
 
-worker({ pg })
+worker({ pg });
 ```
 
 ```typescript
 // main.ts
-import { PGliteWorker } from '@electric-sql/pglite/worker'
+import { PGliteWorker } from '@electric-sql/pglite/worker';
 
 const db = new PGliteWorker(
   new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
-)
+);
 
 // Leader election happens automatically
 db.onLeaderChange(() => {
-  console.log('Leader changed, this tab is now:', db.isLeader)
-})
+  console.log('Leader changed, this tab is now:', db.isLeader);
+});
 ```
 
 **How It Works:**
+
 1. Each tab starts own worker
 2. Workers run election to nominate leader
 3. Only leader initializes PGlite and processes queries
@@ -447,6 +483,7 @@ db.onLeaderChange(() => {
 5. When leader tab closes, new election occurs
 
 **For Our Use Case:**
+
 - Only leader worker processes indexing queue
 - All workers can read/search vectors
 - Leader handles background embedding jobs
@@ -515,6 +552,7 @@ db.onLeaderChange(() => {
 ### Data Flow Diagrams
 
 **Note:** Database tables and indexes are created incrementally across phases:
+
 - **Phase worker-setup:** Documents table (basic file metadata storage)
 - **Phase indexing-pipeline:** Indexing queue + Chunks tables (job queue and embeddings storage)
 - **Phase vector-search:** HNSW index on chunks (fast vector search)
@@ -676,6 +714,7 @@ Main Thread: Display answer + sources
 ### Test Environment Requirements
 
 **Test Setup Configuration:**
+
 - MSW server already configured in existing test/setup.ts
 - Continue using existing Vitest configuration
 - Clean IndexedDB databases before each test to ensure fresh state
@@ -689,12 +728,14 @@ Create test helpers and fixtures ONLY when actually needed:
 3. **Keep It Simple**: Prefer simple test data over complex fixtures
 
 **Common Patterns to Watch For:**
+
 - Database setup: Extract helper when pattern stabilizes across 3+ tests
 - Test data: Start inline, extract only if repeated
 - Worker helpers: Create when worker tests actually need them
 - Mock handlers: Add to MSW handlers as needed for each phase
 
 **Create Incrementally by Phase:**
+
 - Phase worker-setup: Basic worker test helpers (if needed)
 - Phase indexing-pipeline: Embedding/chunking mocks (when those tests written)
 - Phase vector-search: Vector search test data (when search tests written)
@@ -716,6 +757,7 @@ Don't create "just in case" test infrastructure.
 #### ✅ COMPLETED REQUIREMENTS
 
 **Dependencies Installed:**
+
 - ✅ @electric-sql/pglite@^0.3.14 (PGlite with pgvector)
 - ✅ comlink@^4.4.2 (Web Worker RPC)
 - ✅ uuid@^13.0.0 (UUID generation)
@@ -723,10 +765,12 @@ Don't create "just in case" test infrastructure.
 - ✅ @radix-ui/react-dialog@^1.1.15 (Modal component - already present)
 
 **TypeScript Configuration:**
+
 - ✅ tsconfig.worker.json created (WebWorker lib, ES2020)
 - ✅ vite.config.ts updated (worker format: 'es', exclude PGlite from optimizeDeps)
 
 **Core Infrastructure:**
+
 - ✅ PGlite worker (`src/workers/pglite.worker.ts`) with singleton pattern
 - ✅ Worker client (`src/lib/pglite-client.ts`) with Comlink RPC
 - ✅ Database: IndexedDB (idb://rag-vectors) with relaxedDurability
@@ -734,12 +778,14 @@ Don't create "just in case" test infrastructure.
 - ✅ Documents table with UUID, filename, content, size, mimeType, uploaded_at
 
 **Worker API Implemented:**
+
 - ✅ `init()` - Initialize database, return ready status
 - ✅ `uploadDocument(file)` - Insert document, return UUID
 - ✅ `getDocuments()` - Query all documents (ordered by uploaded_at DESC)
 - ✅ `deleteDocument(id)` - Delete by ID
 
 **React Context & State:**
+
 - ✅ VectorDBContext (`src/contexts/VectorDBContext.tsx`)
 - ✅ useVectorDB hook
 - ✅ State: initialized, documents, uploadFiles, deleteDocument, refreshDocuments
@@ -747,6 +793,7 @@ Don't create "just in case" test infrastructure.
 - ✅ Client-side file type validation (.md/.txt only)
 
 **UI Components - Full Document Management Page:**
+
 - ✅ DocumentsPage (`src/pages/documents/index.tsx`) - Standalone route at /documents
 - ✅ UploadZone (`src/pages/documents/components/UploadZone.tsx`) - Drag-and-drop with visual feedback
 - ✅ DocumentCard (`src/pages/documents/components/DocumentCard.tsx`) - Card layout with download/delete buttons
@@ -756,11 +803,13 @@ Don't create "just in case" test infrastructure.
 - ✅ Navigation link in ChatPage header to /documents page
 
 **Routing:**
+
 - ✅ /documents route added to App.tsx
 - ✅ VectorDBProvider wraps all routes
 - ✅ Navigation between /chat and /documents
 
 **E2E Test Infrastructure:**
+
 - ✅ Page Object Model (7 classes):
   - DocumentsPage (main page object)
   - UploadZoneComponent
@@ -774,6 +823,7 @@ Don't create "just in case" test infrastructure.
 **E2E Tests Passing (3 test files):**
 
 ✅ **Test 1: `e2e/documents/01-document-lifecycle.spec.ts`**
+
 - Upload single file
 - Verify file appears in list
 - Download file (blob URL generation)
@@ -782,6 +832,7 @@ Don't create "just in case" test infrastructure.
 - Verify empty state shown
 
 ✅ **Test 2a: `e2e/documents/02-multi-document-operations.spec.ts`**
+
 - Upload 3 files simultaneously
 - Verify all 3 visible
 - Search by filename
@@ -792,11 +843,13 @@ Don't create "just in case" test infrastructure.
 - Verify remaining 2 files
 
 ✅ **Test 3: `e2e/documents/03-file-validation.spec.ts`**
+
 - Reject invalid file type (.pdf)
 - Accept valid file types (.md/.txt)
 - Verify no errors thrown
 
 **Additional Features Implemented:**
+
 - ✅ Document download functionality (blob URLs)
 - ✅ Drag-and-drop upload with isDragging state
 - ✅ Search/filter/sort toolbar (client-side filtering)
@@ -811,6 +864,7 @@ Don't create "just in case" test infrastructure.
 **Critical E2E Test:**
 
 ✅ **IndexedDB Persistence Test** (COMPLETED)
+
 - ✅ Upload 3 files (doc1.md, doc2.txt, doc3.md)
 - ✅ Verify all 3 documents visible in list
 - ✅ **Reload page (test IndexedDB persistence)**
@@ -820,9 +874,11 @@ Don't create "just in case" test infrastructure.
 - ✅ Reload again and verify 2 documents persist
 
 **File Created:**
+
 - ✅ `e2e/documents/04-persistence.spec.ts` (PASSING)
 
 **Root Cause Identified & Fixed:**
+
 - **Issue:** `relaxedDurability: true` causes async flush to IndexedDB, allowing page reloads before data persists
 - **Fix:** Removed `relaxedDurability: true` from `PGlite.create()` in `src/workers/pglite.worker.ts`
 - **Result:** Data now persists synchronously, all 4 E2E tests passing
@@ -837,6 +893,7 @@ Don't create "just in case" test infrastructure.
 **Implementation Summary:**
 
 **Core Infrastructure:**
+
 - ✅ PGlite worker (singleton pattern) with pgvector extension enabled
 - ✅ Worker client (Comlink RPC) for main thread ↔ worker communication
 - ✅ Documents table (id, filename, content, file_size, mime_type, uploaded_at)
@@ -844,17 +901,20 @@ Don't create "just in case" test infrastructure.
 - ✅ TypeScript configs (tsconfig.worker.json, vite.config.ts worker settings)
 
 **Worker API:**
+
 - ✅ `init()` - Initialize DB, create schema, return ready status
 - ✅ `uploadDocument({ filename, content, mimeType })` - Insert document, return UUID
 - ✅ `getDocuments()` - Query all documents (ordered by uploaded_at DESC)
 - ✅ `deleteDocument(id)` - Delete by ID
 
 **React Architecture:**
+
 - ✅ VectorDBContext provider with useVectorDB hook
 - ✅ State: initialized, documents[], uploadFiles(), deleteDocument(), refreshDocuments()
 - ✅ Auto-initialization on mount with error handling
 
 **UI Components (6 specialized + 1 page):**
+
 - ✅ DocumentsPage - Main /documents route (search, filter, sort, upload, delete)
 - ✅ UploadZone - Drag-and-drop file upload with visual feedback
 - ✅ DocumentCard - Individual document display with download/delete actions
@@ -863,6 +923,7 @@ Don't create "just in case" test infrastructure.
 - ✅ EmptyState - Display when no documents exist
 
 **E2E Testing (Page Object Model):**
+
 - ✅ 7 page object classes (DocumentsPage + 6 component classes)
 - ✅ Test fixtures (3 valid files: .md/.txt, 1 invalid: .pdf)
 - ✅ 4 comprehensive E2E tests (100% passing):
@@ -872,6 +933,7 @@ Don't create "just in case" test infrastructure.
   4. **IndexedDB persistence** (upload 3 → reload → verify 3 → delete 1 → reload → verify 2)
 
 **Critical Bug Fix:**
+
 - ✅ **Issue identified:** `relaxedDurability: true` caused async flush to IndexedDB
 - ✅ **Root cause:** Page reloads happened before data persisted to disk
 - ✅ **Solution:** Removed `relaxedDurability` from PGlite.create() (line 32-33 of pglite.worker.ts)
@@ -879,6 +941,7 @@ Don't create "just in case" test infrastructure.
 - ✅ **Trade-off:** Slightly slower writes (~10-50ms), but guaranteed durability
 
 **Dependencies Installed:**
+
 ```json
 {
   "@electric-sql/pglite": "^0.3.14",
@@ -890,12 +953,14 @@ Don't create "just in case" test infrastructure.
 ```
 
 **Build & Quality:**
+
 - ✅ TypeScript compilation passing (npm run build)
 - ✅ No TypeScript errors
 - ✅ Vite production build successful (dist/ output verified)
 - ✅ All E2E tests passing in production build
 
 **Files Created/Modified:**
+
 ```
 src/workers/pglite.worker.ts          (131 lines) - PGlite worker with schema
 src/lib/pglite-client.ts              (44 lines)  - Comlink RPC client wrapper
@@ -913,6 +978,7 @@ tsconfig.worker.json                  (new)       - Worker TypeScript config
 ### Phase indexing-pipeline: Background Indexing Pipeline
 
 **Dependency Installation Requirements:**
+
 - Install LangChain text splitters (@langchain/textsplitters) for markdown chunking
 
 **Database Schema Requirements:**
@@ -934,30 +1000,35 @@ Create two new tables:
    - Index needed: B-tree index on document_id for efficient lookups
 
 **Document Table Extensions:**
+
 - Add fields to existing documents table: chunk count (integer), indexing completion timestamp
 
 **Worker API Extensions:**
 
 Update existing worker operations:
+
 - **uploadDocument()** - After inserting document, create pending entry in indexing_queue
 - **getDocuments()** - Left join with indexing_queue to include status and error messages
 - **deleteDocument()** - Cascade delete will now remove queue entries and chunks
 
 **Indexing Pipeline Requirements:**
 
-*Progress Tracking:*
+_Progress Tracking:_
+
 - Define progress interface with fields: documentId, stage (chunking/embedding/storing/completed/failed), progress percentage (0-100), message string
 - Maintain array of progress callback functions
 - Provide function to register progress callbacks
 - Emit progress updates to all registered callbacks
 - Include progress updates at each major stage
 
-*OpenAI Client Management:*
+_OpenAI Client Management:_
+
 - Store OpenAI client instance in worker scope (initially null)
 - Provide function to set API key and initialize OpenAI client with dangerouslyAllowBrowser flag
 - Validate API key is set before indexing operations
 
-*Queue Processing:*
+_Queue Processing:_
+
 - Maintain processing flag to prevent concurrent processing
 - Query indexing queue for next pending job (oldest first)
 - Return if no pending jobs found
@@ -968,7 +1039,7 @@ Update existing worker operations:
 - Schedule next queue check after 1 second delay
 - Auto-start queue processor on worker initialization with 5-second polling interval
 
-*Document Indexing Flow:*
+_Document Indexing Flow:_
 
 1. **Chunking Stage (Progress: 10-30%):**
    - Use LangChain RecursiveCharacterTextSplitter with markdown language mode
@@ -993,7 +1064,8 @@ Update existing worker operations:
    - Emit progress update every 10 chunks
    - Update document table with total chunk count after all inserts
 
-*Worker API Extensions:*
+_Worker API Extensions:_
+
 - **setOpenAIKey(apiKey)** - Initialize OpenAI client
 - **onProgress(callback)** - Register progress callback
 - **startIndexing()** - Manually trigger queue processing
@@ -1003,7 +1075,8 @@ Update existing worker operations:
 
 Write tests after implementing. Focus on key workflows, not exhaustive unit tests.
 
-*Key Behaviors to Test:*
+_Key Behaviors to Test:_
+
 - Full indexing pipeline works end-to-end
 - Queue processes documents automatically
 - Retry logic handles failures correctly
@@ -1012,7 +1085,8 @@ Write tests after implementing. Focus on key workflows, not exhaustive unit test
 - Embeddings stored with chunks
 - Cascade delete works (document → queue → chunks)
 
-*Testing Strategy:*
+_Testing Strategy:_
+
 - Write integration tests with mocked OpenAI API first
 - Add unit tests for complex logic (retry logic, chunking algorithm)
 - E2E test with real API for verification (use small document first)
@@ -1020,6 +1094,7 @@ Write tests after implementing. Focus on key workflows, not exhaustive unit test
 - Don't test every field individually
 
 **Phase indexing-pipeline Completion:**
+
 - LangChain text splitters dependency installed
 - Indexing_queue table created with retry logic support
 - Chunks table created for storing embeddings
@@ -1043,6 +1118,7 @@ Write tests after implementing. Focus on key workflows, not exhaustive unit test
 **Functional Goal:** Enable fast vector similarity search on chunk embeddings
 
 Create HNSW index:
+
 - **HNSW Index on chunks.embedding**
   - Purpose: Fast approximate nearest neighbor search on vector embeddings
   - Index type: HNSW (Hierarchical Navigable Small World)
@@ -1053,7 +1129,8 @@ Create HNSW index:
 
 **Vector Search Worker Requirements:**
 
-*Search Function Implementation:*
+_Search Function Implementation:_
+
 - Accept parameters: query string, topK (default 10), optional filters (filename)
 - Validate OpenAI client is initialized
 - Generate query embedding using OpenAI embeddings API (model: text-embedding-3-small, dimensions: 1536)
@@ -1070,12 +1147,14 @@ Create HNSW index:
 
 **Note:** The useChat hook already exists (src/hooks/useChat.ts). This phase extends it with RAG functionality.
 
-*State Extensions:*
+_State Extensions:_
+
 - Add ragMode boolean state (default: false)
 - Add sources array state (search results)
 - Get vector DB worker instance
 
-*RAG-Enhanced Message Flow:*
+_RAG-Enhanced Message Flow:_
+
 1. When RAG mode enabled and user sends message:
    - Call worker.search() with user query, topK=5
    - If results found:
@@ -1088,7 +1167,8 @@ Create HNSW index:
 3. Stream response as normal (existing streaming logic)
 4. Display sources alongside response
 
-*Return Interface Extensions:*
+_Return Interface Extensions:_
+
 - Add ragMode: boolean
 - Add setRAGMode: function to toggle RAG mode
 - Add sources: array of search results with metadata
@@ -1097,7 +1177,8 @@ Create HNSW index:
 
 Write tests after implementing. Focus on RAG workflow, not implementation details.
 
-*Key Behaviors to Test:*
+_Key Behaviors to Test:_
+
 - Vector search returns relevant chunks
 - RAG mode integrates search results into chat
 - Context formatted correctly with citations
@@ -1105,7 +1186,8 @@ Write tests after implementing. Focus on RAG workflow, not implementation detail
 - RAG toggle works during conversation
 - Search performance acceptable (measure actual latency)
 
-*Testing Strategy:*
+_Testing Strategy:_
+
 - Integration tests with mocked APIs for RAG flow
 - E2E test with real APIs for full RAG verification
 - Use small document for E2E tests first
@@ -1113,6 +1195,7 @@ Write tests after implementing. Focus on RAG workflow, not implementation detail
 - Don't test SQL query syntax
 
 **Phase vector-search Completion:**
+
 - HNSW index created on chunks.embedding for fast similarity search
 - Vector search function implemented in worker using HNSW index
 - RAG integration added to useChat hook
@@ -1128,6 +1211,7 @@ Write tests after implementing. Focus on RAG workflow, not implementation detail
 **Components to Create:**
 
 Add these components to src/components/:
+
 - DocumentManager - document library display
 - IndexingStatusBadge - status display
 - RAGToggle - RAG mode toggle
@@ -1135,7 +1219,8 @@ Add these components to src/components/:
 
 **Document Manager Component Requirements:**
 
-*User Interface:*
+_User Interface:_
+
 - Display "Document Library" heading
 - Show loading state while documents are being fetched
 - Display empty state message when no documents exist
@@ -1148,7 +1233,8 @@ Add these components to src/components/:
 - Use card layout for each document (border, padding, flex layout)
 - Integrate with useVectorDB hook for data and operations
 
-*Indexing Status Badge Requirements:*
+_Indexing Status Badge Requirements:_
+
 - Display status text (pending/processing/completed/failed)
 - Apply color-coded backgrounds:
   - Pending: yellow background
@@ -1160,7 +1246,8 @@ Add these components to src/components/:
 
 **RAG Toggle Component Requirements:**
 
-*User Interface:*
+_User Interface:_
+
 - Checkbox input for RAG mode toggle
 - Label text: "RAG Mode (search documents)"
 - Flex layout with small gap between checkbox and label
@@ -1170,7 +1257,8 @@ Add these components to src/components/:
 
 **Sources List Component Requirements:**
 
-*User Interface:*
+_User Interface:_
+
 - Return null (don't render) if sources array is empty
 - Display "Sources:" heading when sources exist
 - List each source with:
@@ -1186,20 +1274,23 @@ Add these components to src/components/:
 
 Write tests after implementing components. Focus on integration with existing hooks/context.
 
-*Key Behaviors to Test:*
+_Key Behaviors to Test:_
+
 - Document list displays uploaded documents
 - Status badges show correct states
 - Delete button removes documents
 - RAG toggle changes mode
 - Sources list displays after RAG query
 
-*Testing Strategy:*
+_Testing Strategy:_
+
 - Integration tests for component + context interaction
 - Unit tests only if complex rendering logic exists
 - E2E tests for user workflows
 - Use data-testid for selectors (per project conventions)
 
 **Phase ui-components Completion:**
+
 - DocumentManager component created with status display
 - IndexingStatusBadge component created
 - RAGToggle component created
@@ -1216,21 +1307,25 @@ Write tests after implementing components. Focus on integration with existing ho
 
 **This Phase: Extend Context with RAG Search Capability**
 
-*VectorDBContext Extensions:*
+_VectorDBContext Extensions:_
+
 - Add search: async function for vector search with optional topK parameter
 - Implement search: proxy to worker search function
 
-*Background Indexing:*
+_Background Indexing:_
+
 - Start background indexing queue processor when context initializes
 - Queue processor auto-starts in Phase indexing-pipeline when indexing queue is created
 
 **Test Requirements:**
 
 Write tests after implementing. Focus on:
+
 - Search function proxies to worker correctly
 - Background indexing queue processes automatically
 
 **Phase state-management Completion:**
+
 - VectorDBContext extended with search capability
 - Background indexing queue auto-starts
 - Tests written for new behaviors
@@ -1264,25 +1359,30 @@ After completing Phases worker-setup through state-management, measure actual pe
 
 **Conditional Optimization (Only If Measurements Show Problems):**
 
-*If indexing is slow (>5 min for typical dataset):*
+_If indexing is slow (>5 min for typical dataset):_
+
 - Consider bulk insert optimization (disable HNSW during inserts, rebuild after)
 - Consider adjusting HNSW parameters for larger datasets
 
-*If search is slow (>100ms):*
+_If search is slow (>100ms):_
+
 - Check HNSW index exists
 - Consider tuning ef_search parameter
 - Consider adjusting HNSW m/ef_construction parameters
 
-*If uploads freeze UI:*
+_If uploads freeze UI:_
+
 - Consider Comlink transfer() for large files (>10MB)
 
-*If quota exceeded errors occur:*
+_If quota exceeded errors occur:_
+
 - Add basic error handling (catch error, show message)
 - If users request it, add quota monitoring
 
 **Test Requirements:**
 
-*Performance Tests:*
+_Performance Tests:_
+
 - Measure baseline performance with realistic dataset
 - Document actual measurements
 - Only test optimizations if implemented
@@ -1290,12 +1390,14 @@ After completing Phases worker-setup through state-management, measure actual pe
 **Phase performance Completion:**
 
 Option A - No Optimization Needed (Preferred):
+
 - Performance measurements documented
 - All metrics within acceptable thresholds
 - Skip optimization, proceed to Phase build-config
 - Review changes and commit with appropriate message
 
 Option B - Optimization Required (Only if measurements show problems):
+
 - Specific optimizations implemented based on bottlenecks
 - Performance improvement measured and documented
 - All tests passing
@@ -1307,19 +1409,23 @@ Option B - Optimization Required (Only if measurements show problems):
 
 **Vite Configuration Requirements:**
 
-*Plugin Configuration:*
+_Plugin Configuration:_
+
 - Keep existing React and Tailwind CSS v4 plugins
 - Maintain existing path alias (@/ → ./src/)
 
-*Worker Build Configuration:*
+_Worker Build Configuration:_
+
 - Set worker format to 'es' (ES modules)
 - Include React plugin for workers (enables JSX if needed)
 
-*Dependency Optimization:*
+_Dependency Optimization:_
+
 - Exclude @electric-sql/pglite from optimization (WASM module, can't be pre-bundled)
 - Prevent Vite from trying to optimize WASM files
 
-*Build Configuration:*
+_Build Configuration:_
+
 - Target ES2020 for modern browser support
 - Configure manual code splitting:
   - Separate chunk for 'pglite' (large WASM module)
@@ -1327,36 +1433,42 @@ Option B - Optimization Required (Only if measurements show problems):
   - Separate chunk for 'openai' (SDK)
 - Improves initial load time and caching
 
-*Test Configuration:*
+_Test Configuration:_
+
 - Maintain existing Vitest configuration
 - Globals enabled
 - jsdom environment
 - Setup file: ./src/test/setup.ts
 - Exclude node_modules, dist, and e2e directories
 
-*Git Ignore:*
-- Add WASM build artifacts (*.wasm)
+_Git Ignore:_
+
+- Add WASM build artifacts (\*.wasm)
 - Add worker build directory (dist-worker/)
 
 **Test Requirements:**
 
-*Unit Tests:*
+_Unit Tests:_
+
 - Test Vite config compiles without errors
 - Test worker builds successfully
 - Test manual chunks are created correctly
 - Test build output contains expected files
 
-*Integration Tests:*
+_Integration Tests:_
+
 - Test built app runs in production mode
 - Test WASM modules load correctly in build
 - Test worker executes in production build
 - Test code splitting reduces initial bundle size
 
-*E2E Tests:*
+_E2E Tests:_
+
 - Test built app works in browser (npm run preview)
 - Test all features work in production build
 
 **Phase build-config Completion:**
+
 - Vite config updated with worker and WASM support
 - Manual chunking configured for optimal loading
 - Build tested and verified
@@ -1370,12 +1482,14 @@ Option B - Optimization Required (Only if measurements show problems):
 
 **Comprehensive Testing Requirements:**
 
-*Final Test Suite Verification:*
+_Final Test Suite Verification:_
+
 - Ensure ALL unit tests from all phases are passing (mocked APIs)
 - Ensure ALL integration tests from all phases are passing (mocked APIs)
 - Ensure ALL E2E tests from all phases are passing (real OpenAI APIs)
 
-*Full E2E RAG Pipeline Test:*
+_Full E2E RAG Pipeline Test:_
+
 - Load application in browser
 - Enter OpenAI API key
 - Upload 10,000-word markdown document (.md file)
@@ -1392,7 +1506,8 @@ Option B - Optimization Required (Only if measurements show problems):
 - Toggle RAG mode off and verify normal chat still works
 - Delete document and verify it's removed from library
 
-*Test Data Requirements:*
+_Test Data Requirements:_
+
 - Prepare 10,000-word markdown document with:
   - Multiple sections (## headings)
   - Rich content for testing chunk retrieval
@@ -1402,7 +1517,7 @@ Option B - Optimization Required (Only if measurements show problems):
 
 **Deployment Requirements:**
 
-*Deploy to GitHub Pages:*
+_Deploy to GitHub Pages:_
 
 1. Run production build: `npm run build`
 2. Test locally: `npm run preview`
@@ -1414,31 +1529,36 @@ Option B - Optimization Required (Only if measurements show problems):
 8. Fix any issues that arise (WASM loading, routing, etc.)
 9. Document actual deployment steps taken
 
-*If Deployment Issues Occur:*
+_If Deployment Issues Occur:_
+
 - WASM MIME types: Configure if needed
 - Routing: Add 404.html for SPA routing if needed
 - Cache headers: Add if needed for performance
 
 Don't configure things "just in case" - fix actual problems as they occur.
 
-*Security Verification:*
+_Security Verification:_
+
 - API key not exposed in source code
 - API key stays in localStorage only
 - No CORS needed (client-side only app)
 
 **Test Requirements:**
 
-*Run Full Test Suite:*
+_Run Full Test Suite:_
+
 - `npm test` - All unit and integration tests
 - `npm run test:e2e` - All E2E tests
 - Fix any failures before deploying
 
-*Performance Verification:*
+_Performance Verification:_
+
 - Test with realistic dataset (100-1000 documents)
 - Measure key metrics (upload time, indexing time, search latency)
 - Document actual performance (not theoretical)
 
 **Phase deployment Completion:**
+
 - All unit tests passing (all phases)
 - All integration tests passing (all phases)
 - All E2E tests passing (all phases)
@@ -1449,6 +1569,7 @@ Don't configure things "just in case" - fix actual problems as they occur.
 - Review changes and commit with appropriate message
 
 **Post-Deployment Verification:**
+
 - Test deployed app in multiple browsers (Chrome, Firefox, Safari)
 - Verify IndexedDB works across browsers
 - Verify worker execution in production
@@ -1472,20 +1593,24 @@ Don't configure things "just in case" - fix actual problems as they occur.
 
 **Add Advanced Handling ONLY When Problems Occur:**
 
-*If API rate limits hit (429 errors):*
+_If API rate limits hit (429 errors):_
+
 - Add exponential backoff retry logic
 - Implement in Phase indexing-pipeline if needed
 
-*If storage quota exceeded errors:*
+_If storage quota exceeded errors:_
+
 - Catch error, show message: "Storage full. Delete old documents."
 - If users request it, add quota monitoring later
 
-*If worker crashes frequently:*
+_If worker crashes frequently:_
+
 - PGlite data already persists in IndexedDB
 - Indexing queue already survives page reload
 - Add recovery logic only if crashes occur in testing
 
-*If file encoding failures:*
+_If file encoding failures:_
+
 - Basic validation already in Phase worker-setup
 - Add encoding detection only if users report issues
 
@@ -1510,14 +1635,14 @@ Don't configure things "just in case" - fix actual problems as they occur.
 
 ### Performance Benchmarks (Expected)
 
-| Metric | Small (100 docs) | Medium (1K docs) | Large (10K docs) |
-|--------|------------------|------------------|------------------|
-| **Indexing Time** | ~2 min | ~20 min | ~3 hours |
-| **Storage Used** | ~5 MB | ~50 MB | ~500 MB |
-| **Search Time** | <10ms | <20ms | <50ms |
-| **Embedding Cost** | $0.01 | $0.10 | $1.00 |
+| Metric             | Small (100 docs) | Medium (1K docs) | Large (10K docs) |
+| ------------------ | ---------------- | ---------------- | ---------------- |
+| **Indexing Time**  | ~2 min           | ~20 min          | ~3 hours         |
+| **Storage Used**   | ~5 MB            | ~50 MB           | ~500 MB          |
+| **Search Time**    | <10ms            | <20ms            | <50ms            |
+| **Embedding Cost** | $0.01            | $0.10            | $1.00            |
 
-*Assumes average 500 words/doc, 5 chunks/doc*
+_Assumes average 500 words/doc, 5 chunks/doc_
 
 ### Debugging Approach
 
@@ -1526,16 +1651,17 @@ Don't configure things "just in case" - fix actual problems as they occur.
 ```typescript
 // Log important events in development
 if (import.meta.env.DEV) {
-  console.log('[VectorDB] Document uploaded:', documentId)
-  console.log('[VectorDB] Indexing started:', documentId)
-  console.log('[VectorDB] Indexing completed:', documentId, chunkCount)
+  console.log('[VectorDB] Document uploaded:', documentId);
+  console.log('[VectorDB] Indexing started:', documentId);
+  console.log('[VectorDB] Indexing completed:', documentId, chunkCount);
 }
 
 // Always log errors
-console.error('[VectorDB] Error:', error.message, { context })
+console.error('[VectorDB] Error:', error.message, { context });
 ```
 
 **Don't Create Stats System Unless Needed:**
+
 - Console logging sufficient for debugging
 - Browser DevTools shows IndexedDB contents
 - SQL queries in appendix for manual inspection
@@ -1548,6 +1674,7 @@ console.error('[VectorDB] Error:', error.message, { context })
 ### From Current App
 
 Follow the implementation phases in order:
+
 1. **Phase worker-setup:** Set up PGlite worker with full-featured documents page
 2. **Phase indexing-pipeline:** Implement background indexing pipeline
 3. **Phase vector-search:** Add vector search and RAG integration
@@ -1564,6 +1691,7 @@ Follow the implementation phases in order:
 ### Useful SQL Queries
 
 **Find documents without indexes:**
+
 ```sql
 SELECT d.* FROM documents d
 LEFT JOIN chunks c ON d.id = c.document_id
@@ -1571,6 +1699,7 @@ WHERE c.id IS NULL;
 ```
 
 **Top documents by chunk count:**
+
 ```sql
 SELECT filename, chunk_count
 FROM documents
@@ -1579,6 +1708,7 @@ LIMIT 10;
 ```
 
 **Failed indexing jobs:**
+
 ```sql
 SELECT d.filename, iq.error_message, iq.retry_count
 FROM indexing_queue iq
@@ -1587,6 +1717,7 @@ WHERE iq.status = 'failed';
 ```
 
 **Storage breakdown:**
+
 ```sql
 SELECT
   COUNT(DISTINCT d.id) as total_documents,
@@ -1598,6 +1729,7 @@ LEFT JOIN chunks c ON d.id = c.document_id;
 ```
 
 **Similar documents (to a given document):**
+
 ```sql
 -- Find chunks similar to chunks from document X
 SELECT
@@ -1615,23 +1747,29 @@ LIMIT 5;
 ### Troubleshooting Guide
 
 **Problem:** Indexing stuck in "processing"
+
 - **Solution:** Check browser console for errors, retry job manually
 
 **Problem:** Search returns no results
+
 - **Solution:** Verify documents are indexed (`indexed_at IS NOT NULL`), check HNSW index exists
 
 **Problem:** "Quota exceeded" error
+
 - **Solution:** Check storage usage, delete old documents, increase quota (browser settings)
 
 **Problem:** Slow embedding generation
+
 - **Solution:** Reduce batch size, check network, verify API key tier
 
 **Problem:** Worker not responding
+
 - **Solution:** Reload page, check console for worker errors, verify PGlite initialized
 
 ### Resources & References
 
 **Documentation:**
+
 - PGlite: https://pglite.dev/docs
 - pgvector: https://github.com/pgvector/pgvector
 - LangChain.js: https://js.langchain.com/docs
@@ -1639,11 +1777,13 @@ LIMIT 5;
 - Comlink: https://github.com/GoogleChromeLabs/comlink
 
 **Examples:**
+
 - PGlite + pgvector example: https://gist.github.com/45deg/6b4b01477cdac6dd8f600285e20c3f21
 - Browser Vector Search: https://github.com/thorwebdev/browser-vector-search
 - In-browser RAG: https://supabase.com/blog/in-browser-semantic-search-pglite
 
 **Benchmarks:**
+
 - PGlite benchmarks: https://pglite.dev/benchmarks
 - pgvector HNSW performance: https://jkatz05.com/post/postgres/pgvector-hnsw-performance/
 

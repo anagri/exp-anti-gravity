@@ -27,12 +27,14 @@ Agentic RAG can be implemented **entirely client-side** using OpenAI's function 
 ### Evolution from Traditional RAG
 
 **Traditional RAG (Static):**
+
 - Linear workflow: User query → Vector search → Context injection → LLM generation
 - Single-pass retrieval
 - No self-assessment of retrieval quality
 - Fixed strategy regardless of query complexity
 
 **Agentic RAG (Dynamic):**
+
 - Iterative workflow with feedback loops
 - Agents **reason** about what information is needed
 - Agents **plan** multi-step retrieval strategies
@@ -53,30 +55,32 @@ Agentic RAG can be implemented **entirely client-side** using OpenAI's function 
 
 ## 2. Traditional RAG vs Agentic RAG: Comparative Analysis
 
-| Dimension | Traditional RAG | Agentic RAG |
-|-----------|----------------|-------------|
-| **Workflow** | Linear: query → retrieve → generate | Iterative: plan → retrieve → evaluate → refine → generate |
-| **Intelligence** | Retrieval-focused | Reasoning-integrated |
-| **Retrieval Strategy** | Fixed (always retrieve) | Adaptive (retrieve only when needed) |
-| **Query Handling** | Single-pass | Multi-step with decomposition |
-| **Quality Control** | None (trusts retrieval blindly) | Reflection + self-correction |
-| **Tool Access** | Single retriever (vector search) | Multiple tools (search, SQL, APIs, web) |
-| **Failure Handling** | Returns poor answer if retrieval fails | Rewrites query, tries alternate tools |
-| **Complexity Management** | Treats all queries equally | Classifies complexity, routes accordingly |
-| **Speed** | Faster (single pass) | Slower (iterative refinement) |
-| **Cost** | Lower (fewer LLM calls) | Higher (planning + reflection + generation) |
-| **Accuracy** | Good for simple queries | Excellent for complex, multi-faceted queries |
-| **Use Cases** | FAQ, simple Q&A, known-domain lookups | Research, analysis, code debugging, complex reasoning |
+| Dimension                 | Traditional RAG                        | Agentic RAG                                               |
+| ------------------------- | -------------------------------------- | --------------------------------------------------------- |
+| **Workflow**              | Linear: query → retrieve → generate    | Iterative: plan → retrieve → evaluate → refine → generate |
+| **Intelligence**          | Retrieval-focused                      | Reasoning-integrated                                      |
+| **Retrieval Strategy**    | Fixed (always retrieve)                | Adaptive (retrieve only when needed)                      |
+| **Query Handling**        | Single-pass                            | Multi-step with decomposition                             |
+| **Quality Control**       | None (trusts retrieval blindly)        | Reflection + self-correction                              |
+| **Tool Access**           | Single retriever (vector search)       | Multiple tools (search, SQL, APIs, web)                   |
+| **Failure Handling**      | Returns poor answer if retrieval fails | Rewrites query, tries alternate tools                     |
+| **Complexity Management** | Treats all queries equally             | Classifies complexity, routes accordingly                 |
+| **Speed**                 | Faster (single pass)                   | Slower (iterative refinement)                             |
+| **Cost**                  | Lower (fewer LLM calls)                | Higher (planning + reflection + generation)               |
+| **Accuracy**              | Good for simple queries                | Excellent for complex, multi-faceted queries              |
+| **Use Cases**             | FAQ, simple Q&A, known-domain lookups  | Research, analysis, code debugging, complex reasoning     |
 
 ### When to Use Each
 
 **Traditional RAG:**
+
 - Simple factual questions
 - Well-defined knowledge domains
 - Speed/cost critical
 - Predictable query patterns
 
 **Agentic RAG:**
+
 - Complex research queries
 - Multi-source information synthesis
 - Uncertain retrieval quality
@@ -93,6 +97,7 @@ Agentic RAG can be implemented **entirely client-side** using OpenAI's function 
 **Concept:** Intelligent query routing to appropriate retrieval tools.
 
 **How It Works:**
+
 1. User submits query
 2. **Router Agent** analyzes query intent and information requirements
 3. Agent selects optimal tool(s): vector search, web search, SQL database, API
@@ -101,12 +106,14 @@ Agentic RAG can be implemented **entirely client-side** using OpenAI's function 
 6. LLM synthesizes final answer
 
 **Key Components:**
+
 - **Retrieval Agent**: Coordination unit managing routing logic
 - **Router**: Decision-maker evaluating query→tool fitness
 - **Tools**: Vector search, web search, text-to-SQL, recommendation systems
 - **Data Sources**: Structured DBs, unstructured docs, external APIs
 
 **Implementation Approach:**
+
 ```typescript
 // Pseudo-code for router pattern
 interface Tool {
@@ -120,9 +127,7 @@ async function routerAgent(query: string, tools: Tool[]) {
   const selectedTools = await llm.selectTools(query, tools);
 
   // Execute tools in parallel or sequence
-  const results = await Promise.all(
-    selectedTools.map(tool => tool.execute(query))
-  );
+  const results = await Promise.all(selectedTools.map((tool) => tool.execute(query)));
 
   // Synthesize results
   return await llm.synthesize(query, results);
@@ -130,11 +135,13 @@ async function routerAgent(query: string, tools: Tool[]) {
 ```
 
 **When to Use:**
+
 - Multi-source environments (docs + web + DB)
 - Query types requiring different retrieval strategies
 - Systems with 3+ distinct data sources
 
 **Complexity:**
+
 - **Simple:** Single router, 2-3 tools
 - **Complex:** Multiple specialized routers, 5+ tools, cascading decisions
 
@@ -145,6 +152,7 @@ async function routerAgent(query: string, tools: Tool[]) {
 **Concept:** Decompose complex queries into parallelizable subqueries.
 
 **How It Works:**
+
 1. **Query Planner** receives complex question
 2. Planner generates execution plan: list of subqueries/subtasks
 3. Each subquery routes to specialized RAG pipeline
@@ -152,12 +160,14 @@ async function routerAgent(query: string, tools: Tool[]) {
 5. **Synthesis Agent** combines partial answers into coherent response
 
 **Key Components:**
+
 - **Query Planner**: LLM-based orchestrator creating execution plans
 - **RAG Pipelines**: Specialized query engines for different domains/sources
 - **Synthesis Engine**: LLM combining retrieved information
 - **Dependency Tracker**: Manages sequential vs parallel execution
 
 **Example:**
+
 ```
 User Query: "Compare revenue growth of tech companies in 2024 vs AI startups"
 
@@ -169,6 +179,7 @@ Query Plan:
 ```
 
 **Implementation Approach:**
+
 ```typescript
 async function queryPlanningRAG(complexQuery: string) {
   // Step 1: Generate plan
@@ -195,11 +206,13 @@ async function queryPlanningRAG(complexQuery: string) {
 ```
 
 **When to Use:**
+
 - Multi-faceted questions requiring information from diverse sources
 - Comparative analysis tasks
 - Research queries needing evidence from multiple domains
 
 **Benefits:**
+
 - Parallelization improves speed
 - Modular architecture simplifies debugging
 - Each pipeline can be optimized independently
@@ -211,6 +224,7 @@ async function queryPlanningRAG(complexQuery: string) {
 **Concept:** Dynamic strategy selection based on query complexity classification.
 
 **How It Works:**
+
 1. **Complexity Classifier** analyzes incoming query
 2. Classifier categorizes query: Straightforward / Simple / Complex
 3. System routes to appropriate strategy:
@@ -221,6 +235,7 @@ async function queryPlanningRAG(complexQuery: string) {
 5. Return answer
 
 **Key Components:**
+
 - **Query Classifier**: Lightweight model predicting complexity
 - **Three Execution Paths**:
   - Path A: LLM-only (no retrieval)
@@ -229,6 +244,7 @@ async function queryPlanningRAG(complexQuery: string) {
 - **Complexity Signals**: Query length, ambiguity, domain specificity, question type
 
 **Classification Examples:**
+
 ```
 Straightforward: "What is the capital of France?" → No retrieval
 Simple: "Summarize our company's Q4 earnings" → Single retrieval
@@ -236,6 +252,7 @@ Complex: "Analyze correlation between customer churn and product feature usage a
 ```
 
 **Implementation Approach:**
+
 ```typescript
 async function adaptiveRAG(query: string) {
   // Classify query complexity
@@ -262,11 +279,13 @@ async function adaptiveRAG(query: string) {
 ```
 
 **When to Use:**
+
 - Variable query complexity (mix of simple and complex)
 - Cost/latency optimization critical
 - Resource constraints (limit expensive multi-step for complex queries only)
 
 **Benefits:**
+
 - **Resource Efficiency**: Avoids unnecessary computation
 - **Cost Savings**: Fewer LLM calls for simple queries
 - **Speed**: Fast path for straightforward questions
@@ -279,6 +298,7 @@ async function adaptiveRAG(query: string) {
 **Concept:** Self-correction through retrieval evaluation and supplementary searches.
 
 **How It Works:**
+
 1. Retrieve documents from vector store
 2. **Retrieval Evaluator** (LLM-based) assesses relevance for each document
 3. Assign confidence grade: Correct / Ambiguous / Incorrect
@@ -290,6 +310,7 @@ async function adaptiveRAG(query: string) {
 6. Generate final answer using refined context
 
 **Key Components:**
+
 - **Retrieval Evaluator**: LLM scoring document relevance (binary or graded)
 - **Grade Node**: Relevance assessment logic
 - **Query Rewrite Node**: Reformulates query when retrieval fails
@@ -297,6 +318,7 @@ async function adaptiveRAG(query: string) {
 - **Decompose-Recompose Algorithm**: Filters irrelevant content from docs
 
 **Evaluation Prompts:**
+
 ```typescript
 const evaluationPrompt = `
 Given the question: "${query}"
@@ -308,15 +330,14 @@ Return: "Correct" / "Ambiguous" / "Incorrect"
 ```
 
 **Implementation Approach:**
+
 ```typescript
 async function correctiveRAG(query: string) {
   // Step 1: Initial retrieval
   const docs = await vectorSearch(query);
 
   // Step 2: Evaluate relevance
-  const grades = await Promise.all(
-    docs.map(doc => evaluateRelevance(query, doc))
-  );
+  const grades = await Promise.all(docs.map((doc) => evaluateRelevance(query, doc)));
 
   // Step 3: Conditional branching
   const correctDocs = docs.filter((_, i) => grades[i] === 'Correct');
@@ -348,12 +369,14 @@ async function correctiveRAG(query: string) {
 ```
 
 **When to Use:**
+
 - Uncertain retrieval quality (noisy corpus)
 - Knowledge base has gaps (needs web supplementation)
 - High factuality requirements
 - User-uploaded documents (variable quality)
 
 **Benefits:**
+
 - **Self-Healing**: Automatically fixes poor retrieval
 - **Supplementation**: Augments internal knowledge with external sources
 - **Quality Assurance**: Validates before generation
@@ -365,6 +388,7 @@ async function correctiveRAG(query: string) {
 **Concept:** Dynamic on-demand retrieval with self-critique mechanisms.
 
 **How It Works:**
+
 1. Receive user query
 2. **Retrieval Decision**: LLM decides if retrieval is needed (yes/no)
    - If sufficient knowledge exists → Skip retrieval
@@ -379,6 +403,7 @@ async function correctiveRAG(query: string) {
 8. Return verified answer
 
 **Key Components:**
+
 - **Reflection Tokens**: Special tokens signaling retrieval need and critique points
 - **On-Demand Retrieval**: Conditional execution (not always-on)
 - **Self-Critique Mechanism**: Post-generation validation
@@ -387,6 +412,7 @@ async function correctiveRAG(query: string) {
 - **Query Transformation**: Rewrites queries when retrieval fails
 
 **Reflection Token Example:**
+
 ```
 LLM Output: "[RETRIEVE] I need to check the latest financial data. [/RETRIEVE]"
 System Action: Trigger vector search for financial data
@@ -396,6 +422,7 @@ System Action: Verify against retrieved documents, regenerate if needed
 ```
 
 **Implementation Approach:**
+
 ```typescript
 async function selfReflectiveRAG(query: string) {
   // Step 1: Decide if retrieval needed
@@ -438,12 +465,14 @@ async function selfReflectiveRAG(query: string) {
 ```
 
 **When to Use:**
+
 - Knowledge-intensive tasks requiring evidence-based answers
 - Cost optimization (avoid unnecessary retrievals)
 - High factuality requirements (minimize hallucinations)
 - Mixed queries (some answerable without retrieval)
 
 **Benefits:**
+
 - **Efficiency**: Only retrieves when truly needed
 - **Quality Control**: Validates generated content
 - **Hallucination Reduction**: Self-critique prevents fabrication
@@ -456,6 +485,7 @@ async function selfReflectiveRAG(query: string) {
 **Concept:** Parallel drafting by specialist model, verification by generalist model.
 
 **How It Works:**
+
 1. Divide retrieved documents into subsets (e.g., 3 chunks each)
 2. **Specialist Drafter** (small, fast LM) generates multiple answer drafts in parallel
    - Draft 1 from chunks [0-2]
@@ -468,6 +498,7 @@ async function selfReflectiveRAG(query: string) {
 7. Optionally: Verifier refines selected draft
 
 **Key Components:**
+
 - **Specialist RAG Drafter**: Small LM (e.g., GPT-3.5, Llama 7B) for fast drafting
 - **Generalist Verifier**: Large LM (e.g., GPT-4, Llama 70B) for quality assessment
 - **Parallel Document Processing**: Multiple subsets processed simultaneously
@@ -476,6 +507,7 @@ async function selfReflectiveRAG(query: string) {
 - **Selection Logic**: Argmax(scores) or ensemble
 
 **Draft Example:**
+
 ```
 Draft 1 (chunks 0-2):
 Answer: "Revenue increased 25% YoY due to cloud services growth."
@@ -493,6 +525,7 @@ Selected: Draft 1
 ```
 
 **Implementation Approach:**
+
 ```typescript
 async function speculativeRAG(query: string, allDocs: Document[]) {
   // Step 1: Partition documents
@@ -524,18 +557,21 @@ async function speculativeRAG(query: string, allDocs: Document[]) {
 ```
 
 **When to Use:**
+
 - Speed + accuracy both critical
 - Large document sets (100+ chunks)
 - Cost constraints (minimize large model usage)
 - Knowledge-intensive questions with complex reasoning
 
 **Benefits:**
+
 - **Speed**: Small model drafts in parallel faster than sequential large model
 - **Accuracy**: Large model verification ensures quality
 - **Cost Efficiency**: Majority of work done by cheaper small model
 - **Robustness**: Multiple drafts provide redundancy
 
 **Trade-offs:**
+
 - Increased system complexity
 - Requires maintaining two model sizes
 - Additional latency for verification step
@@ -547,6 +583,7 @@ async function speculativeRAG(query: string, allDocs: Document[]) {
 **Concept:** LLM-driven routing between standard RAG and long-context processing.
 
 **How It Works:**
+
 1. Retrieve initial context from vector store (e.g., top-5 chunks)
 2. **Answerability Judge**: LLM evaluates if retrieved context is sufficient
    - Prompt: "Can you answer this question with the given context? Reply 'ANSWERABLE' or 'UNANSWERABLE'"
@@ -560,6 +597,7 @@ async function speculativeRAG(query: string, allDocs: Document[]) {
 5. Generate answer using appropriate flow
 
 **Key Components:**
+
 - **Decision Node**: LLM judge with answerability prompt
 - **Standard RAG Flow**: Top-K chunks → Regular context window
 - **Long-Context Flow**: Full document merge → Extended context window
@@ -568,6 +606,7 @@ async function speculativeRAG(query: string, allDocs: Document[]) {
 - **Two Generation Prompts**: Standard RAG prompt vs long-context prompt
 
 **Answerability Assessment:**
+
 ```typescript
 const judgePrompt = `
 Given the question: "${query}"
@@ -584,6 +623,7 @@ const judgment = await llm.judge(judgePrompt);
 ```
 
 **Implementation Approach:**
+
 ```typescript
 async function selfRouteRAG(query: string) {
   // Step 1: Initial retrieval (top-K chunks)
@@ -612,18 +652,21 @@ async function selfRouteRAG(query: string) {
 ```
 
 **When to Use:**
+
 - Variable query complexity (some need full context, others don't)
 - Cost optimization (long-context models more expensive)
 - Documents with complex inter-dependencies
 - Queries requiring holistic understanding vs specific facts
 
 **Benefits:**
+
 - **Cost Efficiency**: Use standard RAG for most queries
 - **Accuracy**: Full context for complex queries requiring holistic view
 - **Automatic Routing**: No manual classification needed
 - **Adaptive**: Self-adjusts based on retrieval adequacy
 
 **Example Routing Logic:**
+
 ```
 Query: "What is the revenue in Q4?"
 Top-5 chunks contain explicit answer → ANSWERABLE → Standard RAG
@@ -641,12 +684,14 @@ Top-5 chunks have pieces but lack connections → UNANSWERABLE → Long-context 
 **Definition:** Breaking complex tasks into step-by-step execution plans.
 
 **Mechanisms:**
+
 - **Task Decomposition**: Split multi-faceted queries into subtasks
 - **Dependency Analysis**: Determine sequential vs parallel execution
 - **Resource Allocation**: Assign subtasks to appropriate tools
 - **Plan Refinement**: Adjust plan based on intermediate results
 
 **Example:**
+
 ```
 User Query: "Compare our product performance to competitors and suggest improvements"
 
@@ -660,6 +705,7 @@ Agent Plan:
 ```
 
 **Implementation Pattern (ReAct):**
+
 ```typescript
 async function planningAgent(query: string) {
   // Thought: What information do I need?
@@ -699,6 +745,7 @@ async function planningAgent(query: string) {
 5. **Causal Analysis**: Identifying cause-effect relationships
 
 **Example:**
+
 ```
 Query: "Why did sales drop in Q3?"
 
@@ -711,10 +758,11 @@ Reasoning Chain:
 ```
 
 **ReAct Pattern (Reason + Act):**
+
 ```typescript
 async function reactAgent(query: string) {
-  let thought = "";
-  let observation = "";
+  let thought = '';
+  let observation = '';
   const maxIterations = 5;
 
   for (let i = 0; i < maxIterations; i++) {
@@ -725,7 +773,7 @@ async function reactAgent(query: string) {
       What action should I take? Or can I answer now?
     `);
 
-    if (thought.includes("ANSWER:")) {
+    if (thought.includes('ANSWER:')) {
       // Agent decided it has enough information
       return extractAnswer(thought);
     }
@@ -735,7 +783,7 @@ async function reactAgent(query: string) {
     observation = await executeTool(action);
   }
 
-  return "Unable to answer after maximum iterations";
+  return 'Unable to answer after maximum iterations';
 }
 ```
 
@@ -754,16 +802,15 @@ async function reactAgent(query: string) {
 5. **Iterative Refinement**: Loop until quality threshold met
 
 **Correction Loop Pattern:**
+
 ```typescript
 async function selfCorrectingRAG(query: string, maxRetries: number = 3) {
   let attempt = 0;
-  let answer = "";
+  let answer = '';
 
   while (attempt < maxRetries) {
     // Step 1: Retrieve
-    const docs = attempt === 0
-      ? await vectorSearch(query)
-      : await vectorSearch(rewrittenQuery);
+    const docs = attempt === 0 ? await vectorSearch(query) : await vectorSearch(rewrittenQuery);
 
     // Step 2: Evaluate retrieval quality
     const quality = await llm.evaluateRetrievalQuality(query, docs);
@@ -795,6 +842,7 @@ async function selfCorrectingRAG(query: string, maxRetries: number = 3) {
 ```
 
 **Example Self-Correction:**
+
 ```
 Iteration 1:
 Query: "What is the API rate limit?"
@@ -829,45 +877,46 @@ Return: Answer
 8. **Document Parser**: Extract text from PDFs/DOCX
 
 **Tool Calling Flow (OpenAI Function Calling):**
+
 ```typescript
 // Step 1: Define tools
 const tools = [
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "vector_search",
-      description: "Search knowledge base for relevant documents",
+      name: 'vector_search',
+      description: 'Search knowledge base for relevant documents',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          query: { type: "string", description: "Search query" },
-          topK: { type: "number", description: "Number of results" }
+          query: { type: 'string', description: 'Search query' },
+          topK: { type: 'number', description: 'Number of results' },
         },
-        required: ["query"]
-      }
-    }
+        required: ['query'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "web_search",
-      description: "Search the web for latest information",
+      name: 'web_search',
+      description: 'Search the web for latest information',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          query: { type: "string" }
-        }
-      }
-    }
-  }
+          query: { type: 'string' },
+        },
+      },
+    },
+  },
 ];
 
 // Step 2: LLM decides which tool to call
 const response = await openai.chat.completions.create({
-  model: "gpt-4",
-  messages: [{ role: "user", content: userQuery }],
+  model: 'gpt-4',
+  messages: [{ role: 'user', content: userQuery }],
   tools: tools,
-  tool_choice: "auto" // LLM decides
+  tool_choice: 'auto', // LLM decides
 });
 
 // Step 3: Execute tool calls
@@ -875,11 +924,11 @@ const toolCalls = response.choices[0].message.tool_calls;
 const toolResults = [];
 
 for (const call of toolCalls) {
-  if (call.function.name === "vector_search") {
+  if (call.function.name === 'vector_search') {
     const args = JSON.parse(call.function.arguments);
     const result = await vectorSearch(args.query, args.topK);
     toolResults.push({ tool_call_id: call.id, result });
-  } else if (call.function.name === "web_search") {
+  } else if (call.function.name === 'web_search') {
     const args = JSON.parse(call.function.arguments);
     const result = await webSearch(args.query);
     toolResults.push({ tool_call_id: call.id, result });
@@ -888,22 +937,23 @@ for (const call of toolCalls) {
 
 // Step 4: Send tool results back to LLM
 const finalResponse = await openai.chat.completions.create({
-  model: "gpt-4",
+  model: 'gpt-4',
   messages: [
-    { role: "user", content: userQuery },
+    { role: 'user', content: userQuery },
     response.choices[0].message, // assistant message with tool_calls
-    ...toolResults.map(tr => ({
-      role: "tool",
+    ...toolResults.map((tr) => ({
+      role: 'tool',
       tool_call_id: tr.tool_call_id,
-      content: JSON.stringify(tr.result)
-    }))
-  ]
+      content: JSON.stringify(tr.result),
+    })),
+  ],
 });
 
 return finalResponse.choices[0].message.content;
 ```
 
 **Multi-Tool Orchestration:**
+
 ```
 User: "Find our company's revenue in 2024 and compare it to the industry average"
 
@@ -938,6 +988,7 @@ Final Answer: "Our company's revenue in 2024 was $50M, which is 43% above the in
 4. **Source Reflection**: "Are my sources credible?"
 
 **Reflection Prompts:**
+
 ```typescript
 // Reflection on retrieval sufficiency
 const epistemicReflection = await llm.complete(`
@@ -962,10 +1013,11 @@ Critical self-evaluation:
 ```
 
 **Reflection Loop Pattern:**
+
 ```typescript
 async function reflectiveRAG(query: string) {
   const maxReflectionCycles = 3;
-  let answer = "";
+  let answer = '';
   let satisfied = false;
 
   for (let cycle = 0; cycle < maxReflectionCycles && !satisfied; cycle++) {
@@ -992,7 +1044,7 @@ async function reflectiveRAG(query: string) {
       satisfied = true;
     } else {
       // Incorporate reflection feedback
-      query = query + "\n[Improvement needed: " + reflection.feedback + "]";
+      query = query + '\n[Improvement needed: ' + reflection.feedback + ']';
     }
   }
 
@@ -1017,15 +1069,16 @@ LangGraph is a library for building stateful, multi-actor applications with LLMs
 - **Graph**: Orchestrates node execution based on edges
 
 **Basic LangGraph Structure:**
+
 ```typescript
-import { StateGraph, MessagesAnnotation } from "@langchain/langgraph";
+import { StateGraph, MessagesAnnotation } from '@langchain/langgraph';
 
 // Define nodes
 async function retrieveNode(state: typeof MessagesAnnotation.State) {
   const query = state.messages[state.messages.length - 1].content;
   const docs = await vectorSearch(query);
   return {
-    messages: [{ role: "system", content: formatDocs(docs) }]
+    messages: [{ role: 'system', content: formatDocs(docs) }],
   };
 }
 
@@ -1042,26 +1095,27 @@ async function generateNode(state: typeof MessagesAnnotation.State) {
 
 // Build graph
 const graph = new StateGraph(MessagesAnnotation)
-  .addNode("retrieve", retrieveNode)
-  .addNode("evaluate", evaluateNode)
-  .addNode("generate", generateNode)
-  .addEdge("__start__", "retrieve")
+  .addNode('retrieve', retrieveNode)
+  .addNode('evaluate', evaluateNode)
+  .addNode('generate', generateNode)
+  .addEdge('__start__', 'retrieve')
   .addConditionalEdges(
-    "retrieve",
-    async (state) => state.metadata?.documentsRelevant ? "generate" : "rewrite",
-    { generate: "generate", rewrite: "rewrite_query" }
+    'retrieve',
+    async (state) => (state.metadata?.documentsRelevant ? 'generate' : 'rewrite'),
+    { generate: 'generate', rewrite: 'rewrite_query' }
   )
-  .addEdge("generate", "__end__");
+  .addEdge('generate', '__end__');
 
 const app = graph.compile();
 
 // Execute
 const result = await app.invoke({
-  messages: [{ role: "user", content: "What is the revenue?" }]
+  messages: [{ role: 'user', content: 'What is the revenue?' }],
 });
 ```
 
 **LangGraph for Corrective RAG:**
+
 ```typescript
 // Nodes
 const nodes = {
@@ -1071,10 +1125,8 @@ const nodes = {
   },
 
   gradeDocuments: async (state) => {
-    const grades = await Promise.all(
-      state.documents.map(doc => llm.grade(state.query, doc))
-    );
-    const relevant = state.documents.filter((_, i) => grades[i] === "relevant");
+    const grades = await Promise.all(state.documents.map((doc) => llm.grade(state.query, doc)));
+    const relevant = state.documents.filter((_, i) => grades[i] === 'relevant');
     return { ...state, relevantDocs: relevant, needsRewrite: relevant.length === 0 };
   },
 
@@ -1091,25 +1143,30 @@ const nodes = {
   generate: async (state) => {
     const answer = await llm.generate(state.query, state.relevantDocs);
     return { ...state, answer };
-  }
+  },
 };
 
 // Build graph with conditional routing
-const graph = new StateGraph({ channels: { query: null, documents: [], relevantDocs: [], needsRewrite: false, answer: "" } })
-  .addNode("retrieve", nodes.retrieve)
-  .addNode("gradeDocuments", nodes.gradeDocuments)
-  .addNode("rewriteQuery", nodes.rewriteQuery)
-  .addNode("webSearch", nodes.webSearch)
-  .addNode("generate", nodes.generate)
-  .addEdge("__start__", "retrieve")
-  .addEdge("retrieve", "gradeDocuments")
-  .addConditionalEdges("gradeDocuments", (state) => state.needsRewrite ? "rewriteQuery" : "webSearch")
-  .addEdge("rewriteQuery", "retrieve") // Loop back
-  .addEdge("webSearch", "generate")
-  .addEdge("generate", "__end__");
+const graph = new StateGraph({
+  channels: { query: null, documents: [], relevantDocs: [], needsRewrite: false, answer: '' },
+})
+  .addNode('retrieve', nodes.retrieve)
+  .addNode('gradeDocuments', nodes.gradeDocuments)
+  .addNode('rewriteQuery', nodes.rewriteQuery)
+  .addNode('webSearch', nodes.webSearch)
+  .addNode('generate', nodes.generate)
+  .addEdge('__start__', 'retrieve')
+  .addEdge('retrieve', 'gradeDocuments')
+  .addConditionalEdges('gradeDocuments', (state) =>
+    state.needsRewrite ? 'rewriteQuery' : 'webSearch'
+  )
+  .addEdge('rewriteQuery', 'retrieve') // Loop back
+  .addEdge('webSearch', 'generate')
+  .addEdge('generate', '__end__');
 ```
 
 **Why LangGraph for Agentic RAG?**
+
 - ✅ Built-in cycle support (for iterative refinement)
 - ✅ Conditional routing (adaptive strategies)
 - ✅ State persistence (maintains context across steps)
@@ -1135,16 +1192,17 @@ LangChain provides modular components for building LLM applications: prompt temp
 8. **Tools**: Pre-built (web search, calculator) and custom tools
 
 **LangChain ReAct Agent:**
+
 ```typescript
-import { ChatOpenAI } from "@langchain/openai";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import { DuckDuckGoSearch } from "@langchain/community/tools/duckduckgo_search";
-import { createRetrieverTool } from "langchain/tools/retriever";
+import { ChatOpenAI } from '@langchain/openai';
+import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { DuckDuckGoSearch } from '@langchain/community/tools/duckduckgo_search';
+import { createRetrieverTool } from 'langchain/tools/retriever';
 
 // Create tools
 const vectorTool = createRetrieverTool(retriever, {
-  name: "vector_search",
-  description: "Search the knowledge base for relevant documents"
+  name: 'vector_search',
+  description: 'Search the knowledge base for relevant documents',
 });
 
 const webTool = new DuckDuckGoSearch();
@@ -1152,16 +1210,17 @@ const webTool = new DuckDuckGoSearch();
 const tools = [vectorTool, webTool];
 
 // Create agent
-const llm = new ChatOpenAI({ model: "gpt-4" });
+const llm = new ChatOpenAI({ model: 'gpt-4' });
 const agent = createReactAgent({ llm, tools });
 
 // Use agent
 const result = await agent.invoke({
-  messages: [{ role: "user", content: "What is our Q4 revenue?" }]
+  messages: [{ role: 'user', content: 'What is our Q4 revenue?' }],
 });
 ```
 
 **Browser Compatibility:**
+
 - ✅ `@langchain/core`: Core abstractions (browser-safe)
 - ✅ `@langchain/openai`: OpenAI integration (works with `dangerouslyAllowBrowser: true`)
 - ⚠️ `@langchain/community`: Some tools require Node.js (check before using)
@@ -1176,52 +1235,53 @@ const result = await agent.invoke({
 You can implement agentic RAG using only OpenAI's function calling API, which is fully browser-compatible.
 
 **Complete ReAct Agent Example:**
+
 ```typescript
 // Define tools
 const tools = [
   {
-    type: "function" as const,
+    type: 'function' as const,
     function: {
-      name: "vector_search",
-      description: "Search knowledge base using semantic similarity",
+      name: 'vector_search',
+      description: 'Search knowledge base using semantic similarity',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          query: { type: "string", description: "The search query" },
-          topK: { type: "number", description: "Number of results", default: 5 }
+          query: { type: 'string', description: 'The search query' },
+          topK: { type: 'number', description: 'Number of results', default: 5 },
         },
-        required: ["query"]
-      }
-    }
+        required: ['query'],
+      },
+    },
   },
   {
-    type: "function" as const,
+    type: 'function' as const,
     function: {
-      name: "web_search",
-      description: "Search the web for current information",
+      name: 'web_search',
+      description: 'Search the web for current information',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          query: { type: "string" }
+          query: { type: 'string' },
         },
-        required: ["query"]
-      }
-    }
+        required: ['query'],
+      },
+    },
   },
   {
-    type: "function" as const,
+    type: 'function' as const,
     function: {
-      name: "final_answer",
-      description: "Provide the final answer to the user",
+      name: 'final_answer',
+      description: 'Provide the final answer to the user',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          answer: { type: "string" }
+          answer: { type: 'string' },
         },
-        required: ["answer"]
-      }
-    }
-  }
+        required: ['answer'],
+      },
+    },
+  },
 ];
 
 // Tool execution functions
@@ -1238,29 +1298,30 @@ const toolExecutors = {
 
   final_answer: async (args: { answer: string }) => {
     return args.answer; // Special: signals completion
-  }
+  },
 };
 
 // ReAct loop
 async function reactAgent(userQuery: string, maxIterations: number = 5) {
   const messages = [
     {
-      role: "system",
-      content: "You are a helpful assistant. Use tools to gather information before answering. When ready to answer, use the final_answer tool."
+      role: 'system',
+      content:
+        'You are a helpful assistant. Use tools to gather information before answering. When ready to answer, use the final_answer tool.',
     },
     {
-      role: "user",
-      content: userQuery
-    }
+      role: 'user',
+      content: userQuery,
+    },
   ];
 
   for (let i = 0; i < maxIterations; i++) {
     // LLM decides next action
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: 'gpt-4',
       messages,
       tools,
-      tool_choice: "auto"
+      tool_choice: 'auto',
     });
 
     const assistantMessage = response.choices[0].message;
@@ -1280,7 +1341,7 @@ async function reactAgent(userQuery: string, maxIterations: number = 5) {
       console.log(`[Agent] Calling tool: ${functionName}`, functionArgs);
 
       // Special case: final_answer signals completion
-      if (functionName === "final_answer") {
+      if (functionName === 'final_answer') {
         return functionArgs.answer;
       }
 
@@ -1292,35 +1353,40 @@ async function reactAgent(userQuery: string, maxIterations: number = 5) {
 
       // Add tool result to messages
       messages.push({
-        role: "tool",
+        role: 'tool',
         tool_call_id: toolCall.id,
-        content: result
+        content: result,
       });
     }
   }
 
-  return "Maximum iterations reached without final answer";
+  return 'Maximum iterations reached without final answer';
 }
 
 // Usage
-const answer = await reactAgent("What is our company revenue and how does it compare to competitors?");
+const answer = await reactAgent(
+  'What is our company revenue and how does it compare to competitors?'
+);
 ```
 
 **Streaming with Function Calling:**
+
 ```typescript
 async function* reactAgentStreaming(userQuery: string) {
-  const messages = [/* ... */];
+  const messages = [
+    /* ... */
+  ];
 
   for (let i = 0; i < maxIterations; i++) {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: 'gpt-4',
       messages,
       tools,
-      stream: true
+      stream: true,
     });
 
-    let currentToolCall = { id: "", name: "", arguments: "" };
-    let textBuffer = "";
+    let currentToolCall = { id: '', name: '', arguments: '' };
+    let textBuffer = '';
 
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta;
@@ -1328,7 +1394,7 @@ async function* reactAgentStreaming(userQuery: string) {
       // Handle text streaming
       if (delta?.content) {
         textBuffer += delta.content;
-        yield { type: "text", content: delta.content };
+        yield { type: 'text', content: delta.content };
       }
 
       // Handle tool call streaming
@@ -1336,31 +1402,44 @@ async function* reactAgentStreaming(userQuery: string) {
         const toolCallDelta = delta.tool_calls[0];
         if (toolCallDelta.id) currentToolCall.id = toolCallDelta.id;
         if (toolCallDelta.function?.name) currentToolCall.name = toolCallDelta.function.name;
-        if (toolCallDelta.function?.arguments) currentToolCall.arguments += toolCallDelta.function.arguments;
+        if (toolCallDelta.function?.arguments)
+          currentToolCall.arguments += toolCallDelta.function.arguments;
       }
 
       // Tool call complete
-      if (chunk.choices[0]?.finish_reason === "tool_calls") {
-        yield { type: "tool_call", tool: currentToolCall.name, args: JSON.parse(currentToolCall.arguments) };
+      if (chunk.choices[0]?.finish_reason === 'tool_calls') {
+        yield {
+          type: 'tool_call',
+          tool: currentToolCall.name,
+          args: JSON.parse(currentToolCall.arguments),
+        };
 
         // Execute tool
-        const result = await toolExecutors[currentToolCall.name](JSON.parse(currentToolCall.arguments));
+        const result = await toolExecutors[currentToolCall.name](
+          JSON.parse(currentToolCall.arguments)
+        );
 
-        if (currentToolCall.name === "final_answer") {
+        if (currentToolCall.name === 'final_answer') {
           return; // Done
         }
 
-        yield { type: "tool_result", tool: currentToolCall.name, result };
+        yield { type: 'tool_result', tool: currentToolCall.name, result };
 
         // Add to messages and continue loop
         messages.push({
-          role: "assistant",
-          tool_calls: [{ id: currentToolCall.id, type: "function", function: { name: currentToolCall.name, arguments: currentToolCall.arguments } }]
+          role: 'assistant',
+          tool_calls: [
+            {
+              id: currentToolCall.id,
+              type: 'function',
+              function: { name: currentToolCall.name, arguments: currentToolCall.arguments },
+            },
+          ],
         });
         messages.push({
-          role: "tool",
+          role: 'tool',
           tool_call_id: currentToolCall.id,
-          content: result
+          content: result,
         });
 
         break; // Next iteration
@@ -1370,12 +1449,12 @@ async function* reactAgentStreaming(userQuery: string) {
 }
 
 // Usage
-for await (const event of reactAgentStreaming("What is the revenue?")) {
-  if (event.type === "text") {
+for await (const event of reactAgentStreaming('What is the revenue?')) {
+  if (event.type === 'text') {
     console.log(event.content);
-  } else if (event.type === "tool_call") {
+  } else if (event.type === 'tool_call') {
     console.log(`Calling ${event.tool}...`);
-  } else if (event.type === "tool_result") {
+  } else if (event.type === 'tool_result') {
     console.log(`Result: ${event.result}`);
   }
 }
@@ -1391,7 +1470,7 @@ Since agentic RAG involves iterative loops (planning → tool execution → refl
 
 ```typescript
 // agent.worker.ts
-import { wrap } from "comlink";
+import { wrap } from 'comlink';
 
 export async function agenticRAG(query: string, apiKey: string) {
   const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
@@ -1407,14 +1486,14 @@ expose({ agenticRAG });
 
 ```typescript
 // main.ts
-import { wrap } from "comlink";
-import AgentWorker from "./agent.worker?worker";
+import { wrap } from 'comlink';
+import AgentWorker from './agent.worker?worker';
 
 const worker = new AgentWorker();
-const api = wrap<typeof import("./agent.worker")>(worker);
+const api = wrap<typeof import('./agent.worker')>(worker);
 
 // Use from main thread
-const answer = await api.agenticRAG("What is the revenue?", apiKey);
+const answer = await api.agenticRAG('What is the revenue?', apiKey);
 ```
 
 **IndexedDB for State Persistence:**
@@ -1429,9 +1508,9 @@ await db.conversations.put({
   agentState: {
     currentPlan: plan,
     toolCallHistory: toolCalls,
-    reflections: reflections
+    reflections: reflections,
   },
-  timestamp: Date.now()
+  timestamp: Date.now(),
 });
 
 // Resume from state
@@ -1448,16 +1527,16 @@ Update UI in real-time as agent executes tools:
 async function runAgentWithUI(query: string) {
   for await (const event of reactAgentStreaming(query)) {
     switch (event.type) {
-      case "thought":
+      case 'thought':
         addThoughtBubble(event.content); // "I need to search the knowledge base..."
         break;
-      case "tool_call":
+      case 'tool_call':
         showToolExecution(event.tool, event.args); // Loading spinner
         break;
-      case "tool_result":
+      case 'tool_result':
         showToolResult(event.tool, event.result); // Show retrieved docs
         break;
-      case "text":
+      case 'text':
         streamAnswerText(event.content); // Final answer
         break;
     }
@@ -1471,15 +1550,15 @@ async function runAgentWithUI(query: string) {
 
 ### 6.1 Challenges & Solutions
 
-| Challenge | Solution |
-|-----------|----------|
-| **UI Blocking** | Use Web Workers for agent loops (planning, tool execution) |
-| **State Persistence** | Store conversation + agent state in IndexedDB/PGlite |
-| **Streaming Complexity** | Implement event-driven UI updates (tool calls, thoughts, results) |
-| **Function Call Parsing** | Handle streaming tool calls (arguments arrive in chunks) |
-| **Cost Control** | Implement max_iterations limit (default: 5) to prevent runaway loops |
-| **Error Handling** | Catch tool execution failures, allow agent to retry with different tools |
-| **Memory Management** | Clear old conversation states periodically (LRU cache) |
+| Challenge                 | Solution                                                                 |
+| ------------------------- | ------------------------------------------------------------------------ |
+| **UI Blocking**           | Use Web Workers for agent loops (planning, tool execution)               |
+| **State Persistence**     | Store conversation + agent state in IndexedDB/PGlite                     |
+| **Streaming Complexity**  | Implement event-driven UI updates (tool calls, thoughts, results)        |
+| **Function Call Parsing** | Handle streaming tool calls (arguments arrive in chunks)                 |
+| **Cost Control**          | Implement max_iterations limit (default: 5) to prevent runaway loops     |
+| **Error Handling**        | Catch tool execution failures, allow agent to retry with different tools |
+| **Memory Management**     | Clear old conversation states periodically (LRU cache)                   |
 
 ---
 
@@ -1549,8 +1628,8 @@ async function runAgentWithUI(query: string) {
 
 ```typescript
 // src/workers/agent.worker.ts
-import { PGlite } from "@electric-sql/pglite";
-import { OpenAI } from "openai";
+import { PGlite } from '@electric-sql/pglite';
+import { OpenAI } from 'openai';
 
 const db = await PGlite.create(/* ... */);
 const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
@@ -1558,51 +1637,54 @@ const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
 // Tool definitions
 const tools = [
   {
-    type: "function" as const,
+    type: 'function' as const,
     function: {
-      name: "vector_search",
-      description: "Search knowledge base semantically",
+      name: 'vector_search',
+      description: 'Search knowledge base semantically',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          query: { type: "string" }
-        }
-      }
-    }
+          query: { type: 'string' },
+        },
+      },
+    },
   },
   {
-    type: "function" as const,
+    type: 'function' as const,
     function: {
-      name: "final_answer",
-      description: "Provide final answer when ready",
+      name: 'final_answer',
+      description: 'Provide final answer when ready',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
-          answer: { type: "string" }
-        }
-      }
-    }
-  }
+          answer: { type: 'string' },
+        },
+      },
+    },
+  },
 ];
 
 // Tool executors
 async function vectorSearch(query: string) {
   // Generate embedding
   const embeddingResponse = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: query
+    model: 'text-embedding-3-small',
+    input: query,
   });
   const queryEmbedding = embeddingResponse.data[0].embedding;
 
   // Search PGlite
-  const result = await db.query(`
+  const result = await db.query(
+    `
     SELECT c.content, c.heading, d.filename,
            1 - (c.embedding <=> $1::vector) as similarity
     FROM chunks c
     JOIN documents d ON c.document_id = d.id
     ORDER BY c.embedding <=> $1::vector
     LIMIT 5
-  `, [JSON.stringify(queryEmbedding)]);
+  `,
+    [JSON.stringify(queryEmbedding)]
+  );
 
   return result.rows;
 }
@@ -1610,27 +1692,27 @@ async function vectorSearch(query: string) {
 // ReAct agent
 export async function* agenticRAG(userQuery: string) {
   const messages = [
-    { role: "system", content: "Use tools to gather info before answering." },
-    { role: "user", content: userQuery }
+    { role: 'system', content: 'Use tools to gather info before answering.' },
+    { role: 'user', content: userQuery },
   ];
 
   const maxIterations = 5;
 
   for (let i = 0; i < maxIterations; i++) {
-    yield { type: "iteration", count: i + 1 };
+    yield { type: 'iteration', count: i + 1 };
 
     // LLM reasoning
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: 'gpt-4',
       messages,
-      tools
+      tools,
     });
 
     const message = response.choices[0].message;
     messages.push(message);
 
     if (!message.tool_calls) {
-      yield { type: "answer", content: message.content };
+      yield { type: 'answer', content: message.content };
       return;
     }
 
@@ -1638,21 +1720,21 @@ export async function* agenticRAG(userQuery: string) {
     for (const call of message.tool_calls) {
       const args = JSON.parse(call.function.arguments);
 
-      yield { type: "tool_call", name: call.function.name, args };
+      yield { type: 'tool_call', name: call.function.name, args };
 
-      if (call.function.name === "final_answer") {
-        yield { type: "answer", content: args.answer };
+      if (call.function.name === 'final_answer') {
+        yield { type: 'answer', content: args.answer };
         return;
       }
 
-      if (call.function.name === "vector_search") {
+      if (call.function.name === 'vector_search') {
         const results = await vectorSearch(args.query);
-        yield { type: "tool_result", name: "vector_search", results };
+        yield { type: 'tool_result', name: 'vector_search', results };
 
         messages.push({
-          role: "tool",
+          role: 'tool',
           tool_call_id: call.id,
-          content: JSON.stringify(results)
+          content: JSON.stringify(results),
         });
       }
     }
@@ -1661,10 +1743,11 @@ export async function* agenticRAG(userQuery: string) {
 ```
 
 **Usage in React:**
+
 ```typescript
 // src/hooks/useAgenticChat.ts
-import { wrap } from "comlink";
-import AgentWorker from "@/workers/agent.worker?worker";
+import { wrap } from 'comlink';
+import AgentWorker from '@/workers/agent.worker?worker';
 
 export function useAgenticChat() {
   const workerRef = useRef<Worker>();
@@ -1680,17 +1763,17 @@ export function useAgenticChat() {
 
     for await (const event of stream) {
       switch (event.type) {
-        case "iteration":
+        case 'iteration':
           addThought(`Thinking... (step ${event.count})`);
           break;
-        case "tool_call":
+        case 'tool_call':
           addThought(`Searching knowledge base: "${event.args.query}"`);
           break;
-        case "tool_result":
+        case 'tool_result':
           addSources(event.results);
           break;
-        case "answer":
-          addMessage({ role: "assistant", content: event.content });
+        case 'answer':
+          addMessage({ role: 'assistant', content: event.content });
           break;
       }
     }
@@ -1707,6 +1790,7 @@ export function useAgenticChat() {
 ### 7.1 What We Have (Current Implementation)
 
 ✅ **Strong Foundation:**
+
 - **PGlite + pgvector**: Vector storage with HNSW index
 - **Hybrid Search**: Vector + BM25 fusion
 - **Embeddings Pipeline**: OpenAI text-embedding-3-small
@@ -1719,6 +1803,7 @@ export function useAgenticChat() {
 ### 7.2 What We're Missing (Agentic Capabilities)
 
 ❌ **Agent Layer:**
+
 - ⬜ **Planning**: No query decomposition or multi-step workflows
 - ⬜ **Reasoning Loops**: No iterative refinement (single-pass only)
 - ⬜ **Tool Calling**: No function calling integration with OpenAI API
@@ -1728,12 +1813,14 @@ export function useAgenticChat() {
 - ⬜ **Query Rewriting**: No automatic query reformulation on retrieval failure
 
 ❌ **UI for Agents:**
+
 - ⬜ **Thought Visualization**: No display of agent reasoning process
 - ⬜ **Tool Call Display**: No indication of which tools are being used
 - ⬜ **Iteration Tracking**: No visibility into multi-step workflows
 - ⬜ **Agent State**: No plan display or current step indicator
 
 ❌ **Advanced Patterns:**
+
 - ⬜ **Corrective RAG**: No relevance grading or web search fallback
 - ⬜ **Self-Reflective RAG**: No on-demand retrieval decision logic
 - ⬜ **Adaptive RAG**: No complexity-based routing
@@ -1744,27 +1831,32 @@ export function useAgenticChat() {
 **Highest ROI Additions (Phased Approach):**
 
 **Phase agentic-foundation: Basic ReAct Agent**
+
 - Add OpenAI function calling to `useChat` hook
 - Define 2 tools: `vector_search`, `final_answer`
 - Implement simple ReAct loop (max 5 iterations)
 - Display tool calls in chat UI
 
 **Phase agentic-reflection: Retrieval Quality Check**
+
 - Add `evaluate_relevance` tool (LLM grades retrieved docs)
 - Implement query rewriting when relevance < threshold
 - Show reflection thoughts in UI
 
 **Phase agentic-tools: Multi-Tool Support**
+
 - Add `web_search` tool (DuckDuckGo API)
 - Add `bm25_search` tool (use existing Lunr index)
 - Agent autonomously selects tools
 
 **Phase agentic-planning: Query Decomposition**
+
 - Add `create_plan` step before tool execution
 - Display execution plan in UI
 - Parallel tool execution where possible
 
 **Phase agentic-adaptive: Complexity Routing**
+
 - Lightweight complexity classifier
 - Route simple queries to standard RAG (bypass agent)
 - Route complex queries to full agentic workflow
@@ -1778,12 +1870,14 @@ export function useAgenticChat() {
 **Best Fit: Hybrid Corrective RAG + Self-Route**
 
 **Why:**
+
 1. **Corrective RAG**: Addresses common issue of poor retrieval from user-uploaded docs (variable quality)
 2. **Self-Route**: Optimizes cost by using simple RAG for easy queries, agentic RAG for complex
 3. **Browser-Compatible**: No server-side dependencies, works with OpenAI function calling
 4. **Incremental Adoption**: Can layer on top of existing hybrid search
 
 **Architecture:**
+
 ```
 User Query
     ↓
@@ -1808,6 +1902,7 @@ User Query
 ### 8.2 Implementation Phases
 
 **Phase agentic-foundation: Basic Agent Infrastructure**
+
 - Duration: 3-5 days
 - Tasks:
   1. Add OpenAI function calling to chat API
@@ -1818,6 +1913,7 @@ User Query
   6. Wire up agent to chat page (new "Agent Mode" toggle)
 
 **Phase agentic-reflection: Retrieval Quality + Self-Correction**
+
 - Duration: 2-3 days
 - Tasks:
   1. Add `evaluate_relevance` function (LLM grades each retrieved doc)
@@ -1827,6 +1923,7 @@ User Query
   5. Track and display iteration count
 
 **Phase agentic-tools: Multi-Tool Orchestration**
+
 - Duration: 3-4 days
 - Tasks:
   1. Add `web_search` tool (integrate DuckDuckGo API)
@@ -1837,6 +1934,7 @@ User Query
   6. Add tool result previews (expandable cards)
 
 **Phase agentic-adaptive: Complexity-Based Routing**
+
 - Duration: 2-3 days
 - Tasks:
   1. Create complexity classifier prompt (straightforward/simple/complex)
@@ -1847,6 +1945,7 @@ User Query
   6. Measure cost savings (track LLM call counts before/after)
 
 **Phase agentic-planning: Query Decomposition (Optional)**
+
 - Duration: 4-5 days
 - Tasks:
   1. Add `create_plan` tool (LLM decomposes query into subtasks)
@@ -1862,12 +1961,14 @@ User Query
 **1. Basic ReAct Agent (Highest Impact, Low Effort)**
 
 Add a simple agent loop that:
+
 - Retrieves docs using existing hybrid search
 - Evaluates if docs are sufficient
 - Optionally refines query if not
 - Generates answer
 
 **Code Snippet:**
+
 ```typescript
 // src/lib/simple-agent.ts
 export async function simpleAgent(query: string, openai: OpenAI) {
@@ -1929,6 +2030,7 @@ export function ThoughtBubble({ thought }: { thought: string }) {
 **3. Agent Mode Toggle**
 
 Let users choose between:
+
 - **Standard Mode**: Current hybrid search (fast, cheap)
 - **Agent Mode**: ReAct agent (slower, more accurate for complex queries)
 
@@ -1939,7 +2041,7 @@ const [agentMode, setAgentMode] = useState(false);
 // In sendMessage:
 if (agentMode) {
   const answer = await simpleAgent(message, openai);
-  addMessage({ role: "assistant", content: answer });
+  addMessage({ role: 'assistant', content: answer });
 } else {
   // Existing hybrid search flow
 }
@@ -1950,6 +2052,7 @@ if (agentMode) {
 ### 8.4 Technology Choices
 
 **Option A: Pure OpenAI Function Calling (Recommended)**
+
 - ✅ Zero dependencies
 - ✅ Full browser support
 - ✅ Direct control over agent loop
@@ -1957,6 +2060,7 @@ if (agentMode) {
 - ⚠️ Manual state management
 
 **Option B: LangGraph**
+
 - ✅ Structured graph workflows
 - ✅ Built-in state persistence
 - ✅ Conditional routing
@@ -1970,22 +2074,26 @@ if (agentMode) {
 ### 8.5 Cost & Performance Estimates
 
 **Current Hybrid Search (per query):**
+
 - 1 embedding call (query): ~$0.00001
 - 1 chat completion: ~$0.002 (gpt-3.5-turbo)
 - **Total: ~$0.002/query**
 
 **Agentic RAG (per complex query):**
+
 - 1 embedding call: ~$0.00001
 - 3-5 chat completions (iterations): ~$0.006-$0.01
 - Optional web search calls: Free (DuckDuckGo)
 - **Total: ~$0.01/query (5x cost)**
 
 **Mitigation with Adaptive Routing:**
+
 - 70% of queries are simple → Use standard RAG ($0.002)
 - 30% of queries are complex → Use agentic RAG ($0.01)
 - **Blended cost: ~$0.004/query (2x instead of 5x)**
 
 **Performance:**
+
 - Standard RAG: ~2-3 seconds
 - Agentic RAG: ~8-15 seconds (3-5 iterations)
 - Adaptive routing: ~3-10 seconds average
@@ -1997,6 +2105,7 @@ if (agentMode) {
 ### DocsGPT Implementation (from PRD)
 
 **Architecture:**
+
 - **Backend**: Python + Flask + MongoDB + Celery
 - **Agents**: ClassicAgent (5-step), ReActAgent (iterative reasoning)
 - **Tools**: DuckDuckGo, Brave, Memory, Todo, Telegram, Webpage Reader, PostgreSQL, MCP
@@ -2005,6 +2114,7 @@ if (agentMode) {
 - **Storage**: MongoDB (config, conversations), Vector stores (FAISS, Elasticsearch, Qdrant, Milvus, LanceDB)
 
 **Key Patterns Used:**
+
 1. **Agent Factory Pattern**: AgentCreator dynamically creates ClassicAgent or ReActAgent
 2. **Tool Manager**: Dynamic tool loading from filesystem, user-isolated memory tools
 3. **Configuration-Driven**: Agent configs stored in MongoDB (sources, tools, prompts, limits)
@@ -2013,19 +2123,19 @@ if (agentMode) {
 
 ### Our App vs DocsGPT
 
-| Feature | DocsGPT | Our App (Current) | Agentic RAG (Proposed) |
-|---------|---------|-------------------|------------------------|
-| **Architecture** | Backend (Python) | Browser-only (React) | Browser-only (React + Worker) |
-| **Storage** | MongoDB + Vector DBs | PGlite (IndexedDB) | PGlite (IndexedDB) |
-| **Agents** | ClassicAgent, ReActAgent | None | ReAct agent (OpenAI function calling) |
-| **Tools** | 8+ tools (search, memory, SQL, etc.) | 2 (vector, BM25) | 3-5 (vector, BM25, web, calculate) |
-| **Orchestration** | StreamProcessor (complex) | useChat hook | Agent worker (simple) |
-| **Streaming** | SSE (server-sent events) | OpenAI streaming | OpenAI streaming + worker events |
-| **Configuration** | MongoDB collections | localStorage | localStorage |
-| **Multi-User** | Yes (MongoDB user isolation) | No (single-user browser) | No (single-user browser) |
-| **Tool Isolation** | User-scoped memory tools | N/A | Not needed (single-user) |
-| **Webhooks** | Celery background jobs | N/A | Not applicable (no backend) |
-| **Sharing** | Public/private agent sharing | N/A | Not applicable |
+| Feature            | DocsGPT                              | Our App (Current)        | Agentic RAG (Proposed)                |
+| ------------------ | ------------------------------------ | ------------------------ | ------------------------------------- |
+| **Architecture**   | Backend (Python)                     | Browser-only (React)     | Browser-only (React + Worker)         |
+| **Storage**        | MongoDB + Vector DBs                 | PGlite (IndexedDB)       | PGlite (IndexedDB)                    |
+| **Agents**         | ClassicAgent, ReActAgent             | None                     | ReAct agent (OpenAI function calling) |
+| **Tools**          | 8+ tools (search, memory, SQL, etc.) | 2 (vector, BM25)         | 3-5 (vector, BM25, web, calculate)    |
+| **Orchestration**  | StreamProcessor (complex)            | useChat hook             | Agent worker (simple)                 |
+| **Streaming**      | SSE (server-sent events)             | OpenAI streaming         | OpenAI streaming + worker events      |
+| **Configuration**  | MongoDB collections                  | localStorage             | localStorage                          |
+| **Multi-User**     | Yes (MongoDB user isolation)         | No (single-user browser) | No (single-user browser)              |
+| **Tool Isolation** | User-scoped memory tools             | N/A                      | Not needed (single-user)              |
+| **Webhooks**       | Celery background jobs               | N/A                      | Not applicable (no backend)           |
+| **Sharing**        | Public/private agent sharing         | N/A                      | Not applicable                        |
 
 ### Lessons from DocsGPT
 
@@ -2052,6 +2162,7 @@ if (agentMode) {
    - Implement with OpenAI function calling (no LangChain needed)
 
 **Not Applicable (Backend-Specific):**
+
 - ❌ Multi-user support
 - ❌ Webhook integration
 - ❌ Celery background jobs

@@ -11,6 +11,7 @@
 Implementation complete, all tests passing (14 unit, 4 E2E, 3 live). Core functionality works but has **critical architectural issues** with citation persistence and **several quality/UX problems** requiring fixes before production.
 
 **Severity Levels**:
+
 - 🔴 **CRITICAL**: Breaks core functionality, must fix
 - 🟡 **HIGH**: Impacts UX significantly, should fix soon
 - 🟢 **MEDIUM**: Quality/maintainability, fix when time permits
@@ -21,24 +22,29 @@ Implementation complete, all tests passing (14 unit, 4 E2E, 3 live). Core functi
 ## 🔴 CRITICAL ISSUES
 
 ### 1. Sources Only Persist for Last Message
+
 **File**: `src/pages/ChatPage.tsx:127`
 **Problem**: Citations disappear from previous messages when new message sent
+
 ```tsx
-{msg.role === 'assistant' && sources.length > 0 && idx === messages.length - 1 ? (
-  <SourceCitations content={msg.content} sources={sources} />
-) : (
-  <div className="whitespace-pre-wrap">{msg.content}</div>
-)}
+{
+  msg.role === 'assistant' && sources.length > 0 && idx === messages.length - 1 ? (
+    <SourceCitations content={msg.content} sources={sources} />
+  ) : (
+    <div className="whitespace-pre-wrap">{msg.content}</div>
+  );
+}
 ```
 
 **Root Cause**: Sources stored as global state, not per-message
 **Impact**: User loses all previous citations, breaking RAG transparency
 **Fix**: Store sources in Message object:
+
 ```typescript
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
-  sources?: SearchResult[];  // Add this
+  sources?: SearchResult[]; // Add this
 }
 ```
 
@@ -47,15 +53,18 @@ export interface Message {
 ---
 
 ### 2. Similarity Threshold Too Low (0.3)
+
 **File**: `src/workers/pglite.worker.ts:662`
 **Problem**: Threshold lowered from 0.7 → 0.3 to make tests pass
+
 ```typescript
-const similarityThreshold = params.similarityThreshold ?? 0.3
+const similarityThreshold = params.similarityThreshold ?? 0.3;
 ```
 
 **Root Cause**: Test expectations too strict, workaround added
 **Impact**: Returns many irrelevant results, pollutes citations
 **Fix**:
+
 1. Raise threshold back to 0.6-0.7
 2. Make threshold configurable via UI
 3. Log similarity scores in DEV mode
@@ -68,17 +77,21 @@ const similarityThreshold = params.similarityThreshold ?? 0.3
 ## 🟡 HIGH PRIORITY ISSUES
 
 ### 3. No Loading Indicator During Vector Search
+
 **File**: `src/pages/ChatPage.tsx`
 **Problem**: `isSearching` state exists but unused, user has no feedback
 **Impact**: Appears frozen during search (can take 1-2 seconds)
 **Fix**: Show spinner/badge during search
+
 ```tsx
-{isSearching && (
-  <div className="text-xs text-gray-500">
-    <Search className="w-3 h-3 animate-spin inline mr-1" />
-    Searching documents...
-  </div>
-)}
+{
+  isSearching && (
+    <div className="text-xs text-gray-500">
+      <Search className="w-3 h-3 animate-spin inline mr-1" />
+      Searching documents...
+    </div>
+  );
+}
 ```
 
 **Estimated Effort**: 30 minutes
@@ -86,8 +99,10 @@ const similarityThreshold = params.similarityThreshold ?? 0.3
 ---
 
 ### 4. No Error Handling for Search Failures
+
 **Files**: `src/hooks/useChat.ts:95`, `src/contexts/VectorDBContext.tsx:224`
 **Problem**: Search errors swallowed silently
+
 ```typescript
 const searchResults = await searchVectors(content, attachedDocumentIds);
 // No try/catch!
@@ -95,6 +110,7 @@ const searchResults = await searchVectors(content, attachedDocumentIds);
 
 **Impact**: Silent failures, user thinks search worked
 **Fix**: Add try/catch and display error message
+
 ```typescript
 try {
   const searchResults = await searchVectors(content, attachedDocumentIds);
@@ -111,13 +127,16 @@ try {
 ---
 
 ### 5. Type Duplication (SearchResult)
+
 **Files**: 3 locations
+
 - `src/workers/pglite.worker.ts:632`
 - `src/contexts/VectorDBContext.tsx:37`
 - Types not shared
 
 **Problem**: Same interface defined twice, easy to drift
 **Fix**: Extract to `src/types/vector-search.ts`:
+
 ```typescript
 export interface SearchResult {
   chunkId: string;
@@ -142,7 +161,9 @@ export interface SearchParams {
 ---
 
 ### 6. Tooltip Hover Test Skipped
+
 **File**: `e2e/vector-search-workflow.spec.ts:106-108`
+
 ```typescript
 // Hover over first citation to see tooltip (temporarily skipped)
 // await chatPage.hoverCitation(1);
@@ -152,6 +173,7 @@ export interface SearchParams {
 **Problem**: Unclear if real bug or test flakiness
 **Impact**: Tooltip might be broken in production
 **Fix**:
+
 1. Investigate why tooltip not visible in test
 2. Check z-index conflicts with other UI
 3. Ensure tooltip renders in test environment
@@ -164,10 +186,12 @@ export interface SearchParams {
 ## 🟢 MEDIUM PRIORITY ISSUES
 
 ### 7. parseCitations Recreated Every Render
+
 **File**: `src/components/SourceCitations.tsx:8`
 **Problem**: Function defined in component body, not memoized
 **Impact**: Performance hit on re-renders
 **Fix**:
+
 ```typescript
 const parsedContent = useMemo(() => parseCitations(content), [content]);
 ```
@@ -177,7 +201,9 @@ const parsedContent = useMemo(() => parseCitations(content), [content]);
 ---
 
 ### 8. No Unit Tests for New Components
+
 **Missing Tests**:
+
 - `SourceCitations.tsx` - citation parsing, rendering
 - `FileSelector.tsx` - search, selection logic
 - `AttachmentBadges.tsx` - display, removal
@@ -189,7 +215,9 @@ const parsedContent = useMemo(() => parseCitations(content), [content]);
 ---
 
 ### 9. DEV Console Logs Not Cleaned Up
+
 **Files**: Multiple
+
 - `src/hooks/useChat.ts:100`
 - `src/workers/pglite.worker.ts:705`
 
@@ -200,13 +228,16 @@ const parsedContent = useMemo(() => parseCitations(content), [content]);
 ---
 
 ### 10. Inconsistent Export Styles
+
 **Observations**:
+
 - `FileSelector`: default export
 - `SourceCitations`: named export
 - `AttachmentBadges`: default export
 
 **Problem**: Inconsistent conventions
 **Fix**: Standardize on named exports for all components
+
 ```typescript
 export function FileSelector({ ... }) { ... }
 export function AttachmentBadges({ ... }) { ... }
@@ -219,16 +250,19 @@ export function AttachmentBadges({ ... }) { ... }
 ### 11. Accessibility Issues
 
 **Citations**:
+
 - No keyboard navigation to citation markers
 - No ARIA labels on citation badges
 - Tooltip only on hover (no focus state)
 
 **FileSelector Modal**:
+
 - No focus trap
 - Escape key not handled
 - No focus return on close
 
 **AttachmentBadges**:
+
 - Remove button needs better keyboard support
 
 **Fix**: Add ARIA attributes, keyboard handlers
@@ -237,7 +271,9 @@ export function AttachmentBadges({ ... }) { ... }
 ---
 
 ### 12. No Search Debouncing in FileSelector
+
 **File**: `src/components/FileSelector.tsx:100`
+
 ```typescript
 onChange={(e) => setSearchQuery(e.target.value)}
 ```
@@ -252,6 +288,7 @@ onChange={(e) => setSearchQuery(e.target.value)}
 ## ⚪ LOW PRIORITY ISSUES
 
 ### 13. Hardcoded System Prompt
+
 **File**: `src/hooks/useChat.ts:105-117`
 **Problem**: RAG system prompt not configurable
 **Impact**: Can't customize AI behavior per use case
@@ -261,10 +298,12 @@ onChange={(e) => setSearchQuery(e.target.value)}
 ---
 
 ### 14. No Validation of DocumentIds
+
 **File**: `src/workers/pglite.worker.ts:657`
+
 ```typescript
 if (!params.documentIds || params.documentIds.length === 0) {
-  return []
+  return [];
 }
 ```
 
@@ -276,7 +315,9 @@ if (!params.documentIds || params.documentIds.length === 0) {
 ---
 
 ### 15. Arbitrary Filename Truncation
+
 **File**: `src/components/AttachmentBadges.tsx:22`
+
 ```typescript
 doc.filename.length > 20 ? doc.filename.substring(0, 17) + '...' : doc.filename;
 ```
@@ -289,6 +330,7 @@ doc.filename.length > 20 ? doc.filename.substring(0, 17) + '...' : doc.filename;
 ---
 
 ### 16. Missing JSDoc Comments
+
 **All new files lack JSDoc**
 
 **Impact**: Harder to understand/maintain
@@ -298,9 +340,11 @@ doc.filename.length > 20 ? doc.filename.substring(0, 17) + '...' : doc.filename;
 ---
 
 ### 17. Modal Closes Without Confirmation
+
 **File**: `src/components/FileSelector.tsx:72`
+
 ```typescript
-onClick={onClose}  // Backdrop click
+onClick = { onClose }; // Backdrop click
 ```
 
 **Problem**: Clicking outside modal loses selection
@@ -313,6 +357,7 @@ onClick={onClose}  // Backdrop click
 ## Test Coverage Gaps
 
 ### Missing Tests:
+
 1. ✅ **E2E for full RAG workflow** - EXISTS (vector-search-workflow.spec.ts)
 2. ❌ **Unit tests for SourceCitations component**
 3. ❌ **Unit tests for FileSelector component**
@@ -328,8 +373,10 @@ onClick={onClose}  // Backdrop click
 ## Architecture Recommendations
 
 ### 1. Message-Scoped Sources
+
 **Current**: Sources at hook level (global)
 **Proposed**: Sources per message
+
 ```typescript
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -340,23 +387,28 @@ interface Message {
 ```
 
 ### 2. Shared Type Definitions
+
 **Create**: `src/types/vector-search.ts`
 **Export**: SearchResult, SearchParams
 **Import**: Worker, Context, Components
 
 ### 3. Citation Service Layer
+
 **Extract**: Citation logic to service
+
 ```typescript
 // src/services/citation-service.ts
 export class CitationService {
-  parseCitations(content: string): CitationPart[]
-  formatContext(results: SearchResult[]): string
-  validateCitations(content: string, sources: SearchResult[]): boolean
+  parseCitations(content: string): CitationPart[];
+  formatContext(results: SearchResult[]): string;
+  validateCitations(content: string, sources: SearchResult[]): boolean;
 }
 ```
 
 ### 4. Configuration Object
+
 **Create**: `src/config/rag-config.ts`
+
 ```typescript
 export const RAG_CONFIG = {
   similarityThreshold: 0.7,
@@ -391,24 +443,28 @@ export const RAG_CONFIG = {
 ## Rollout Plan
 
 ### Phase 1: Critical Fixes (Week 1)
+
 - [ ] Fix sources persistence per-message
 - [ ] Raise similarity threshold to 0.6-0.7
 - [ ] Add error handling for search failures
 - [ ] Add loading indicator for vector search
 
 ### Phase 2: Quality Improvements (Week 2)
+
 - [ ] Extract shared types
 - [ ] Add unit tests for components
 - [ ] Fix tooltip test or remove feature
 - [ ] Improve accessibility
 
 ### Phase 3: Enhancements (Week 3)
+
 - [ ] Make system prompt configurable
 - [ ] Add search debouncing
 - [ ] Improve citation UX (click to scroll)
 - [ ] Add keyboard navigation
 
 ### Phase 4: Polish (Week 4)
+
 - [ ] Add JSDoc comments
 - [ ] Refactor to citation service
 - [ ] Performance optimizations

@@ -2,12 +2,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": [
-      "ES2020",
-      "DOM",
-      "DOM.Iterable",
-      "WebWorker"
-    ],
+    "lib": ["ES2020", "DOM", "DOM.Iterable", "WebWorker"],
     "module": "ESNext",
     "skipLibCheck": true,
     /* Bundler mode */
@@ -25,17 +20,11 @@
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"]
     }
   },
-  "include": [
-    "src"
-  ],
-  "exclude": [
-    "src/workers"
-  ],
+  "include": ["src"],
+  "exclude": ["src/workers"],
   "references": [
     {
       "path": "./tsconfig.node.json"

@@ -11,58 +11,59 @@ DocsGPT implements an **agentic RAG (Retrieval-Augmented Generation) workflow** 
 The system provides two agent types through a factory pattern:
 
 **Agent Types:**
-- **Classic Agent**: Sequential execution with retrieval → tool preparation → LLM generation → response handling
-- **ReAct Agent**: Iterative reasoning with planning, observation, and tool execution cycles [1](#2-0) 
 
-The base agent class provides core functionality for all agent types: [2](#2-1) 
+- **Classic Agent**: Sequential execution with retrieval → tool preparation → LLM generation → response handling
+- **ReAct Agent**: Iterative reasoning with planning, observation, and tool execution cycles [1](#2-0)
+
+The base agent class provides core functionality for all agent types: [2](#2-1)
 
 ### 2. Document Retrieval Integration
 
 #### Retriever Search Flow
 
-Agents use a retriever abstraction to search for relevant document chunks: [3](#2-2) 
+Agents use a retriever abstraction to search for relevant document chunks: [3](#2-2)
 
 The retriever queries vector stores and returns semantically similar document chunks that are then injected into the LLM context.
 
 #### Classic Agent Workflow
 
-The Classic Agent implements a straightforward five-step process: [4](#2-3) 
+The Classic Agent implements a straightforward five-step process: [4](#2-3)
 
 ### 3. Tool Integration System
 
 #### Tool Discovery and Loading
 
-Tools are dynamically loaded from MongoDB and instantiated through the ToolManager: [5](#2-4) [6](#2-5) 
+Tools are dynamically loaded from MongoDB and instantiated through the ToolManager: [5](#2-4) [6](#2-5)
 
 #### Tool Preparation for LLM
 
-Tools are converted into function calling schemas that LLMs can understand: [7](#2-6) 
+Tools are converted into function calling schemas that LLMs can understand: [7](#2-6)
 
 #### Tool Execution Flow
 
-When the LLM requests a tool call, the agent executes it and returns results: [8](#2-7) 
+When the LLM requests a tool call, the agent executes it and returns results: [8](#2-7)
 
 ### 4. Agent Configuration System
 
 #### Configuration Storage
 
-Agent configurations are stored in MongoDB with the following structure: [9](#2-8) 
+Agent configurations are stored in MongoDB with the following structure: [9](#2-8)
 
 #### Stream Processor Configuration
 
-The StreamProcessor orchestrates agent and retriever creation based on stored configurations: [10](#2-9) [11](#2-10) 
+The StreamProcessor orchestrates agent and retriever creation based on stored configurations: [10](#2-9) [11](#2-10)
 
 ### 5. LLM Handler Integration
 
-The LLM handler processes streaming responses and manages tool call orchestration: [12](#2-11) [13](#2-12) 
+The LLM handler processes streaming responses and manages tool call orchestration: [12](#2-11) [13](#2-12)
 
 ### 6. Complete Answer Flow
 
-The complete streaming workflow ties everything together: [14](#2-13) 
+The complete streaming workflow ties everything together: [14](#2-13)
 
 ### 7. ReAct Agent Reasoning Loop
 
-For complex multi-step reasoning, the ReAct agent uses iterative planning: [15](#2-14) 
+For complex multi-step reasoning, the ReAct agent uses iterative planning: [15](#2-14)
 
 ---
 
@@ -71,15 +72,18 @@ For complex multi-step reasoning, the ReAct agent uses iterative planning: [15](
 ### Phase 1: Core RAG Infrastructure
 
 #### Epic 1.1: Document Ingestion & Vector Storage
+
 **User Story**: As a user, I want to upload documents so they can be searched semantically.
 
 **Acceptance Criteria**:
+
 - ✅ Support multiple file formats (.pdf, .docx, .md, .txt)
 - ✅ Chunk documents with configurable token limits (150-1250 tokens)
 - ✅ Generate embeddings and store in vector database
 - ✅ Support multiple vector stores (FAISS, Elasticsearch, Qdrant, Milvus, LanceDB)
 
 **Test Cases**:
+
 ```gherkin
 Given a PDF document with 100 pages
 When I upload it to the system
@@ -88,18 +92,21 @@ And each chunk should have embeddings stored
 And I should receive a source_id for retrieval
 ```
 
-**Implementation References**: [16](#2-15) 
+**Implementation References**: [16](#2-15)
 
 #### Epic 1.2: Vector Retrieval System
+
 **User Story**: As an agent, I need to retrieve relevant document chunks for a query.
 
 **Acceptance Criteria**:
+
 - ✅ Perform semantic similarity search
 - ✅ Return configurable number of chunks (default: 2)
 - ✅ Support multiple source querying
 - ✅ Include metadata (filename, source) with results
 
 **Test Cases**:
+
 ```gherkin
 Given a vectorized document about Python programming
 When I search for "how to use decorators"
@@ -107,16 +114,18 @@ Then I should receive the top 2 most relevant chunks
 And each chunk should include source filename
 ```
 
-**Implementation References**: [17](#2-16) 
+**Implementation References**: [17](#2-16)
 
 ---
 
 ### Phase 2: Agent System Foundation
 
 #### Epic 2.1: Base Agent Framework
+
 **User Story**: As a developer, I want a base agent class to standardize agent behavior.
 
 **Acceptance Criteria**:
+
 - ✅ Abstract `gen()` method for query processing
 - ✅ Tool management (loading, preparing, executing)
 - ✅ Message building with context injection
@@ -124,55 +133,61 @@ And each chunk should include source filename
 - ✅ Token and request limit enforcement
 
 **Test Cases**:
+
 ```python
 def test_base_agent_tool_preparation():
     """Test that tools are correctly formatted for LLM"""
     agent = BaseAgent(...)
     tools_dict = {"tool1": {"name": "api_tool", "config": {...}}}
     agent._prepare_tools(tools_dict)
-    
+
     assert len(agent.tools) > 0
     assert agent.tools[0]["type"] == "function"
     assert "name" in agent.tools[0]["function"]
     assert "parameters" in agent.tools[0]["function"]
 ```
 
-**Implementation References**: [18](#2-17) 
+**Implementation References**: [18](#2-17)
 
 #### Epic 2.2: Classic Agent Implementation
+
 **User Story**: As a user, I want a straightforward agent that retrieves, generates, and responds.
 
 **Acceptance Criteria**:
+
 - ✅ Five-step execution: retrieve → prepare tools → build messages → generate → handle response
 - ✅ Return sources and tool calls metadata
 - ✅ Support streaming responses
 - ✅ Log execution for debugging
 
 **Test Cases**:
+
 ```python
 def test_classic_agent_workflow():
     """Test complete classic agent execution"""
     agent = ClassicAgent(...)
     retriever = Mock()
     retriever.search.return_value = [{"text": "Python is great", "source": "doc1.md"}]
-    
+
     results = list(agent.gen("What is Python?", retriever))
-    
+
     # Should yield answer, sources, and tool_calls
     answer = next(r for r in results if "answer" in r)
     sources = next(r for r in results if "sources" in r)
     tool_calls = next(r for r in results if "tool_calls" in r)
-    
+
     assert "Python" in answer["answer"]
     assert len(sources["sources"]) > 0
 ```
 
-**Implementation References**: [19](#2-18) 
+**Implementation References**: [19](#2-18)
 
 #### Epic 2.3: ReAct Agent with Reasoning
+
 **User Story**: As a power user, I want an agent that reasons through complex queries step-by-step.
 
 **Acceptance Criteria**:
+
 - ✅ Create execution plan before answering
 - ✅ Iteratively execute and observe (max 10 iterations)
 - ✅ Use tools based on observations
@@ -180,30 +195,33 @@ def test_classic_agent_workflow():
 - ✅ Generate final synthesized answer
 
 **Test Cases**:
+
 ```python
 def test_react_agent_planning():
     """Test that ReAct agent creates a plan"""
     agent = ReActAgent(...)
     retriever = Mock()
-    
+
     results = list(agent.gen("Calculate 45 * 67 and summarize doc", retriever))
-    
+
     # Should include thought events
     thoughts = [r for r in results if "thought" in r]
     assert len(thoughts) > 0
     assert "Plan:" in "".join([t["thought"] for t in thoughts])
 ```
 
-**Implementation References**: [20](#2-19) 
+**Implementation References**: [20](#2-19)
 
 ---
 
 ### Phase 3: Tool Integration System
 
 #### Epic 3.1: Tool Management Framework
+
 **User Story**: As an agent, I need to discover and execute external tools.
 
 **Acceptance Criteria**:
+
 - ✅ Dynamic tool loading from filesystem
 - ✅ Tool instantiation with configuration
 - ✅ Action execution with parameter passing
@@ -211,31 +229,34 @@ def test_react_agent_planning():
 - ✅ User-specific tool isolation (for memory/notes tools)
 
 **Test Cases**:
+
 ```python
 def test_tool_manager_loading():
     """Test dynamic tool discovery"""
     manager = ToolManager(config={})
     manager.load_tools()
-    
+
     assert "duckduckgo" in manager.tools
     assert "memory" in manager.tools
-    
+
 def test_tool_execution():
     """Test tool action execution"""
     manager = ToolManager(config={})
     tool = manager.load_tool("duckduckgo", {"max_results": 5})
-    
+
     result = tool.execute_action("search", query="Python tutorials")
     assert isinstance(result, list)
     assert len(result) <= 5
 ```
 
-**Implementation References**: [21](#2-20) 
+**Implementation References**: [21](#2-20)
 
 #### Epic 3.2: Tool Call Parsing & Execution
+
 **User Story**: As an agent, I need to parse LLM tool calls and execute them safely.
 
 **Acceptance Criteria**:
+
 - ✅ Parse tool calls from different LLM formats
 - ✅ Extract tool_id, action_name, and arguments
 - ✅ Validate tool exists before execution
@@ -243,33 +264,36 @@ def test_tool_execution():
 - ✅ Handle execution errors gracefully
 
 **Test Cases**:
+
 ```python
 def test_tool_execution_success():
     """Test successful tool execution"""
     agent = BaseAgent(...)
     tools_dict = {"0": {"name": "duckduckgo", "actions": [...]}}
-    
+
     mock_call = Mock()
     mock_call.name = "search_0"
     mock_call.arguments = '{"query": "test"}'
-    
+
     results = list(agent._execute_tool_action(tools_dict, mock_call))
-    
+
     # Should yield pending, then completed events
     pending = results[0]
     completed = results[-1]
-    
+
     assert pending["data"]["status"] == "pending"
     assert completed["data"]["status"] == "completed"
     assert "result" in completed["data"]
 ```
 
-**Implementation References**: [22](#2-21) 
+**Implementation References**: [22](#2-21)
 
 #### Epic 3.3: Built-in Tool Library
+
 **User Story**: As a user, I want pre-built tools for common tasks (search, memory, notifications).
 
 **Acceptance Criteria**:
+
 - ✅ DuckDuckGo search tool
 - ✅ Brave search tool
 - ✅ Memory/notes storage tool (user-isolated)
@@ -280,28 +304,31 @@ def test_tool_execution_success():
 - ✅ MCP (Model Context Protocol) integration
 
 **Test Cases**:
+
 ```python
 def test_memory_tool_user_isolation():
     """Test that memory tool isolates data by user"""
     tool1 = MemoryTool(config={"tool_id": "mem1"}, user_id="user1")
     tool2 = MemoryTool(config={"tool_id": "mem2"}, user_id="user2")
-    
+
     tool1.execute_action("remember", key="secret", value="user1_data")
     result = tool2.execute_action("recall", key="secret")
-    
+
     assert result is None  # user2 cannot access user1's memory
 ```
 
-**Implementation References**: [23](#2-22) 
+**Implementation References**: [23](#2-22)
 
 ---
 
 ### Phase 4: Configuration & API Layer
 
 #### Epic 4.1: Agent Configuration Storage
+
 **User Story**: As a user, I want to save agent configurations for reuse.
 
 **Acceptance Criteria**:
+
 - ✅ Store agent name, description, and image
 - ✅ Link to document sources (single or multiple)
 - ✅ Configure retriever type and chunk count
@@ -313,6 +340,7 @@ def test_memory_tool_user_isolation():
 - ✅ Generate unique API key per agent
 
 **Test Cases**:
+
 ```python
 def test_agent_configuration_crud():
     """Test agent configuration CRUD operations"""
@@ -326,18 +354,18 @@ def test_agent_configuration_crud():
         "tools": [tool_id1, tool_id2],
         "user": "user123"
     }
-    
+
     # Create
     response = client.post("/api/create_agent", json=agent_data)
     assert response.status_code == 200
     agent_id = response.json()["id"]
     api_key = response.json()["key"]
-    
+
     # Read
     response = client.get(f"/api/get_agent?id={agent_id}")
     assert response.json()["name"] == "Python Assistant"
     assert response.json()["chunks"] == 3
-    
+
     # Use API key for queries
     response = client.post("/api/answer", json={
         "question": "How to use decorators?",
@@ -346,12 +374,14 @@ def test_agent_configuration_crud():
     assert response.status_code == 200
 ```
 
-**Implementation References**: [24](#2-23) 
+**Implementation References**: [24](#2-23)
 
 #### Epic 4.2: Stream Processing Pipeline
+
 **User Story**: As the system, I need to orchestrate agent+retriever creation from stored configs.
 
 **Acceptance Criteria**:
+
 - ✅ Load agent configuration from agent_id or api_key
 - ✅ Resolve source references (DBRef → source_id)
 - ✅ Create agent with correct LLM, prompt, and history
@@ -360,6 +390,7 @@ def test_agent_configuration_crud():
 - ✅ Load conversation history if conversation_id provided
 
 **Test Cases**:
+
 ```python
 def test_stream_processor_initialization():
     """Test StreamProcessor configuration loading"""
@@ -368,28 +399,30 @@ def test_stream_processor_initialization():
         "question": "What is Python?",
         "conversation_id": "conv456"
     }
-    
+
     processor = StreamProcessor(request_data, decoded_token)
     processor.initialize()
-    
+
     assert processor.agent_config["agent_type"] in ["classic", "react"]
     assert processor.agent_config["prompt_id"] is not None
     assert len(processor.history) >= 0
     assert processor.retriever_config["chunks"] > 0
-    
+
     agent = processor.create_agent()
     retriever = processor.create_retriever()
-    
+
     assert agent is not None
     assert retriever is not None
 ```
 
-**Implementation References**: [25](#2-24) 
+**Implementation References**: [25](#2-24)
 
 #### Epic 4.3: Streaming Answer Endpoint
+
 **User Story**: As a user, I want real-time streaming responses with sources and tool calls.
 
 **Acceptance Criteria**:
+
 - ✅ Server-Sent Events (SSE) protocol
 - ✅ Stream answer tokens incrementally
 - ✅ Stream agent thoughts (for ReAct)
@@ -400,11 +433,12 @@ def test_stream_processor_initialization():
 - ✅ Enforce usage limits (token/request)
 
 **Test Cases**:
+
 ```python
 def test_streaming_answer_endpoint():
     """Test streaming answer with all event types"""
     events = []
-    
+
     with client.stream("POST", "/api/answer", json={
         "question": "Search for Python tutorials and summarize",
         "agent_id": "react_agent_id"
@@ -413,7 +447,7 @@ def test_streaming_answer_endpoint():
             if line.startswith("data: "):
                 event = json.loads(line[6:])
                 events.append(event)
-    
+
     # Verify event types
     event_types = {e["type"] for e in events}
     assert "thought" in event_types  # ReAct reasoning
@@ -424,16 +458,18 @@ def test_streaming_answer_endpoint():
     assert "end" in event_types  # Stream termination
 ```
 
-**Implementation References**: [26](#2-25) 
+**Implementation References**: [26](#2-25)
 
 ---
 
 ### Phase 5: Advanced Features
 
 #### Epic 5.1: Usage Limits & Rate Limiting
+
 **User Story**: As an admin, I want to enforce token and request limits per agent.
 
 **Acceptance Criteria**:
+
 - ✅ Track token usage per API key (24-hour rolling window)
 - ✅ Track request count per API key
 - ✅ Block requests when limits exceeded (429 status)
@@ -441,77 +477,84 @@ def test_streaming_answer_endpoint():
 - ✅ Configurable limits per agent
 
 **Test Cases**:
+
 ```python
 def test_usage_limit_enforcement():
     """Test that limits are enforced"""
     agent = create_agent(limited_token_mode=True, token_limit=1000)
-    
+
     # Use up the token limit
     for i in range(10):
         client.post("/api/answer", json={
             "api_key": agent.key,
             "question": "Long question" * 100
         })
-    
+
     # Next request should be blocked
     response = client.post("/api/answer", json={
         "api_key": agent.key,
         "question": "Should be blocked"
     })
-    
+
     assert response.status_code == 429
     assert "usage limit" in response.json()["message"].lower()
 ```
 
-**Implementation References**: [27](#2-26) 
+**Implementation References**: [27](#2-26)
 
 #### Epic 5.2: Agent Sharing
+
 **User Story**: As a user, I want to share my agents publicly or with specific users.
 
 **Acceptance Criteria**:
+
 - ✅ Generate unique share token per agent
 - ✅ Public sharing toggle
 - ✅ Whitelist specific users
 - ✅ Shared agents have separate usage tracking
 - ✅ Owner retains full control
 
-**Implementation References**: [28](#2-27) 
+**Implementation References**: [28](#2-27)
 
 #### Epic 5.3: Webhook Integration
+
 **User Story**: As a developer, I want to trigger agents via webhooks.
 
 **Acceptance Criteria**:
+
 - ✅ POST webhook endpoint per agent
 - ✅ Background processing via Celery
 - ✅ Return complete response (not streaming)
 - ✅ Include answer, sources, tool_calls in result
 
 **Test Cases**:
+
 ```python
 def test_agent_webhook_execution():
     """Test webhook-triggered agent execution"""
     response = client.post(f"/api/agents/webhook/{agent_id}", json={
         "input": "Summarize the latest documentation"
     })
-    
+
     assert response.status_code == 200
     task_id = response.json()["task_id"]
-    
+
     # Poll for result
     result = wait_for_task(task_id)
-    
+
     assert "answer" in result
     assert "sources" in result
     assert len(result["sources"]) > 0
 ```
 
-**Implementation References**: [29](#2-28) 
+**Implementation References**: [29](#2-28)
 
 ---
 
 ## Notes
 
 **Architecture Highlights:**
+
 1. **Modularity**: The agent system uses abstract base classes and factory patterns for extensibility
 2. **Streaming**: All responses support Server-Sent Events for real-time updates
 3. **Tool Isolation**: Memory and note tools are user-scoped to prevent data leakage
@@ -519,12 +562,14 @@ def test_agent_webhook_execution():
 5. **Multi-LLM Support**: The system abstracts LLM providers through handlers
 
 **Key Design Patterns:**
+
 - **Factory Pattern**: AgentCreator, RetrieverCreator, ToolManager
 - **Strategy Pattern**: Different agent types (Classic vs ReAct)
 - **Observer Pattern**: Streaming events for frontend updates
 - **Repository Pattern**: MongoDB collections for configuration storage
 
 **Testing Strategy:**
+
 - **Unit Tests**: Test individual components (tool parsing, message building)
 - **Integration Tests**: Test agent→retriever→LLM flow
 - **End-to-End Tests**: Test complete API request→response cycle
@@ -535,6 +580,7 @@ This architecture enables flexible, extensible RAG systems with tool augmentatio
 ### Citations
 
 **File:** application/agents/agent_creator.py (L5-16)
+
 ```python
 class AgentCreator:
     agents = {
@@ -551,6 +597,7 @@ class AgentCreator:
 ```
 
 **File:** application/agents/base.py (L20-65)
+
 ```python
 class BaseAgent(ABC):
     def __init__(
@@ -601,6 +648,7 @@ class BaseAgent(ABC):
 ```
 
 **File:** application/agents/base.py (L66-76)
+
 ```python
     @log_activity()
     def gen(
@@ -616,6 +664,7 @@ class BaseAgent(ABC):
 ```
 
 **File:** application/agents/base.py (L78-97)
+
 ```python
     def _get_tools(self, api_key: str = None) -> Dict[str, Dict]:
         mongo = MongoDB.get_client()
@@ -640,6 +689,7 @@ class BaseAgent(ABC):
 ```
 
 **File:** application/agents/base.py (L123-144)
+
 ```python
     def _prepare_tools(self, tools_dict):
         self.tools = [
@@ -666,6 +716,7 @@ class BaseAgent(ABC):
 ```
 
 **File:** application/agents/base.py (L146-259)
+
 ```python
     def _execute_tool_action(self, tools_dict, call):
         parser = ToolActionParser(self.llm.__class__.__name__)
@@ -784,6 +835,7 @@ class BaseAgent(ABC):
 ```
 
 **File:** application/agents/base.py (L325-335)
+
 ```python
     def _retriever_search(
         self,
@@ -799,6 +851,7 @@ class BaseAgent(ABC):
 ```
 
 **File:** application/agents/base.py (L368-382)
+
 ```python
     def _llm_handler(
         self,
@@ -818,6 +871,7 @@ class BaseAgent(ABC):
 ```
 
 **File:** application/agents/classic_agent.py (L10-53)
+
 ```python
 class ClassicAgent(BaseAgent):
     """A simplified agent with clear execution flow.
@@ -866,6 +920,7 @@ class ClassicAgent(BaseAgent):
 ```
 
 **File:** application/agents/tools/tool_manager.py (L9-24)
+
 ```python
 class ToolManager:
     def __init__(self, config):
@@ -886,6 +941,7 @@ class ToolManager:
 ```
 
 **File:** application/agents/tools/tool_manager.py (L26-34)
+
 ```python
     def load_tool(self, tool_name, tool_config, user_id=None):
         self.config[tool_name] = tool_config
@@ -899,6 +955,7 @@ class ToolManager:
 ```
 
 **File:** application/api/user/agents/routes.py (L33-98)
+
 ```python
 @agents_ns.route("/get_agent")
 class GetAgent(Resource):
@@ -969,6 +1026,7 @@ class GetAgent(Resource):
 ```
 
 **File:** application/api/answer/services/stream_processor.py (L56-90)
+
 ```python
 class StreamProcessor:
     def __init__(
@@ -1008,6 +1066,7 @@ class StreamProcessor:
 ```
 
 **File:** application/api/answer/services/stream_processor.py (L137-164)
+
 ```python
     def _get_agent_key(self, agent_id: Optional[str], user_id: Optional[str]) -> tuple:
         """Get API key for agent with access control"""
@@ -1040,6 +1099,7 @@ class StreamProcessor:
 ```
 
 **File:** application/api/answer/services/stream_processor.py (L325-353)
+
 ```python
     def create_agent(self):
         """Create and return the configured agent"""
@@ -1073,6 +1133,7 @@ class StreamProcessor:
 ```
 
 **File:** application/llm/handlers/base.py (L68-98)
+
 ```python
     def process_message_flow(
         self,
@@ -1108,6 +1169,7 @@ class StreamProcessor:
 ```
 
 **File:** application/api/answer/routes/base.py (L44-124)
+
 ```python
     def check_usage(
             self, agent_config: Dict
@@ -1119,12 +1181,12 @@ class StreamProcessor:
 
         Returns:
             None or Response if either of limits exceeded.
-        
+
         """
         api_key = agent_config.get("user_api_key")
         if not api_key:
             return None
-        
+
         agents_collection = self.db["agents"]
         agent = agents_collection.find_one({"key": api_key})
 
@@ -1153,7 +1215,7 @@ class StreamProcessor:
             "timestamp": {"$gte": start_date, "$lte": end_date},
             "api_key": api_key
         }
-        
+
         if limited_token_mode:
             token_pipeline = [
                 {"$match": match_query},
@@ -1193,6 +1255,7 @@ class StreamProcessor:
 ```
 
 **File:** application/api/answer/routes/base.py (L126-278)
+
 ```python
     def complete_stream(
         self,
@@ -1335,12 +1398,12 @@ class StreamProcessor:
                 log_data["structured_output"] = True
                 if schema_info:
                     log_data["schema"] = schema_info
-  
+
             # clean up text fields to be no longer than 10000 characters
             for key, value in log_data.items():
                 if isinstance(value, str) and len(value) > 10000:
                     log_data[key] = value[:10000]
-            
+
             self.user_logs_collection.insert_one(log_data)
 
             # End of stream
@@ -1350,6 +1413,7 @@ class StreamProcessor:
 ```
 
 **File:** application/agents/react_agent.py (L27-31)
+
 ```python
 class ReActAgent(BaseAgent):
     def __init__(self, *args, **kwargs):
@@ -1359,6 +1423,7 @@ class ReActAgent(BaseAgent):
 ```
 
 **File:** application/agents/react_agent.py (L108-224)
+
 ```python
     def _gen_inner(
         self, query: str, retriever: BaseRetriever, log_context: LogContext
@@ -1480,6 +1545,7 @@ class ReActAgent(BaseAgent):
 ```
 
 **File:** application/worker.py (L147-212)
+
 ```python
 def run_agent_logic(agent_config, input_data):
     try:
@@ -1550,6 +1616,7 @@ def run_agent_logic(agent_config, input_data):
 ```
 
 **File:** application/worker.py (L218-361)
+
 ```python
 def ingest_worker(
     self, directory, formats, job_name, file_path, filename, user, retriever="classic"
@@ -1698,6 +1765,7 @@ def ingest_worker(
 ```
 
 **File:** application/retriever/base.py (L4-14)
+
 ```python
 class BaseRetriever(ABC):
     def __init__(self):
@@ -1713,6 +1781,7 @@ class BaseRetriever(ABC):
 ```
 
 **File:** application/agents/tools/base.py (L4-21)
+
 ```python
 class Tool(ABC):
     @abstractmethod

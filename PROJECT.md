@@ -7,6 +7,7 @@ Technical architecture, implementation conventions, and deep implementation deta
 React 19 + TypeScript RAG application with in-browser vector database (PGlite + pgvector), hybrid search (vector + BM25), and OpenAI integration. Built with Vite, shadcn/ui, Tailwind v4.
 
 **Code Metrics:**
+
 - ~8,000+ LOC across 60+ files
 - 34 passing unit tests (Vitest)
 - 10 passing E2E tests (7 @live, 3 non-live)
@@ -19,6 +20,7 @@ React 19 + TypeScript RAG application with in-browser vector database (PGlite + 
 
 **Page-Specific Component Colocation:**
 Components used by only one page live in that page's folder. Benefits:
+
 - **Locality of Behavior:** Related code grouped together
 - **Easier Refactoring:** Move/delete page → move/delete all its components
 - **Reduced Cognitive Load:** No guessing where components are used
@@ -40,11 +42,13 @@ src/pages/
 ```
 
 **Why No Nested `components/` Folder:**
+
 - Redundant nesting avoided
 - Shorter import paths
 - Clearer component ownership
 
 **Shared Components:**
+
 ```
 src/components/
 ├── ui/                     # shadcn/ui primitives (button, input, card)
@@ -58,16 +62,19 @@ Only components used by 2+ pages belong here.
 ### Centralized Architecture
 
 **Types Centralization (`src/types/index.ts`):**
+
 - Single source of truth for all TypeScript interfaces
 - Prevents duplication and drift
 - Change once, update everywhere
 
 **Test ID Centralization (`src/lib/test-ids.ts`):**
+
 - Constants instead of string literals: `DOCUMENTS_PAGE.BTN_CREATE_KB`
 - Refactor-safe, discoverable via autocomplete
 - Consistent naming across codebase
 
 **Pure Function Extraction (`src/lib/`):**
+
 - `chunking.ts` - Markdown-aware document chunking
 - `embeddings.ts` - OpenAI embedding utilities (batch processing, retry logic)
 - `utils.ts` - formatDate, formatFileSize, cn (shared utilities)
@@ -81,19 +88,20 @@ All imports use path alias `@/` → `./src/`:
 
 ```typescript
 // ✅ CORRECT - Always use @/ for cross-folder imports
-import { formatDate } from '@/lib/utils'
-import { Document } from '@/types'
-import { useChat } from '@/hooks/useChat'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { formatDate } from '@/lib/utils';
+import { Document } from '@/types';
+import { useChat } from '@/hooks/useChat';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 // ✅ ACCEPTABLE - Same folder, relative import OK
-import IndexingStatusBadge from './IndexingStatusBadge'
+import IndexingStatusBadge from './IndexingStatusBadge';
 
 // ❌ WRONG - Never use relative imports across folders
-import { formatDate } from '../../lib/utils'
+import { formatDate } from '../../lib/utils';
 ```
 
 **Configuration (vite.config.ts):**
+
 ```typescript
 resolve: {
   alias: {
@@ -132,10 +140,10 @@ export interface KnowledgeBase {
   name: string;
   description: string | null;
   created_at: string;
-  embedding_model: string;              // e.g., "text-embedding-3-small"
-  embedding_dimensions: number;         // e.g., 1536
-  hnsw_m: number;                       // HNSW index parameter (4-64)
-  hnsw_ef_construction: number;         // HNSW build parameter (16-256)
+  embedding_model: string; // e.g., "text-embedding-3-small"
+  embedding_dimensions: number; // e.g., 1536
+  hnsw_m: number; // HNSW index parameter (4-64)
+  hnsw_ef_construction: number; // HNSW build parameter (16-256)
   document_count: number;
   chunk_count: number;
 }
@@ -144,11 +152,11 @@ export interface Chunk {
   id: string;
   document_id: string;
   content: string;
-  heading: string | null;               // Markdown heading context
+  heading: string | null; // Markdown heading context
   chunk_index: number;
-  start_offset: number;                 // Character position in original
+  start_offset: number; // Character position in original
   end_offset: number;
-  embedding?: number[];                 // Optional - may not be loaded
+  embedding?: number[]; // Optional - may not be loaded
 }
 ```
 
@@ -163,26 +171,26 @@ export interface SearchResult {
   heading: string | null;
   chunkIndex: number;
   // Vector search scores
-  similarity?: number;                  // Cosine similarity (0-1)
+  similarity?: number; // Cosine similarity (0-1)
   vectorScore?: number;
   vectorRank?: number;
   // BM25 scores
   bm25Score?: number;
   bm25Rank?: number;
   // Hybrid search
-  fusedScore?: number;                  // Reciprocal rank fusion score
+  fusedScore?: number; // Reciprocal rank fusion score
 }
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
-  sources?: SearchResult[];             // RAG sources for this message
+  sources?: SearchResult[]; // RAG sources for this message
   metadata?: MessageMetadata;
 }
 
 export interface IndexingProgress {
   documentId: string;
-  progress: number;                     // 0-100
+  progress: number; // 0-100
   stage: 'chunking' | 'embedding' | 'storing' | 'indexing' | 'completed';
   message: string;
   error?: string;
@@ -192,6 +200,7 @@ export interface IndexingProgress {
 ### TypeScript Configuration
 
 **Strict Mode (tsconfig.json):**
+
 ```json
 {
   "compilerOptions": {
@@ -210,6 +219,7 @@ export interface IndexingProgress {
 ### Type Safety Patterns
 
 **No `any` - Use `unknown`:**
+
 ```typescript
 // ✅ CORRECT
 const data: unknown = JSON.parse(response);
@@ -222,6 +232,7 @@ const data: any = JSON.parse(response);
 ```
 
 **Const Assertions:**
+
 ```typescript
 export const FEATURES = {
   INDEXING_ENABLED: 'FEATURE_INDEXING_ENABLED',
@@ -258,9 +269,7 @@ const [apiKey, setApiKeyState] = useState<string | null>(() => {
 });
 
 // ❌ WRONG - Reads on every render
-const [apiKey, setApiKeyState] = useState<string | null>(
-  localStorage.getItem('openai_api_key')
-);
+const [apiKey, setApiKeyState] = useState<string | null>(localStorage.getItem('openai_api_key'));
 ```
 
 **One-Way Sync Pattern:**
@@ -277,6 +286,7 @@ useEffect(() => {
 ```
 
 **Rationale:**
+
 - Simple: unidirectional data flow
 - Predictable: state drives storage
 - Trade-off: Changes in one tab don't reflect in others
@@ -308,6 +318,7 @@ export function useChat(props: UseChatProps = {}) {
 ```
 
 **Hook Design Principles:**
+
 1. Clean API: Return object with clear methods
 2. Cancelation: Cleanup on unmount via useEffect return
 3. Error State: Explicit error field, don't throw
@@ -327,7 +338,7 @@ const sendMessage = async (content: string) => {
   abortControllerRef.current = abortController;
 
   // 2. Optimistic update - add user message immediately
-  setMessages(prev => [...prev, { role: 'user', content }]);
+  setMessages((prev) => [...prev, { role: 'user', content }]);
 
   // 3. RAG: Search for relevant chunks
   let sources: SearchResult[] | undefined;
@@ -339,15 +350,18 @@ const sendMessage = async (content: string) => {
   const systemPrompt = sources ? buildRAGPrompt(sources) : undefined;
 
   // 5. Empty placeholder for assistant message
-  setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+  setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
 
   // 6. Stream chunks
   let assistantContent = '';
-  const stream = await openai.chat.completions.create({
-    model,
-    messages: [...conversationHistory, { role: 'user', content }],
-    stream: true,
-  }, { signal: abortController.signal });
+  const stream = await openai.chat.completions.create(
+    {
+      model,
+      messages: [...conversationHistory, { role: 'user', content }],
+      stream: true,
+    },
+    { signal: abortController.signal }
+  );
 
   // 7. Accumulate and update
   for await (const chunk of stream) {
@@ -355,7 +369,7 @@ const sendMessage = async (content: string) => {
     assistantContent += deltaContent;
 
     // 8. Immutable update - replace last message
-    setMessages(prev => {
+    setMessages((prev) => {
       const newMessages = [...prev];
       newMessages[newMessages.length - 1] = {
         role: 'assistant',
@@ -369,6 +383,7 @@ const sendMessage = async (content: string) => {
 ```
 
 **Key Patterns:**
+
 1. Optimistic Updates: User message added before API call
 2. Placeholder Pattern: Empty assistant message before streaming
 3. Local Accumulation: Use local variable for chunks
@@ -379,6 +394,7 @@ const sendMessage = async (content: string) => {
 ### Abort Controller Pattern
 
 **Why Ref Instead of State:**
+
 - State updates trigger re-renders (unnecessary)
 - AbortController is imperative API (not declarative)
 - Ref persists across renders without causing them
@@ -388,17 +404,20 @@ const sendMessage = async (content: string) => {
 ### PGlite + pgvector Stack
 
 **In-Browser PostgreSQL:**
+
 - PGlite: WASM-compiled PostgreSQL
 - pgvector extension: Vector similarity search
 - IndexedDB backend: Persistent storage
 
 **Why In-Browser Database:**
+
 1. No Backend Required: Fully client-side RAG
 2. Privacy: Documents never leave browser
 3. Speed: Local queries, no network latency
 4. Cost: No server/database hosting fees
 
 **Trade-offs:**
+
 - Storage Limit: IndexedDB quota (~1GB typical)
 - Performance: Slower than server Postgres
 - Sharing: Can't share KBs across devices
@@ -406,6 +425,7 @@ const sendMessage = async (content: string) => {
 ### Database Schema
 
 **Knowledge Bases:**
+
 ```sql
 CREATE TABLE knowledge_bases (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -428,6 +448,7 @@ CREATE TABLE knowledge_bases (
 ```
 
 **Documents:**
+
 ```sql
 CREATE TABLE documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -449,6 +470,7 @@ CREATE INDEX idx_documents_status ON documents(indexing_status);
 ```
 
 **Chunks:**
+
 ```sql
 CREATE TABLE chunks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -470,11 +492,13 @@ CREATE INDEX idx_chunks_embedding ON chunks
 ### HNSW Index Parameters
 
 **`m` (Max Connections per Layer):**
+
 - Range: 4-64 (default: 16)
 - Higher = Better recall, more memory, slower inserts
 - Recommendation: 16 for general use, 32 for high accuracy
 
 **`ef_construction` (Build-time Candidates):**
+
 - Range: 16-256 (default: 64)
 - Higher = Better index quality, slower build
 - Recommendation: 64 for general use, 128+ for high accuracy
@@ -503,6 +527,7 @@ LIMIT $4;
 ```
 
 **Operator:** `<=>` is cosine distance (pgvector)
+
 - Distance 0 = identical vectors
 - Distance 2 = opposite vectors
 - Similarity = 1 - distance
@@ -510,17 +535,18 @@ LIMIT $4;
 **2. BM25 Full-Text Search (Lunr.js):**
 
 ```typescript
-const lunrIndex = lunr(function() {
+const lunrIndex = lunr(function () {
   this.ref('id');
   this.field('content');
   this.field('heading');
-  chunks.forEach(chunk => this.add(chunk));
+  chunks.forEach((chunk) => this.add(chunk));
 });
 
 const bm25Results = lunrIndex.search(query);
 ```
 
 **Why Lunr.js:**
+
 - Client-side full-text search (no server required)
 - BM25 algorithm (proven for text ranking)
 - Fast for <100k documents
@@ -546,12 +572,12 @@ function reciprocalRankFusion(
     fusedScores.set(result.chunkId, existingScore + score);
   });
 
-  return Array.from(fusedScores.entries())
-    .sort((a, b) => b[1] - a[1]);
+  return Array.from(fusedScores.entries()).sort((a, b) => b[1] - a[1]);
 }
 ```
 
 **Why RRF:**
+
 - Doesn't require score normalization (rank-based)
 - Robust to different scoring scales
 - Simple, no tuning parameters (just k=60)
@@ -562,18 +588,19 @@ function reciprocalRankFusion(
 
 ```typescript
 // Vector search
-VECTOR_TOP_K: 3              // How many vector results (1-20)
-SIMILARITY_THRESHOLD: 0.3    // Min cosine similarity (0-1)
+VECTOR_TOP_K: 3; // How many vector results (1-20)
+SIMILARITY_THRESHOLD: 0.3; // Min cosine similarity (0-1)
 
 // BM25 search
-BM25_LIMIT: 10              // How many BM25 results (1-50)
+BM25_LIMIT: 10; // How many BM25 results (1-50)
 
 // HNSW index (requires re-index)
-HNSW_M: 16                  // Max connections (4-64)
-HNSW_EF_CONSTRUCTION: 64    // Build candidates (16-256)
+HNSW_M: 16; // Max connections (4-64)
+HNSW_EF_CONSTRUCTION: 64; // Build candidates (16-256)
 ```
 
 **Access via Settings UI:**
+
 - Basic settings: Apply immediately (no reload)
 - HNSW settings: Require page reload + re-indexing
 
@@ -614,7 +641,7 @@ function parseCitations(content: string): CitationPart[] {
     }
     parts.push({
       text: match[0],
-      citationIndex: parseInt(match[1]) - 1
+      citationIndex: parseInt(match[1]) - 1,
     });
     lastIndex = match.index! + match[0].length;
   }
@@ -636,13 +663,14 @@ function parseCitations(content: string): CitationPart[] {
 5. Track Offsets: Maintain character positions
 
 **Implementation:**
+
 ```typescript
 export function chunkDocument(
   content: string,
   metadata: { filename: string; mimeType: string },
   options: ChunkingOptions = {}
 ): Chunk[] {
-  const targetSize = options.targetChunkSize || 500;  // Tokens
+  const targetSize = options.targetChunkSize || 500; // Tokens
   const sections = splitOnHeadings(content);
   const chunks: Chunk[] = [];
 
@@ -662,11 +690,13 @@ export function chunkDocument(
 ```
 
 **Why Heading-Aware:**
+
 - Better Context: Chunks know their section
 - Semantic Boundaries: Headings mark topic changes
 - Retrieval Quality: Can filter/boost by heading
 
 **Limitations:**
+
 - Token Estimation: `chars / 4` is rough
 - No Overlap: Adjacent chunks don't share context
 - Markdown Only: Plain text gets no special treatment
@@ -683,7 +713,7 @@ export async function generateEmbeddings(
   openai: OpenAI,
   model: string
 ): Promise<number[][]> {
-  const BATCH_SIZE = 100;  // OpenAI limit: 2048 inputs
+  const BATCH_SIZE = 100; // OpenAI limit: 2048 inputs
   const embeddings: number[][] = [];
 
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
@@ -691,10 +721,10 @@ export async function generateEmbeddings(
 
     const response = await openai.embeddings.create({
       model,
-      input: batch.map(c => c.content),
+      input: batch.map((c) => c.content),
     });
 
-    embeddings.push(...response.data.map(d => d.embedding));
+    embeddings.push(...response.data.map((d) => d.embedding));
   }
 
   return embeddings;
@@ -702,11 +732,13 @@ export async function generateEmbeddings(
 ```
 
 **Why Batch:**
+
 - Cost: Each API call has overhead
 - Speed: Parallel processing on OpenAI side
 - Rate Limits: Fewer requests = less likely to hit limits
 
 **Error Handling:**
+
 - 429 (Rate Limit): Exponential backoff, retry
 - 401 (Auth): Bubble to user (invalid API key)
 - Network Errors: Retry with backoff
@@ -731,7 +763,7 @@ async function processQueue() {
     } catch (error) {
       if (item.retryCount < 3) {
         item.retryCount++;
-        indexingQueue.push(item);  // Re-queue
+        indexingQueue.push(item); // Re-queue
       } else {
         await markIndexingFailed(item.documentId, error.message);
       }
@@ -743,6 +775,7 @@ async function processQueue() {
 ```
 
 **Progress Tracking:**
+
 - Stages: chunking → embedding → storing → completed
 - Real-time UI updates with progress bars
 - Error display with retry button
@@ -775,10 +808,12 @@ export class ErrorBoundary extends Component<Props, State> {
 **Where Used:** Wraps each route in App.tsx
 
 **Caught Errors:**
+
 - Rendering errors in component tree
 - Errors in lifecycle methods
 
 **Not Caught:**
+
 - Async errors (use try-catch)
 - Errors outside React
 
@@ -787,20 +822,18 @@ export class ErrorBoundary extends Component<Props, State> {
 **Library:** sonner (lightweight, accessible)
 
 **Usage:**
+
 ```typescript
 import { toast } from 'sonner';
 
 toast.success('File uploaded successfully');
 toast.error('Failed to connect to database');
 
-toast.promise(
-  uploadFile(file),
-  {
-    loading: 'Uploading...',
-    success: 'Upload complete!',
-    error: 'Upload failed'
-  }
-);
+toast.promise(uploadFile(file), {
+  loading: 'Uploading...',
+  success: 'Upload complete!',
+  error: 'Upload failed',
+});
 ```
 
 **Migration from alert():** Replace blocking alert() with non-blocking toast.
@@ -824,6 +857,7 @@ import DOMPurify from 'dompurify';
 ```
 
 **Why Necessary:**
+
 - User documents can contain malicious scripts
 - Search highlighting injects HTML
 - OpenAI responses are untrusted
@@ -835,11 +869,12 @@ import DOMPurify from 'dompurify';
 ```typescript
 new OpenAI({
   apiKey: apiKey,
-  dangerouslyAllowBrowser: true  // Exposes key in browser
+  dangerouslyAllowBrowser: true, // Exposes key in browser
 });
 ```
 
 **Security Implications:**
+
 - API key visible in DevTools
 - Acceptable for personal use
 - Production needs backend proxy
@@ -884,12 +919,14 @@ const MessageComponent = React.memo(({ message }) => {
 ### Test Infrastructure
 
 **Unit Tests (Vitest):**
+
 - Setup: `src/tests/setup.ts`
 - Mock Service Worker: `src/tests/mocks/`
 - Environment: jsdom
 - Coverage: 34 tests passing
 
 **E2E Tests (Playwright):**
+
 - Tests: `e2e/**/*.spec.ts`
 - Page Objects: `e2e/pages/`
 - Coverage: 10 tests (7 @live, 3 mocked)
@@ -914,16 +951,19 @@ export const DOC_CARD = {
 ```
 
 **Usage in Components:**
+
 ```typescript
 <button data-testid={CHAT_PAGE.BTN_SEND}>Send</button>
 ```
 
 **Usage in Tests:**
+
 ```typescript
 await page.getByTestId(CHAT_PAGE.BTN_SEND).click();
 ```
 
 **E2E Conventions:** See `e2e/CLAUDE.md`
+
 - Page Object Pattern: All interactions through page objects
 - State-Based Waiting: Use data attributes, not timeouts
 - Deterministic: No if-else, try-catch
@@ -934,13 +974,15 @@ await page.getByTestId(CHAT_PAGE.BTN_SEND).click();
 ### Tailwind CSS v4
 
 **Configuration:**
+
 - NO `@apply` directives (removed from v4)
 - Theme in CSS custom properties (HSL values)
 - Import via `@import "tailwindcss"`
 
 **Theme (src/index.css):**
+
 ```css
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @layer base {
   :root {
@@ -959,15 +1001,16 @@ await page.getByTestId(CHAT_PAGE.BTN_SEND).click();
 ### Class Utility (cn)
 
 ```typescript
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 ```
 
 **Usage:**
+
 ```typescript
 <div className={cn(
   'base-class',
@@ -979,25 +1022,22 @@ export function cn(...inputs: ClassValue[]) {
 ### Component Variant Architecture (CVA)
 
 ```typescript
-const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground",
-        destructive: "bg-destructive text-destructive-foreground",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 px-3",
-      },
+const buttonVariants = cva('inline-flex items-center justify-center rounded-md', {
+  variants: {
+    variant: {
+      default: 'bg-primary text-primary-foreground',
+      destructive: 'bg-destructive text-destructive-foreground',
     },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
+    size: {
+      default: 'h-10 px-4 py-2',
+      sm: 'h-9 px-3',
     },
-  }
-)
+  },
+  defaultVariants: {
+    variant: 'default',
+    size: 'default',
+  },
+});
 ```
 
 ## Build Configuration
@@ -1006,20 +1046,20 @@ const buttonVariants = cva(
 
 ```typescript
 export default defineConfig({
-  base: '/exp-anti-gravity/',  // GitHub Pages
+  base: '/exp-anti-gravity/', // GitHub Pages
 
   plugins: [react(), tailwindcss()],
 
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: { '@': path.resolve(__dirname, './src') },
   },
 
   worker: {
-    format: 'es',  // PGlite web worker
+    format: 'es', // PGlite web worker
   },
 
   optimizeDeps: {
-    exclude: ['@electric-sql/pglite'],  // WASM, can't pre-bundle
+    exclude: ['@electric-sql/pglite'], // WASM, can't pre-bundle
   },
 });
 ```
@@ -1029,20 +1069,24 @@ export default defineConfig({
 ### Current Limitations
 
 **Database:**
+
 - IndexedDB quota ~1GB
 - No cross-device sync
 - No backup/export
 
 **Search:**
+
 - No query expansion
 - No stopword removal
 - Fixed RRF k=60
 
 **Chunking:**
+
 - Rough token estimate (chars/4)
 - No overlap between chunks
 
 **UI/UX:**
+
 - No message persistence
 - Auto-scroll always on
 - No conversation search
@@ -1050,12 +1094,14 @@ export default defineConfig({
 ### Planned Improvements
 
 **High Priority:**
+
 - Message persistence (localStorage/IndexedDB)
 - Stop generation button
 - Smart auto-scroll
 - Dark mode toggle
 
 **Medium Priority:**
+
 - Export/import knowledge bases
 - Query expansion
 - Actual token counting (tiktoken)
@@ -1071,6 +1117,7 @@ export default defineConfig({
 **Scopes:** chat, documents, search, vector-db, test, build, security
 
 **Examples:**
+
 ```
 feat(search): add hybrid search with reciprocal rank fusion
 fix(chat): prevent auto-scroll when user reading history
@@ -1080,6 +1127,7 @@ refactor(types): centralize TypeScript interfaces
 ### Code Review Checklist
 
 **Before PR:**
+
 - All tests pass (`npm test && npm run test:e2e`)
 - No TypeScript errors (`tsc --noEmit`)
 - @/ imports used consistently
@@ -1112,6 +1160,7 @@ npm run build     # Production build
 ## Conclusion
 
 **Key Takeaways:**
+
 - Page-specific component colocation improves maintainability
 - Centralized types eliminate duplication and drift
 - Pure function extraction enables testing and reuse

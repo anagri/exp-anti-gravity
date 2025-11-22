@@ -21,14 +21,16 @@ Today, markdown is ubiquitous in technical documentation, README files, blog pos
 ### Syntax Overview
 
 Markdown supports various formatting options:
+
 - **Bold text** for emphasis
-- *Italic text* for subtle emphasis
+- _Italic text_ for subtle emphasis
 - `Code blocks` for technical content
 - Links, images, lists, and more
 
 ### Advanced Features
 
 Some markdown processors support extensions like:
+
 1. Tables
 2. Footnotes
 3. Task lists
@@ -39,6 +41,7 @@ Some markdown processors support extensions like:
 ### Writing Guidelines
 
 When writing markdown documents, consider the following best practices:
+
 - Use clear, descriptive headings
 - Break content into logical sections
 - Utilize lists for better readability
@@ -47,6 +50,7 @@ When writing markdown documents, consider the following best practices:
 ### Document Structure
 
 A well-structured markdown document typically includes:
+
 - A clear title (H1)
 - Logical section hierarchy (H2, H3, etc.)
 - Consistent formatting
@@ -57,6 +61,7 @@ A well-structured markdown document typically includes:
 ### Documentation
 
 Markdown excels at technical documentation due to its:
+
 - Simple syntax
 - Version control compatibility
 - Easy conversion to other formats
@@ -65,6 +70,7 @@ Markdown excels at technical documentation due to its:
 ### Content Management
 
 Many modern content management systems support markdown because it:
+
 - Separates content from presentation
 - Enables collaborative editing
 - Facilitates automated processing
@@ -80,4 +86,4 @@ Whether you're writing technical documentation, blog posts, or simple notes, mar
 
 ---
 
-*This is a test document for E2E testing purposes.*
+_This is a test document for E2E testing purposes._

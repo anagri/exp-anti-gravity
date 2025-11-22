@@ -17,11 +17,13 @@ All 6 phases completed successfully with full test coverage:
 6. ✅ **Phase enhanced-tests** - Comprehensive test coverage with 13-step workflow test
 
 **Test Results:**
+
 - 37 unit tests passing
 - 2 E2E non-live tests passing
 - 1 comprehensive @live hybrid search test passing (13 verification steps)
 
 **Key Features Delivered:**
+
 - Hybrid search using Reciprocal Rank Fusion (RRF) with configurable k constant (default: 0.6)
 - Per-message source citations that persist across multi-turn conversations
 - Full metadata exposure (chunk IDs, vector scores, BM25 scores, fused scores, ranks)
@@ -51,6 +53,7 @@ For **EVERY PHASE**, you MUST:
    - Adapt implementation to current codebase state
 
 3. ✅ **Run All Tests**
+
    ```bash
    npm test                    # Unit tests must pass 100%
    npm run test:e2e           # E2E tests must pass 100%
@@ -65,6 +68,7 @@ For **EVERY PHASE**, you MUST:
    - Add lessons learned for future phases
 
 5. ✅ **Commit Changes**
+
    ```bash
    git add .
    git commit -m "feat(chat): <phase-id> - <description>"
@@ -77,6 +81,7 @@ For **EVERY PHASE**, you MUST:
 ### Testing Strategy - Fewer Tests, More Steps
 
 **E2E-First Approach:**
+
 - Write 1-2 comprehensive tests per phase covering complete workflows
 - Each test should have multiple steps building on previous steps
 - Steps become setup for later assertions
@@ -84,6 +89,7 @@ For **EVERY PHASE**, you MUST:
 - Avoid 10+ granular tests - combine related actions into workflow tests
 
 **Test Structure Pattern** (from `e2e/indexing-workflow-basic.spec.ts`):
+
 ```typescript
 test('Phase <name>: step1 → step2 → step3 → verify', async ({ page }) => {
   // Step 1: Setup (becomes context for step 2)
@@ -103,6 +109,7 @@ test('Phase <name>: step1 → step2 → step3 → verify', async ({ page }) => {
 ### Implementation Flexibility
 
 **Adapt to Current State:**
+
 - This spec provides functional goals, not implementation details
 - Current codebase findings (from exploration) inform HOW to implement
 - Implementer has flexibility to:
@@ -112,6 +119,7 @@ test('Phase <name>: step1 → step2 → step3 → verify', async ({ page }) => {
   - Adjust data structures to fit architecture
 
 **When Spec and Reality Diverge:**
+
 - Reality wins - implement what works for current codebase
 - Update spec to reflect actual implementation
 - Document reasoning for deviations
@@ -123,6 +131,7 @@ test('Phase <name>: step1 → step2 → step3 → verify', async ({ page }) => {
 ### Key Findings from Exploration
 
 **Architecture:**
+
 - Messages are plain objects (role + content), no embedded sources
 - Sources stored separately in useChat hook state
 - Sources only rendered for last assistant message
@@ -130,24 +139,28 @@ test('Phase <name>: step1 → step2 → step3 → verify', async ({ page }) => {
 - VectorDBContext manages search, indexing, and Lunr lifecycle
 
 **Search Implementation:**
+
 - `searchVectors()` exists - returns similarity scores (0-1 cosine)
 - `searchBM25()` exists - returns Lunr scores
 - No hybrid search yet - both functions separate
 - SearchResult interface has: chunkId, documentId, filename, heading, content, chunkIndex, similarity?, score?
 
 **Settings System:**
+
 - localStorage-based with event dispatching
 - Feature flags, search settings, OpenAI config all configurable
 - Search settings: VECTOR_TOP_K (default 3), SIMILARITY_THRESHOLD (default 0.3), BM25_LIMIT (default 10)
 - HNSW settings: HNSW_M (default 16), HNSW_EF_CONSTRUCTION (default 64)
 
 **Test Infrastructure:**
+
 - Page Object Model with helper methods (ChatPage, DocumentPage, etc.)
 - Uses data-testid for selectors
-- Uses data-test-state, data-*-ready attributes for synchronization
+- Uses data-test-state, data-\*-ready attributes for synchronization
 - No waitForTimeout - waits for UI state changes
 
 **Test Failures Identified:**
+
 1. **chat-real-api.spec.ts** - Expects ModelSelector that was removed from ChatPage
 2. **search-bm25.spec.ts** - Gets 0 results, Lunr index may not be ready
 
@@ -166,6 +179,7 @@ test('Phase <name>: step1 → step2 → step3 → verify', async ({ page }) => {
 #### Test Failures Fixed
 
 **Failure 1: chat-real-api.spec.ts**
+
 - **What was broken:** Test expected ModelSelector component on ChatPage with data-models-loaded attribute
 - **Why it was broken:** ModelSelector was moved to SettingsDialog, no longer in ChatPage
 - **What was implemented:**
@@ -176,6 +190,7 @@ test('Phase <name>: step1 → step2 → step3 → verify', async ({ page }) => {
   - Fixed logout button testid from `btn-chat-logout` to `btn-logout` (matches TopBar.tsx)
 
 **Failure 2: search-bm25.spec.ts**
+
 - **What was broken:** Search returned 0 results when it should return > 0
 - **Why it was broken:** Lunr index builds asynchronously, test searched before index ready
 - **What was implemented:**
@@ -190,12 +205,14 @@ test('Phase <name>: step1 → step2 → step3 → verify', async ({ page }) => {
 #### Actual Implementation Details
 
 **ChatPage Ready State:**
+
 - Simple approach: Added `data-page-ready="true"` as static attribute on root div
 - Page is always ready when component renders
 - No dynamic state tracking needed (page loads fast enough)
 - Test waits for DOM element with attribute to exist
 
 **Lunr Ready State:**
+
 - Added React state variable `lunrReadyState` in VectorDBContext provider
 - State updates when `buildLunrIndex()` starts (false) and completes (true)
 - State exposed via context for consumption by UI components
@@ -203,6 +220,7 @@ test('Phase <name>: step1 → step2 → step3 → verify', async ({ page }) => {
 - Tests use `page.waitForFunction()` to wait for attribute to be "true"
 
 **Test Adaptations:**
+
 - chat-real-api.spec.ts: Removed model selection (not in ChatPage workflow)
 - chat-real-api.spec.ts: Fixed logout button testid mismatch
 - search-bm25.spec.ts: Added Lunr ready wait after navigating to search page
@@ -213,6 +231,7 @@ test('Phase <name>: step1 → step2 → step3 → verify', async ({ page }) => {
 #### Test Requirements
 
 **Behaviors to Verify:**
+
 - Chat page becomes ready state after initialization
 - Ready state persists across navigation
 - Lunr index ready state transitions correctly (false → true after indexing)
@@ -222,6 +241,7 @@ test('Phase <name>: step1 → step2 → step3 → verify', async ({ page }) => {
 **Test File:** Use existing failing test files
 
 **Test Pattern:**
+
 ```typescript
 // chat-real-api.spec.ts - updated test should pass
 test('chat flow with model selection, streaming, and logout @live', async ({ page }) => {
@@ -236,9 +256,7 @@ test('chat flow with model selection, streaming, and logout @live', async ({ pag
 test('BM25 search returns relevant results @live', async ({ page }) => {
   // ... upload and index document ...
 
-  await page.waitForFunction(() =>
-    document.querySelector('[data-lunr-ready="true"]')
-  ); // NEW - wait for Lunr index
+  await page.waitForFunction(() => document.querySelector('[data-lunr-ready="true"]')); // NEW - wait for Lunr index
 
   // Now search should return results
   // ... rest of test
@@ -250,6 +268,7 @@ test('BM25 search returns relevant results @live', async ({ page }) => {
 #### Phase test-fixes Completion Checklist
 
 Implementation:
+
 - [x] ChatPage ready state mechanism implemented
 - [x] ChatPage page object updated (waitForReady method)
 - [x] chat-real-api.spec.ts updated and passing
@@ -258,21 +277,25 @@ Implementation:
 - [x] search-bm25.spec.ts updated and passing
 
 Testing:
+
 - [x] chat-real-api.spec.ts passes (green)
 - [x] search-bm25.spec.ts passes (green)
 - [x] All other existing tests still pass (no regressions)
 - [x] Manual verification: Tests demonstrate functionality
 
 Quality:
+
 - [x] No TypeScript errors (npm run build)
 - [ ] No lint errors (ESLint config issue, not related to changes)
 - [x] No console errors in browser (verified via test runs)
 
 Documentation:
+
 - [x] Spec updated with actual implementation approach taken
 - [x] Deviations documented (simpler approach than planned)
 
 Git:
+
 - [ ] Changes committed: `git commit -m "fix(chat): test-fixes - restore failing test suite to passing"`
 - [ ] Tests verified passing after commit
 
@@ -291,12 +314,14 @@ Git:
 #### Problem Solved
 
 **What was wrong:**
+
 - Sources were stored globally in useChat hook (`const [sources, setSources] = useState<SearchResult[]>([])`)
 - Sources only rendered on last assistant message (`idx === messages.length - 1`)
 - When user sent new message, previous assistant message lost its sources
 - Historical conversation lost citation context
 
 **What was implemented:**
+
 - Each assistant message now preserves its sources permanently in message object
 - All assistant messages with sources display citations independently
 - Sources are in-memory only (no localStorage persistence)
@@ -307,11 +332,13 @@ Git:
 #### Actual Implementation Details
 
 **Message Interface Extension (src/hooks/useChat.ts:6-10):**
+
 - Extended Message interface with `sources?: SearchResult[]` property
 - Only assistant messages generated with RAG have sources populated
 - User messages and non-RAG assistant messages have undefined sources
 
 **useChat Hook Modification (src/hooks/useChat.ts):**
+
 - Removed global `sources` state variable (line 27 deleted)
 - Introduced `currentMessageSources` local variable to track sources during message creation (line 70)
 - When RAG search completes, sources assigned to `currentMessageSources` (line 78)
@@ -321,6 +348,7 @@ Git:
 - Returned sources still available in hook return value (line 153)
 
 **ChatPage Rendering Update (src/pages/ChatPage.tsx:89-93):**
+
 - Changed condition from `msg.role === 'assistant' && sources.length > 0 && idx === messages.length - 1`
 - To: `msg.role === 'assistant' && msg.sources && msg.sources.length > 0`
 - Now renders SourceCitations using `msg.sources` instead of global `sources`
@@ -328,6 +356,7 @@ Git:
 - Removed unused `sources` from useChat destructuring (line 21)
 
 **Message History Preservation:**
+
 - Sources travel with messages through entire lifecycle (stored in message object)
 - clearMessages() clears all messages array, automatically clearing embedded sources
 - No separate cleanup logic needed
@@ -337,6 +366,7 @@ Git:
 #### Test Requirements
 
 **Behaviors to Verify:**
+
 - Assistant messages with RAG have sources attached
 - Assistant messages without RAG have no sources
 - Historical messages preserve their sources after new messages
@@ -347,8 +377,11 @@ Git:
 **Test File:** `e2e/chat-per-message-sources.spec.ts` (NEW)
 
 **Test Pattern:**
+
 ```typescript
-test('Phase per-message-sources: first message → verify sources → second message → verify both persist', async ({ page }) => {
+test('Phase per-message-sources: first message → verify sources → second message → verify both persist', async ({
+  page,
+}) => {
   const chatPage = new ChatPage(page);
   await chatPage.setup(apiKey);
   await chatPage.waitForReady();
@@ -380,7 +413,9 @@ test('Phase per-message-sources: first message → verify sources → second mes
 
   // Step 4: Verify both messages display sources independently
   const totalSourceElements = await page.locator('[data-source-citation]').count();
-  expect(totalSourceElements).toBeGreaterThan(firstMessageSources.length + secondMessageSources.length);
+  expect(totalSourceElements).toBeGreaterThan(
+    firstMessageSources.length + secondMessageSources.length
+  );
 });
 ```
 
@@ -389,6 +424,7 @@ test('Phase per-message-sources: first message → verify sources → second mes
 #### Phase per-message-sources Completion Checklist
 
 Implementation:
+
 - [x] Message interface extended with sources property
 - [x] useChat hook modified to attach sources to messages
 - [x] Global sources state removed
@@ -396,22 +432,26 @@ Implementation:
 - [x] All messages independently render their sources
 
 Testing:
+
 - [x] New test file created and passing (e2e/chat-per-message-sources.spec.ts)
 - [x] Per-message sources verified in multi-turn conversation
 - [x] Historical messages preserve sources (verified in test steps 3-6)
 - [x] All existing tests still pass
 
 Quality:
+
 - [x] No TypeScript errors (npm run build passing)
 - [ ] No lint errors (ESLint config issue, not related to changes)
 - [x] Manual verification via E2E test with real OpenAI API
 
 Documentation:
+
 - [x] Spec updated with actual Message interface changes
 - [x] Documented how sources are attached during message creation
 - [x] Noted refactoring done to rendering logic
 
 Git:
+
 - [ ] Changes committed: `git commit -m "feat(chat): per-message-sources - attach sources to each assistant message"`
 - [ ] Tests passing after commit
 
@@ -430,17 +470,20 @@ Git:
 #### Actual Implementation
 
 **RRF_K Setting (src/lib/feature-flags.ts):**
+
 - Added RRF_K to SearchSettings interface (line 47)
 - Default value: 0.6 (line 56)
 - Exposed in getAllSearchSettings() (line 103)
 - Updated tests to include RRF_K expectations
 
 **SearchResult Interface Extension (src/contexts/VectorDBContext.tsx:62-66):**
+
 - Added vectorScore, bm25Score, fusedScore (RRF combined score)
 - Added vectorRank, bm25Rank (1-based rankings)
 - Kept existing similarity and score fields for backward compatibility
 
 **searchHybrid Function (src/contexts/VectorDBContext.tsx:1010-1100):**
+
 - Executes searchVectors() and searchBM25() in parallel (Promise.all)
 - Builds rank maps for both result sets (1-based indexing)
 - Collects unique chunk IDs from both searches
@@ -450,12 +493,14 @@ Git:
 - Added to VectorDBContext interface and provider
 
 **useChat Integration (src/hooks/useChat.ts):**
+
 - Added searchHybrid parameter to UseChatParams (line 16)
 - Prefers searchHybrid over searchVectors when available (line 79)
 - Falls back to searchVectors for backward compatibility
 - Works seamlessly with existing per-message-sources implementation
 
 **ChatPage Integration (src/pages/ChatPage.tsx:19, 24):**
+
 - Changed from searchVectors to searchHybrid
 - RAG now automatically uses hybrid search for better retrieval
 
@@ -464,18 +509,21 @@ Git:
 #### Hybrid Search Overview
 
 **What is Hybrid Search:**
+
 - Combines semantic search (vector embeddings) with keyword search (BM25)
 - Vector search: finds semantically similar content
 - BM25 search: finds keyword matches
 - RRF fusion: merges ranked lists into single ranked result list
 
 **Why Hybrid Search:**
+
 - Vector search alone misses exact keyword matches
 - BM25 alone misses semantic similarity
 - Hybrid approach provides best of both worlds
 - More robust retrieval for RAG applications
 
 **Reciprocal Rank Fusion (RRF) Algorithm:**
+
 ```
 For each document d:
   RRF_score(d) = 1/(k + vector_rank(d)) + 1/(k + bm25_rank(d))
@@ -492,12 +540,14 @@ Where:
 #### Implementation Requirements
 
 **Add RRF Constant to Settings:**
+
 - Add RRF_K to search settings (default: 0.6)
 - Range: 0.1 to 10, step 0.1
 - Stored in localStorage like other search settings
 - Configurable via SettingsDialog Advanced Settings section
 
 **Extend SearchResult Interface:**
+
 - Add new optional fields for hybrid search:
   - `vectorScore?: number` - Normalized vector score (0-1)
   - `bm25Score?: number` - Normalized BM25 score (0-1)
@@ -507,6 +557,7 @@ Where:
 - Keep existing `similarity` and `score` fields for backward compatibility
 
 **Implement searchHybrid Function:**
+
 - New function in VectorDBContext
 - Parameters: query, documentIds, topK, similarityThreshold, bm25Limit, rrfK
 - Steps:
@@ -519,6 +570,7 @@ Where:
   7. Return merged results with all score fields populated
 
 **Integrate Hybrid Search into RAG Flow:**
+
 - Update useChat hook to call searchHybrid() instead of searchVectors()
 - Use fused results for RAG context generation
 - Display fused scores in source citations
@@ -528,6 +580,7 @@ Where:
 #### Test Requirements
 
 **Behaviors to Verify:**
+
 - Hybrid search returns results combining both vector and BM25
 - RRF scores calculated correctly
 - Results sorted by fused score (highest first)
@@ -539,8 +592,11 @@ Where:
 **Test File:** `e2e/chat-hybrid-search.spec.ts` (NEW)
 
 **Test Pattern:**
+
 ```typescript
-test('Phase hybrid-search: upload doc → index → hybrid search finds semantic + keyword matches', async ({ page }) => {
+test('Phase hybrid-search: upload doc → index → hybrid search finds semantic + keyword matches', async ({
+  page,
+}) => {
   const chatPage = new ChatPage(page);
   const docPage = new DocumentPage(page);
 
@@ -586,6 +642,7 @@ test('Phase hybrid-search: upload doc → index → hybrid search finds semantic
 #### Phase hybrid-search Completion Checklist
 
 Implementation:
+
 - [x] RRF_K setting added to feature-flags.ts
 - [x] SearchResult interface extended with hybrid score fields
 - [x] searchHybrid() function implemented in VectorDBContext
@@ -594,6 +651,7 @@ Implementation:
 - [ ] SettingsDialog updated with RRF_K input (deferred - settings UI already complex)
 
 Testing:
+
 - [x] Existing test verified with hybrid search (chat-per-message-sources.spec.ts)
 - [x] Hybrid search verified with semantic + keyword queries (via existing test)
 - [x] RRF scores calculated and sorted correctly (implementation verified)
@@ -601,16 +659,19 @@ Testing:
 - [x] Existing search tests still pass
 
 Quality:
+
 - [x] No TypeScript errors (npm run build passing)
 - [ ] No lint errors (ESLint config issue, not related to changes)
 - [x] Manual verification via E2E test with real OpenAI API
 
 Documentation:
+
 - [x] Spec updated with actual RRF implementation details
 - [x] Documented k constant default (0.6)
 - [x] Noted how results are merged (parallel execution, RRF fusion, sorted by fused score)
 
 Git:
+
 - [ ] Changes committed: `git commit -m "feat(chat): hybrid-search - implement RRF fusion algorithm"`
 - [ ] Tests passing after commit
 
@@ -625,6 +686,7 @@ Git:
 **Dependencies:** Phase hybrid-search ✅
 
 **Actual Implementation:**
+
 - Extended Message interface with optional `metadata?: MessageMetadata` property (src/hooks/useChat.ts:6-14)
 - MessageMetadata captures all hybrid search data: chunkIds, vectorScores, bm25Scores, fusedScores, vectorRanks, bm25Ranks, filenames
 - Metadata populated from SearchResult[] during RAG response creation (src/hooks/useChat.ts:100-111)
@@ -638,9 +700,10 @@ Git:
 #### Metadata Exposure Strategy
 
 **Why Expose Metadata:**
+
 - Tests need to verify internal state (scores, ranks, chunk IDs)
 - Complex data (arrays, objects) should be JSON-encoded
-- Simple data (single values) can be data-* attributes
+- Simple data (single values) can be data-\* attributes
 - Test assertions should be precise, not just "greater than 0"
 
 **Two-Pronged Approach:**
@@ -660,6 +723,7 @@ Git:
 #### Implementation Requirements
 
 **Message Metadata Interface:**
+
 - Extend Message interface with optional metadata property
 - Type: `metadata?: MessageMetadata`
 - MessageMetadata includes:
@@ -672,11 +736,13 @@ Git:
   - filenames: string[]
 
 **Message Rendering with Metadata:**
+
 - When rendering assistant message with sources, add hidden div
 - Div has data-test-metadata attribute with JSON.stringify(metadata)
 - Positioned in message container, visually hidden (display: none or similar)
 
 **Source Citation Rendering with Attributes:**
+
 - Each source citation renders with data attributes:
   - data-source-index="0" (zero-based index)
   - data-chunk-id="uuid"
@@ -686,6 +752,7 @@ Git:
   - data-filename="doc.md"
 
 **ChatPage Helper Methods:**
+
 - Add getMessageMetadata(messageIndex) - parses JSON from data-test-metadata
 - Add getSourceScores(sourceIndex) - reads score attributes
 - Add verifyScoreOrdering() - helper to check scores are sorted correctly
@@ -695,6 +762,7 @@ Git:
 #### Test Requirements
 
 **Behaviors to Verify:**
+
 - Metadata available for all assistant messages with sources
 - Metadata contains all expected fields (chunk IDs, scores, ranks)
 - Metadata JSON is valid and parseable
@@ -705,6 +773,7 @@ Git:
 **Test File:** Extend `e2e/chat-hybrid-search.spec.ts`
 
 **Test Pattern:**
+
 ```typescript
 test('Phase test-metadata: verify scores and ranks exposed in metadata', async ({ page }) => {
   const chatPage = new ChatPage(page);
@@ -742,14 +811,16 @@ test('Phase test-metadata: verify scores and ranks exposed in metadata', async (
 #### Phase test-metadata Completion Checklist
 
 Implementation:
+
 - [x] MessageMetadata interface defined (src/hooks/useChat.ts:6-14)
 - [x] Message interface extended with metadata property (src/hooks/useChat.ts:20)
 - [x] Metadata populated during RAG response creation (src/hooks/useChat.ts:84, 100-111, 145, 152)
 - [x] Hidden div with JSON metadata added to message rendering (src/pages/ChatPage.tsx:94-102)
-- [x] Source citations render with data-* score attributes (src/components/SourceCitations.tsx:107-117)
+- [x] Source citations render with data-\* score attributes (src/components/SourceCitations.tsx:107-117)
 - [x] ChatPage helpers added for metadata access (e2e/pages/ChatPage.ts:158-221)
 
 Testing:
+
 - [x] Test extended to verify metadata exposure (e2e/chat-hybrid-search.spec.ts:104-131)
 - [x] Metadata JSON parsing verified (Step 8 of test)
 - [x] Score attributes verified (Step 9 of test)
@@ -757,15 +828,18 @@ Testing:
 - [x] All existing tests still pass (npm test: 37 passed)
 
 Quality:
+
 - [x] No TypeScript errors (npm run build passing)
 - [x] No lint errors
 - [x] Manual inspection: metadata present in DOM via e2e test
 
 Documentation:
+
 - [x] Spec updated with actual metadata structure
 - [x] Document which fields are exposed
 
 Git:
+
 - [x] Changes committed: `git commit -m "feat(chat): test-metadata - expose hybrid search scores and metadata for testing"`
 - [x] Tests passing after commit (37 unit, 2 e2e non-live)
 
@@ -780,6 +854,7 @@ Git:
 **Dependencies:** Phase test-metadata ✅
 
 **Actual Implementation:**
+
 - Extended Message interface with optional `prompt?: string` property (src/hooks/useChat.ts:21)
 - Prompt captured during RAG context building by formatting all messagesToSend (src/hooks/useChat.ts:86, 139-142)
 - Prompt format: `[ROLE]\ncontent` separated by `\n\n---\n\n` for each message
@@ -792,12 +867,14 @@ Git:
 #### Prompt Exposure Overview
 
 **Why Expose Prompts:**
+
 - Tests need to verify RAG context is correctly formatted
 - Tests need to verify system instructions are appropriate
 - Debug prompt engineering issues
 - Validate citation instructions are included
 
 **What to Expose:**
+
 - Full system message text
 - All RAG context chunks with formatting
 - User message as sent to API
@@ -808,12 +885,14 @@ Git:
 #### Implementation Requirements
 
 **Message Interface Extension:**
+
 - Add optional prompt property to Message interface
 - Type: `prompt?: string`
 - Contains full prompt text as sent to OpenAI API
 - Only present for assistant messages generated with RAG
 
 **Prompt Capture During RAG:**
+
 - In useChat hook, when building RAG context:
   1. Format system message with RAG context
   2. Build complete prompt string (system + history + user)
@@ -825,12 +904,14 @@ Git:
   - User query
 
 **Prompt Rendering:**
+
 - Add hidden pre element to assistant message with sources
 - Element has data-test-prompt attribute
 - Contains full prompt as multiline text
 - Visually hidden but accessible to tests
 
 **ChatPage Helper Method:**
+
 - Add getMessagePrompt(messageIndex) - extracts prompt from data-test-prompt
 - Returns full prompt string for assertion
 
@@ -839,6 +920,7 @@ Git:
 #### Test Requirements
 
 **Behaviors to Verify:**
+
 - Prompt exposed for all RAG-generated assistant messages
 - Prompt contains system message
 - Prompt contains formatted RAG context
@@ -850,8 +932,11 @@ Git:
 **Test File:** Extend `e2e/chat-hybrid-search.spec.ts`
 
 **Test Pattern:**
+
 ```typescript
-test('Phase prompt-exposure: verify RAG prompt contains context and instructions', async ({ page }) => {
+test('Phase prompt-exposure: verify RAG prompt contains context and instructions', async ({
+  page,
+}) => {
   const chatPage = new ChatPage(page);
   await chatPage.setup(apiKey);
   await chatPage.uploadAndIndexDocument('equity.md');
@@ -882,6 +967,7 @@ test('Phase prompt-exposure: verify RAG prompt contains context and instructions
 #### Phase prompt-exposure Completion Checklist
 
 Implementation:
+
 - [x] Message interface extended with prompt property (src/hooks/useChat.ts:21)
 - [x] Prompt captured during RAG context building in useChat (src/hooks/useChat.ts:86, 139-142, 152, 159)
 - [x] Full prompt includes system message, context, history, query (formatted as [ROLE]\ncontent)
@@ -889,6 +975,7 @@ Implementation:
 - [x] ChatPage helper getMessagePrompt() implemented (e2e/pages/ChatPage.ts:223-234)
 
 Testing:
+
 - [x] Test extended to verify prompt exposure (e2e/chat-hybrid-search.spec.ts:133-153)
 - [x] Prompt structure verified (system + context + query) (Step 11)
 - [x] Citation markers verified in prompt (Step 11 checks for [1])
@@ -896,16 +983,19 @@ Testing:
 - [x] All existing tests still pass (37 unit, 2 e2e non-live)
 
 Quality:
+
 - [x] No TypeScript errors (npm run build passing)
 - [x] No lint errors
 - [x] Manual inspection: prompt readable in DOM via e2e test
 
 Documentation:
+
 - [x] Spec updated with actual prompt format
 - [x] Document prompt structure decisions (role-based formatting with separators)
 - [x] Note how context chunks are formatted (via formatContext function)
 
 Git:
+
 - [x] Changes committed: `git commit -m "feat(chat): prompt-exposure - expose full LLM prompt for tests"`
 - [x] Tests passing after commit (37 unit, 2 e2e non-live)
 
@@ -920,6 +1010,7 @@ Git:
 **Dependencies:** Phase prompt-exposure ✅
 
 **Actual Implementation:**
+
 - Extended existing `e2e/chat-hybrid-search.spec.ts` to be comprehensive (13 verification steps)
 - Test covers full workflow: upload → index → multi-turn RAG conversation
 - Verifies per-message sources persist across conversation (Steps 1-7)
@@ -934,6 +1025,7 @@ Git:
 #### Test Coverage Goals
 
 **What Needs Comprehensive Testing:**
+
 - Hybrid search finds better results than vector-only or BM25-only
 - Per-message sources persist across multi-turn conversations
 - Metadata accurately reflects search results
@@ -942,6 +1034,7 @@ Git:
 - Edge cases (no results, single result, many results)
 
 **Test Philosophy:**
+
 - One comprehensive test per major workflow
 - Each test has multiple steps building on previous
 - Steps verify both immediate effects and persistence
@@ -952,17 +1045,20 @@ Git:
 #### Test Files to Create/Extend
 
 **Test 1: `e2e/chat-hybrid-search-comprehensive.spec.ts` (NEW)**
+
 - Full workflow: upload → index → multi-turn RAG conversation
 - Verify hybrid search superiority over single-method search
 - Verify per-message sources and metadata
 - Verify prompt formatting
 
 **Test 2: Extend `e2e/feature-flags.spec.ts`**
+
 - Add hybrid search settings verification
 - Verify RRF_K constant affects results
 - Verify settings persist across page reload
 
 **Test 3: `e2e/chat-hybrid-search-edge-cases.spec.ts` (NEW)**
+
 - No documents indexed (RAG gracefully fails)
 - Query with no matches (empty results handled)
 - Very long document (chunking works correctly)
@@ -988,7 +1084,9 @@ test.describe('Hybrid Search @live', () => {
     await chatPage.setup(apiKey);
   });
 
-  test('Phase enhanced-tests: upload → index → hybrid RAG conversation with metadata verification', async ({ page }) => {
+  test('Phase enhanced-tests: upload → index → hybrid RAG conversation with metadata verification', async ({
+    page,
+  }) => {
     // Step 1: Upload and index test document
     await docPage.navigate();
     await docPage.uploadFiles([PG_ESSAYS.EQUITY]);
@@ -1063,9 +1161,11 @@ test.describe('Hybrid Search @live', () => {
 #### Phase enhanced-tests Completion Checklist
 
 Implementation:
+
 - [x] No new implementation needed (all features from previous phases)
 
 Testing:
+
 - [x] Comprehensive hybrid search test created and passing (e2e/chat-hybrid-search.spec.ts with 13 steps)
 - [x] Feature flags already tested (e2e/feature-flags.spec.ts includes search settings)
 - [x] Core edge cases covered (RAG vs non-RAG, no sources, multiple sources)
@@ -1073,17 +1173,20 @@ Testing:
 - [x] All existing tests still pass (37 unit, 2 e2e non-live, 1 comprehensive @live)
 
 Quality:
+
 - [x] All tests use page object pattern (ChatPage, DocumentPage helpers)
 - [x] Tests are readable and maintainable (clear step-by-step structure with console.log)
 - [x] Test verified stable (passes consistently)
 - [x] Manual verification: all scenarios work in browser (confirmed via test execution)
 
 Documentation:
+
 - [x] Spec updated with actual test coverage
 - [x] Test infrastructure documented (ChatPage helpers: getMessageMetadata, getSourceScores, verifyScoreOrdering, getMessagePrompt)
 - [x] Edge cases noted: advanced scenarios (RRF_K tuning, hybrid vs single-method comparison) deferred as they require additional test infrastructure
 
 Git:
+
 - [x] Changes committed (only spec updates, no code changes needed)
 - [x] Full test suite passing after commit (37 unit, 2 e2e non-live)
 
@@ -1092,6 +1195,7 @@ Git:
 ## Known Constraints & Trade-offs
 
 **Decisions:**
+
 - ✅ In-memory sources only (no localStorage persistence)
   - Rationale: Sources are contextual to conversation, not persistent data
   - Trade-off: Lose sources on page reload (acceptable - conversation also lost)
@@ -1113,6 +1217,7 @@ Git:
   - Trade-off: SearchResult interface has some redundancy
 
 **Performance Considerations:**
+
 - Hybrid search runs 2 searches (vector + BM25) per query
   - Impact: ~2x latency vs single search
   - Mitigation: Searches can potentially run in parallel (future optimization)
@@ -1124,12 +1229,14 @@ Git:
   - 100 messages = ~100KB metadata (acceptable)
 
 **Test Isolation:**
+
 - @live tests hit real OpenAI API (cost: ~$0.001 per test run)
   - Embedding API calls during indexing
   - Chat API calls during conversation
   - Consider: Run @live tests less frequently in CI
 
 **Browser Compatibility:**
+
 - Hybrid search uses same infrastructure as existing search (vector + BM25)
 - No new browser APIs required
 - Metadata exposure uses standard DOM attributes and elements
@@ -1140,21 +1247,27 @@ Git:
 ## Troubleshooting Guide
 
 **Problem:** Tests fail with "metadata not found"
+
 - **Solution:** Verify message was generated with RAG enabled, metadata only present for RAG responses
 
 **Problem:** Hybrid search returns no results
+
 - **Solution:** Check both vector and BM25 indexes exist, verify documents indexed, check query terms
 
 **Problem:** RRF scores all equal
+
 - **Solution:** Verify both searches returning results, check k constant is reasonable (0.1-10 range)
 
 **Problem:** Sources lost after navigation
+
 - **Solution:** Expected behavior - sources are in-memory only, check if issue is test expectation vs actual bug
 
 **Problem:** Prompt doesn't contain expected context
+
 - **Solution:** Verify RAG mode enabled, check search returned results, verify prompt capture logic
 
 **Problem:** Metadata JSON parse error
+
 - **Solution:** Check JSON.stringify during metadata creation, verify special characters escaped
 
 ---
@@ -1162,14 +1275,17 @@ Git:
 ## Resources & References
 
 **RRF Algorithm:**
+
 - Original paper: "Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods" (Cormack et al.)
 - Practical guide: https://www.elastic.co/blog/improving-information-retrieval-elastic-stack-hybrid
 
 **Testing Patterns:**
+
 - Playwright Page Object Model: https://playwright.dev/docs/pom
 - Test data exposure strategies: https://kentcdodds.com/blog/making-your-ui-tests-resilient-to-change
 
 **Hybrid Search:**
+
 - Combining sparse and dense retrieval: https://www.pinecone.io/learn/hybrid-search/
 - BM25 + vector search: https://weaviate.io/blog/hybrid-search-explained
 
@@ -1187,12 +1303,14 @@ This specification provides a functional roadmap for implementing per-message so
 6. **enhanced-tests** - Comprehensive end-to-end test coverage
 
 **Key Architectural Changes:**
+
 - Messages gain `sources`, `metadata`, and `prompt` optional fields
 - SearchResult gains `vectorScore`, `bm25Score`, `fusedScore`, `vectorRank`, `bm25Rank` fields
 - New `searchHybrid()` function in VectorDBContext
 - RRF constant (k) configurable via settings
 
 **Testing Philosophy:**
+
 - Fewer tests, more steps per test
 - Steps build on previous steps (setup becomes context)
 - Page Object Model abstracts Playwright complexity
@@ -1200,18 +1318,21 @@ This specification provides a functional roadmap for implementing per-message so
 - Metadata enables precise assertions beyond "greater than 0"
 
 **Implementation Flexibility:**
+
 - Spec provides goals, not implementation details
 - Implementer adapts to current codebase patterns
 - Reality wins when spec and codebase diverge
 - Update spec after each phase with actual decisions
 
 **Critical Success Factors:**
+
 - All tests must pass before proceeding to next phase
 - Spec must be updated after each phase
 - Manual verification required alongside automated tests
 - Git commits at end of each phase
 
 **Expected Outcomes:**
+
 - More accurate RAG retrieval (hybrid > single method)
 - Historical messages preserve citations
 - Test assertions are precise and maintainable

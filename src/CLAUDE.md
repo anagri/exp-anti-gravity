@@ -9,6 +9,7 @@ React + TypeScript RAG (Retrieval-Augmented Generation) chat application with ve
 ## Commands
 
 ### Development
+
 ```bash
 npm run dev          # Dev server at http://127.0.0.1:5173
 npm run build        # TypeScript + Vite build
@@ -17,6 +18,7 @@ npm run lint         # ESLint
 ```
 
 ### Testing
+
 ```bash
 npm test                # Vitest unit tests
 npm run test:e2e        # Playwright e2e (excludes @live tests)
@@ -29,11 +31,13 @@ npx playwright test e2e/test-file.spec.ts
 ```
 
 **Test Infrastructure:**
+
 - Unit: Vitest + jsdom, setup at `src/tests/setup.ts`, MSW at `src/tests/mocks/`
 - E2E: Playwright against preview server (port 4173)
 - E2E conventions: See `e2e/CLAUDE.md` for comprehensive testing philosophy
 
 **Live Tests (@live tag):**
+
 - Hit real OpenAI API (chat completions + embeddings), cost money
 - Use Paul Graham essays from `e2e/fixtures/files/`
 - Regular `test:e2e` excludes via `--grep-invert @live`
@@ -43,18 +47,21 @@ npx playwright test e2e/test-file.spec.ts
 ### Core Concepts
 
 **Vector Database (PGlite):**
+
 - In-browser PostgreSQL with pgvector extension
 - HNSW indexing for fast approximate nearest neighbor search
 - BM25 full-text search via Lunr.js
 - Hybrid search combines vector similarity + BM25 ranking with reciprocal rank fusion
 
 **State Management:**
+
 - `ApiKeyContext`: OpenAI API key in localStorage
 - `VectorDBContext`: Database state, documents, knowledge bases, indexing queue
 - `useChat`: Chat history, streaming responses, RAG integration
 - Feature flags & search settings in localStorage via `lib/feature-flags.ts`
 
 **Routing:**
+
 - `/` - WelcomePage: API key input
 - `/chat` - ChatPage: Chat with RAG (protected)
 - `/documents` - DocumentsPage: KB & document management (protected)
@@ -63,6 +70,7 @@ npx playwright test e2e/test-file.spec.ts
 ### Project Structure
 
 **Folder Organization (Best Practices Applied):**
+
 ```
 src/
 ├── types/               # Centralized TypeScript types
@@ -105,6 +113,7 @@ src/
 ```
 
 **Key Architectural Decisions:**
+
 1. **Page-specific components colocated** - Each page has folder with its components
 2. **Centralized types** - `src/types/index.ts` eliminates duplication
 3. **Pure function extraction** - Chunking, embeddings in `lib/` (testable, reusable)
@@ -114,21 +123,23 @@ src/
 ### Import Conventions
 
 **Always use @/ path alias:**
+
 ```typescript
 // ✅ CORRECT
-import { formatDate } from '@/lib/utils'
-import { Document } from '@/types'
-import { useChat } from '@/hooks/useChat'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { formatDate } from '@/lib/utils';
+import { Document } from '@/types';
+import { useChat } from '@/hooks/useChat';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 // ❌ WRONG - Never use relative imports
-import { formatDate } from '../../lib/utils'
+import { formatDate } from '../../lib/utils';
 ```
 
 **Exception:** Within same folder, relative imports OK:
+
 ```typescript
 // In src/pages/documents/KBCard.tsx
-import IndexingStatusBadge from './IndexingStatusBadge'  // OK - same folder
+import IndexingStatusBadge from './IndexingStatusBadge'; // OK - same folder
 ```
 
 ## Code Style & Best Practices
@@ -136,24 +147,28 @@ import IndexingStatusBadge from './IndexingStatusBadge'  // OK - same folder
 ### React Patterns
 
 **Component Structure:**
+
 - Functional components with hooks
 - Props interfaces defined inline or in `types/index.ts`
 - Export default for page components, named exports for utilities
 - Use `forwardRef` when exposing refs to parent
 
 **State Management:**
+
 - Local state with `useState` for UI-only state
 - Context for global state (API key, DB, feature flags)
 - Custom hooks for complex logic (useChat, useDebounce)
 - Avoid prop drilling - use context or composition
 
 **Error Handling:**
+
 - `ErrorBoundary` wraps all routes in App.tsx
 - Use `toast.error()` for user-facing errors (not `alert()`)
 - Use `toast.success()` for positive feedback
 - Let errors bubble to ErrorBoundary for crashes
 
 **Side Effects:**
+
 - Use `useEffect` with proper dependencies
 - Cleanup functions for subscriptions, timers, listeners
 - Abort controllers for cancelable async operations (see `useChat`)
@@ -161,17 +176,20 @@ import IndexingStatusBadge from './IndexingStatusBadge'  // OK - same folder
 ### TypeScript
 
 **Import types from centralized location:**
+
 ```typescript
-import type { Document, KnowledgeBase, SearchResult, Message } from '@/types'
+import type { Document, KnowledgeBase, SearchResult, Message } from '@/types';
 ```
 
 **Type safety:**
+
 - Use interfaces for object shapes (avoid `type` for consistency)
 - Avoid `any` - use `unknown` if type truly unknown
 - Use const assertions for literal types: `as const`
 - Generic components properly typed: `<T,>` syntax in TSX
 
 **Naming:**
+
 - Interfaces: PascalCase (Document, SearchResult)
 - Types: PascalCase (FilterType, SortBy)
 - Enums: PascalCase (avoid - use union types instead)
@@ -180,12 +198,14 @@ import type { Document, KnowledgeBase, SearchResult, Message } from '@/types'
 ### Styling
 
 **Tailwind CSS v4:**
+
 - Theme colors as CSS custom properties in `src/index.css`
 - NO `@apply` directives (removed for v4 compatibility)
 - Use `cn()` utility for conditional classes: `cn('base', condition && 'extra')`
 - Prefer Tailwind classes over inline styles
 
 **Component Styling:**
+
 ```typescript
 import { cn } from '@/lib/utils'
 
@@ -199,6 +219,7 @@ import { cn } from '@/lib/utils'
 ### Testing
 
 **Test ID Conventions:**
+
 ```typescript
 // Use centralized constants
 import { CHAT_PAGE, DOC_CARD } from '@/lib/test-ids'
@@ -214,21 +235,24 @@ import { CHAT_PAGE, DOC_CARD } from '@/lib/test-ids'
 ```
 
 **Test assertions (JUnit convention):**
+
 ```typescript
 // ✅ CORRECT: expect(actual).toBe(expected)
-expect(result).toBe(expectedValue)
+expect(result).toBe(expectedValue);
 
 // ❌ WRONG
-expect(expectedValue).toBe(result)
+expect(expectedValue).toBe(result);
 ```
 
 **Deterministic tests:**
+
 - NO `if-else` - tests follow single path
 - NO `try-catch` - let errors throw
 - NO fallback logic - fix root cause
 - Use `console.log` for debugging only
 
 **State-based waiting:**
+
 ```typescript
 // Add data attributes for background operations
 <div data-uploading={isUploading.toString()}>
@@ -246,14 +270,15 @@ await page.waitForSelector('[data-uploading="false"]')
 Runtime toggles for enabling/disabling features via Settings UI.
 
 **Usage:**
+
 ```typescript
-import { isFeatureEnabled, setFeatureFlag, FEATURES } from '@/lib/feature-flags'
+import { isFeatureEnabled, setFeatureFlag, FEATURES } from '@/lib/feature-flags';
 
 if (isFeatureEnabled(FEATURES.INDEXING_ENABLED)) {
   // Feature logic
 }
 
-setFeatureFlag(FEATURES.INDEXING_ENABLED, false)
+setFeatureFlag(FEATURES.INDEXING_ENABLED, false);
 ```
 
 **Storage:** localStorage key `feature-flag-{NAME}`, values `"true"/"false"` (strings)
@@ -261,15 +286,17 @@ setFeatureFlag(FEATURES.INDEXING_ENABLED, false)
 **Defaults:** Enabled unless explicitly set to `"false"`
 
 **Available Flags:**
+
 - `FEATURE_INDEXING_ENABLED`: Document indexing & embeddings (default: true)
 
 **Test Strategy:**
+
 ```typescript
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('feature-flag-FEATURE_INDEXING_ENABLED', 'false')
-  })
-})
+    localStorage.setItem('feature-flag-FEATURE_INDEXING_ENABLED', 'false');
+  });
+});
 ```
 
 ### Search Settings
@@ -277,6 +304,7 @@ test.beforeEach(async ({ page }) => {
 User-configurable hybrid search parameters.
 
 **Available Settings:**
+
 - `VECTOR_TOP_K` (default: 3, range: 1-20): Vector results count
 - `SIMILARITY_THRESHOLD` (default: 0.3, range: 0-1): Cosine similarity cutoff
 - `BM25_LIMIT` (default: 10, range: 1-50): BM25 results count
@@ -284,11 +312,12 @@ User-configurable hybrid search parameters.
 - `HNSW_EF_CONSTRUCTION` (default: 64, range: 16-256): HNSW candidate list (requires re-index)
 
 **Usage:**
-```typescript
-import { getSearchSetting, setSearchSetting } from '@/lib/feature-flags'
 
-const topK = getSearchSetting('VECTOR_TOP_K') // returns number
-setSearchSetting('VECTOR_TOP_K', 5) // dispatches searchSettingChanged event
+```typescript
+import { getSearchSetting, setSearchSetting } from '@/lib/feature-flags';
+
+const topK = getSearchSetting('VECTOR_TOP_K'); // returns number
+setSearchSetting('VECTOR_TOP_K', 5); // dispatches searchSettingChanged event
 ```
 
 **Storage:** localStorage key `search-setting-{NAME}`, numeric strings
@@ -301,6 +330,7 @@ setSearchSetting('VECTOR_TOP_K', 5) // dispatches searchSettingChanged event
 Shared navigation bar used across all protected pages.
 
 **Features:**
+
 - Page title & icon
 - Navigation links (Chat | Documents)
 - Settings cog button (opens SettingsDialog)
@@ -308,6 +338,7 @@ Shared navigation bar used across all protected pages.
 - Children slot for page-specific actions
 
 **Usage:**
+
 ```typescript
 <TopBar title="AI Chat" icon={<Bot className="w-6 h-6" />}>
   <Button onClick={clearChat}>Clear Chat</Button>
@@ -319,12 +350,14 @@ Shared navigation bar used across all protected pages.
 Class component that catches React errors and displays fallback UI.
 
 **Features:**
+
 - Catches unhandled errors in component tree
 - Shows detailed error message with stack trace
 - "Try Again" button to reset error state
 - "Reload Page" button for persistent errors
 
 **Usage:**
+
 ```typescript
 // Wrap routes in App.tsx
 <ErrorBoundary>
@@ -339,16 +372,17 @@ Class component that catches React errors and displays fallback UI.
 Uses `sonner` library for user notifications.
 
 **Usage:**
-```typescript
-import { toast } from 'sonner'
 
-toast.success('File uploaded successfully')
-toast.error('Failed to connect to database')
+```typescript
+import { toast } from 'sonner';
+
+toast.success('File uploaded successfully');
+toast.error('Failed to connect to database');
 toast.promise(asyncOperation, {
   loading: 'Processing...',
   success: 'Done!',
-  error: 'Failed'
-})
+  error: 'Failed',
+});
 ```
 
 **DO NOT use `alert()` or `confirm()`** - always use toast
@@ -358,6 +392,7 @@ toast.promise(asyncOperation, {
 ### XSS Protection
 
 **Always sanitize HTML before rendering:**
+
 ```typescript
 import DOMPurify from 'dompurify'
 
@@ -370,49 +405,54 @@ import DOMPurify from 'dompurify'
 ### Input Debouncing
 
 **Use `useDebounce` hook for search inputs:**
-```typescript
-import { useDebounce } from '@/hooks/useDebounce'
 
-const [query, setQuery] = useState('')
-const debouncedQuery = useDebounce(query, 300)
+```typescript
+import { useDebounce } from '@/hooks/useDebounce';
+
+const [query, setQuery] = useState('');
+const debouncedQuery = useDebounce(query, 300);
 
 useEffect(() => {
   if (debouncedQuery) {
-    performSearch(debouncedQuery)
+    performSearch(debouncedQuery);
   }
-}, [debouncedQuery])
+}, [debouncedQuery]);
 ```
 
 ### Abort Controllers
 
 **Cancel ongoing async operations:**
+
 ```typescript
 // In useChat hook
-const abortControllerRef = useRef<AbortController | null>(null)
+const abortControllerRef = useRef<AbortController | null>(null);
 
 const sendMessage = async (content: string) => {
   // Cancel previous request
-  abortControllerRef.current?.abort()
+  abortControllerRef.current?.abort();
 
   // Create new controller
-  const abortController = new AbortController()
-  abortControllerRef.current = abortController
+  const abortController = new AbortController();
+  abortControllerRef.current = abortController;
 
   try {
-    await openai.chat.completions.create({
-      // ...options
-    }, { signal: abortController.signal })
+    await openai.chat.completions.create(
+      {
+        // ...options
+      },
+      { signal: abortController.signal }
+    );
   } catch (error) {
     if (error.name === 'AbortError') {
       // Request was cancelled
     }
   }
-}
+};
 
 // Cleanup
 useEffect(() => {
-  return () => abortControllerRef.current?.abort()
-}, [])
+  return () => abortControllerRef.current?.abort();
+}, []);
 ```
 
 ## Vector Database (PGlite)
@@ -420,6 +460,7 @@ useEffect(() => {
 ### Architecture
 
 **In-browser PostgreSQL with pgvector:**
+
 - Client-side vector database (no backend required)
 - HNSW indexing for approximate nearest neighbor search
 - Hybrid search: vector similarity + BM25 full-text
@@ -428,6 +469,7 @@ useEffect(() => {
 ### Schema
 
 **Knowledge Bases:**
+
 ```sql
 CREATE TABLE knowledge_bases (
   id UUID PRIMARY KEY,
@@ -442,6 +484,7 @@ CREATE TABLE knowledge_bases (
 ```
 
 **Documents:**
+
 ```sql
 CREATE TABLE documents (
   id UUID PRIMARY KEY,
@@ -458,6 +501,7 @@ CREATE TABLE documents (
 ```
 
 **Chunks:**
+
 ```sql
 CREATE TABLE chunks (
   id UUID PRIMARY KEY,
@@ -476,38 +520,38 @@ CREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops);
 ### Hybrid Search
 
 **Combines vector similarity + BM25:**
+
 1. Vector search: cosine similarity on embeddings
 2. BM25 search: Lunr.js full-text search
 3. Reciprocal rank fusion: combines rankings
 4. Configurable via search settings
 
 **Implementation:**
+
 ```typescript
-const results = await searchHybrid(
-  query,
-  knowledgeBaseId,
-  attachedDocumentIds
-)
+const results = await searchHybrid(query, knowledgeBaseId, attachedDocumentIds);
 // Returns SearchResult[] with fusedScore, vectorScore, bm25Score
 ```
 
 ## Chunking Strategy
 
 **Markdown-aware chunking:**
+
 - Splits on headings (`#`, `##`, etc.) to preserve context
 - Falls back to sentence boundaries for long sections
 - Target chunk size: ~500 tokens (configurable)
 - Includes heading in chunk metadata for context
 
 **Implementation:**
+
 ```typescript
-import { chunkDocument } from '@/lib/chunking'
+import { chunkDocument } from '@/lib/chunking';
 
 const chunks = chunkDocument(content, {
   filename,
   mimeType: 'text/markdown',
-  targetChunkSize: 500
-})
+  targetChunkSize: 500,
+});
 // Returns Chunk[] with heading, content, offsets
 ```
 
@@ -588,24 +632,28 @@ const chunks = chunkDocument(content, {
 ## Development Guidelines
 
 **File Organization:**
+
 - Page-specific: colocate in page folder
 - Reusable: extract to `components/` or `lib/`
 - Types: centralize in `types/index.ts`
 - Test IDs: centralize in `lib/test-ids.ts`
 
 **Naming:**
+
 - Files: PascalCase for components, camelCase for utilities
 - Components: PascalCase
 - Hooks: camelCase starting with `use`
 - Utils: camelCase
 
 **Git Commits:**
+
 - Format: `type(scope): description`
 - Types: feat, fix, refactor, test, docs, chore
 - Include test results in commit message
 - Reference issue numbers when applicable
 
 **Code Review:**
+
 - All tests must pass (unit + e2e)
 - No direct `page.*` in E2E tests
 - Use @/ imports consistently
@@ -614,6 +662,7 @@ const chunks = chunkDocument(content, {
 - DOMPurify for HTML
 
 **Performance:**
+
 - Debounce search inputs
 - Use abort controllers for async ops
 - Lazy load heavy components if needed
@@ -624,26 +673,31 @@ const chunks = chunkDocument(content, {
 **Maintain alignment between app components and E2E page object models:**
 
 **Page Structure:**
+
 - All pages follow folder convention: `pages/{page-name}/index.tsx`
 - Page-specific components colocated in same folder
 - Shared components in top-level `src/components/`
 
 **Component Naming:**
+
 - E2E components add `Component` suffix to app names
 - Example: `AttachmentBadges.tsx` → `AttachmentBadgesComponent.ts`
 - Composite E2E components match app semantic grouping
 
 **Granularity:**
+
 - Prefer fine-grained components matching app structure
 - Complex sections may be extracted for clarity (e.g., MessagesList.tsx)
 - E2E components may aggregate related functionality pragmatically
 
 **Component Mapping:**
+
 - App shared components (`src/components/`) map to `e2e/pages/shared/`
 - Document mapping in comments: `// E2E: e2e/pages/[path]`
 - Maintain 1:1 or documented aggregation relationships
 
 **When Refactoring:**
+
 - Extract app components → create matching E2E components
 - Split large components → update both app and E2E
 - Ensure tests remain backward-compatible via wrapper methods

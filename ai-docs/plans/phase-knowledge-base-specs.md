@@ -5,6 +5,7 @@
 **Goal:** Organize documents into named Knowledge Bases for better multi-project/domain management
 
 **Test Status (as of 2025-11-21 - All Phases Complete):**
+
 - ✅ E2E KB Tests: 15/20 passing (75%) - 3 CRUD + 3 Upload + 4 Filtering + 5 Persistence
 - ✅ Phase kb-schema: COMPLETE
 - ✅ Phase kb-management: COMPLETE (3/3 tests passing)
@@ -16,6 +17,7 @@
 - Overall: 17/22 passing (77% - includes 15 KB tests + 2 general tests)
 
 **Implementation Notes:**
+
 - Per-KB chunks tables with isolated vector spaces: `kb_{kbId}_chunks`
 - KB expansion/collapse with URL query param sync (?kb={id})
 - DocumentToolbar (search/sort/filter) integrated into expanded KB view
@@ -34,18 +36,21 @@
 ## 🎯 Incremental TDD Approach
 
 **Why Knowledge Bases First:**
+
 - DocsGPT organizes documents into "Sources" (knowledge bases) for logical separation
 - Users working with multiple projects need clear boundaries between document collections
 - Foundation for future features (agents bound to KBs, KB-level search shortcuts)
 - Aligns with industry standard RAG pattern: organize → index → query
 
 **Key Principles:**
+
 1. **Test-Driven** - E2E tests verify KB CRUD + document organization workflows
 2. **Progressive Enhancement** - Build KB management first, then integrate with upload/search
 3. **YAGNI** - Build only what's specified, no speculative features
 4. **Incremental Phases** - Each phase delivers testable value independently
 
 **Implementation Order:**
+
 1. **Phase kb-schema** - Database tables (knowledge_bases, FK on documents)
 2. **Phase kb-management** - KB CRUD UI (create, list, edit, delete)
 3. **Phase kb-upload** - Upload documents to specific KB
@@ -60,6 +65,7 @@
 Transform application from flat document list to organized Knowledge Bases:
 
 **Current State:**
+
 ```
 Documents Page:
   - react-hooks.md
@@ -70,6 +76,7 @@ Documents Page:
 ```
 
 **Target State:**
+
 ```
 Knowledge Bases Page (at /documents route):
   📚 React Documentation (5 docs, 324 chunks)
@@ -83,6 +90,7 @@ Chat → Attach entire KB or individual docs within KB
 ```
 
 **Key Concepts:**
+
 1. **Knowledge Base** - Named collection of related documents (e.g., "React Docs", "Company Wiki")
 2. **Document-KB Relationship** - Each document belongs to one KB (or none/"Ungrouped")
 3. **KB Metadata** - Name, description, optional color for visual distinction
@@ -93,6 +101,7 @@ Chat → Attach entire KB or individual docs within KB
 ## Current Codebase State
 
 **Foundation Exists:**
+
 - **Documents Table**: Stores uploaded files with metadata (filename, content, file_size, mime_type, timestamps)
 - **Upload Flow**: Drag-and-drop UI → VectorDBContext → Database INSERT
 - **Indexing Pipeline**: Automatic chunking + embedding generation after upload
@@ -101,6 +110,7 @@ Chat → Attach entire KB or individual docs within KB
 - **Cascade Deletes**: Deleting document auto-deletes indexing queue entry + chunks
 
 **To Be Implemented:**
+
 - Knowledge Bases table and UI
 - Document-to-KB assignment during upload
 - KB list view with expandable document cards (repurpose existing Documents page)
@@ -108,6 +118,7 @@ Chat → Attach entire KB or individual docs within KB
 - State management for KB selection
 
 **Architectural Decision:**
+
 - Repurpose existing `src/pages/documents/` to become the knowledge bases page
 - `/documents` route becomes the KB management interface
 - Click KB card → expand in-place to show documents within that KB
@@ -122,6 +133,7 @@ Chat → Attach entire KB or individual docs within KB
 **Purpose:** Store KB metadata and vector/search configuration
 
 **Required Fields:**
+
 - Unique identifier (UUID)
 - Name (unique, user-friendly label)
 - Description (optional long-form text)
@@ -130,11 +142,13 @@ Chat → Attach entire KB or individual docs within KB
 - Last updated timestamp
 
 **Vector Configuration Fields (copied from global defaults at creation):**
+
 - `embedding_model` (TEXT NOT NULL) - OpenAI embedding model (e.g., 'text-embedding-3-small')
 - `embedding_dimensions` (INTEGER NOT NULL) - Vector dimensions (e.g., 768)
 - Table name: `kb_{kbId}_chunks` (dynamically created per KB)
 
 **Hybrid Search Configuration Fields (copied from global defaults at creation):**
+
 - `vector_top_k` (INTEGER NOT NULL DEFAULT 3) - Number of vector search results (range: 1-20)
 - `similarity_threshold` (REAL NOT NULL DEFAULT 0.3) - Cosine similarity cutoff (range: 0-1)
 - `bm25_limit` (INTEGER NOT NULL DEFAULT 10) - Number of BM25 results (range: 1-50)
@@ -143,6 +157,7 @@ Chat → Attach entire KB or individual docs within KB
 - `rrf_k` (REAL NOT NULL DEFAULT 0.6) - Reciprocal Rank Fusion constant
 
 **Business Rules:**
+
 - KB names must be unique (case-sensitive)
 - Name validation: 1-50 characters, no leading/trailing whitespace
 - Description max length: 500 characters
@@ -151,6 +166,7 @@ Chat → Attach entire KB or individual docs within KB
 - Changing hybrid search params (top_k, threshold, BM25 limit, RRF) applies immediately on next search
 
 **Constraints:**
+
 - Prevent duplicate KB names via unique index
 - Name is required field
 - embedding_model and embedding_dimensions NOT NULL (must be set at creation)
@@ -160,13 +176,15 @@ Chat → Attach entire KB or individual docs within KB
 **Purpose:** Link documents to knowledge bases
 
 **Required Field:**
+
 - Knowledge base identifier (foreign key to knowledge_bases)
 
 **Business Rules:**
+
 - Foreign key is **optional/nullable** (allows "Ungrouped" documents)
 - Deleting KB cascades to:
   - All documents in KB (documents table)
-  - All chunks in KB-specific chunks table (DROP TABLE kb_{kbId}_chunks)
+  - All chunks in KB-specific chunks table (DROP TABLE kb\_{kbId}\_chunks)
   - All indexing queue entries (indexing_queue table)
   - Requires user confirmation prompt showing impact
 - Moving document between KBs requires:
@@ -177,6 +195,7 @@ Chat → Attach entire KB or individual docs within KB
   - Triggering re-indexing workflow
 
 **Index Requirements:**
+
 - Index on KB foreign key for efficient filtering queries
 
 ### 1.3 Per-KB Chunks Tables
@@ -186,6 +205,7 @@ Chat → Attach entire KB or individual docs within KB
 **Table Naming Convention:** `kb_{kbId}_chunks` (e.g., `kb_550e8400-e29b-41d4-a716-446655440000_chunks`)
 
 **Schema (per KB):**
+
 ```sql
 CREATE TABLE IF NOT EXISTS kb_{kbId}_chunks (
   id UUID PRIMARY KEY,
@@ -207,12 +227,14 @@ WITH (m = {hnsw_m}, ef_construction = {hnsw_ef_construction});
 ```
 
 **Rationale:**
+
 - Isolated vector spaces per KB (different embedding models/dimensions)
 - Independent HNSW index tuning per KB
 - Clean deletion (DROP TABLE when KB deleted)
 - Prevents cross-KB embedding incompatibility
 
 **Migration from Current Architecture:**
+
 - Current: Single `chunks` table for all documents
 - New: Per-KB `kb_{kbId}_chunks` tables
 - Migration: CREATE TABLE per existing KB, INSERT chunks grouped by KB, DROP old chunks table
@@ -221,12 +243,14 @@ WITH (m = {hnsw_m}, ef_construction = {hnsw_ef_construction});
 ### 1.4 Query Requirements
 
 **Get All KBs with Stats:**
+
 - Return KB metadata + computed stats (document count, total chunk count)
-- Chunk count computed by querying `kb_{kbId}_chunks` table (COUNT(*))
+- Chunk count computed by querying `kb_{kbId}_chunks` table (COUNT(\*))
 - Sort by creation date descending (newest first)
 - Left join documents to include KBs with zero documents
 
 **Get Documents with KB Info:**
+
 - Return document metadata + KB name, color, and vector config (for display)
 - Filter by KB identifier (optional)
 - Support filtering "Ungrouped" documents (where KB is null)
@@ -242,6 +266,7 @@ WITH (m = {hnsw_m}, ef_construction = {hnsw_ef_construction});
 **Purpose:** Central hub for viewing and managing all knowledge bases and their documents
 
 **Architecture Change:**
+
 - Transform existing DocumentsPage from flat document list to KB-organized view
 - Reuse existing components: TopBar, UploadZone, DocumentCard, DeleteModal, DocumentToolbar
 - Add new KB-specific components: KBCard, CreateKBModal, EditKBModal, DeleteKBModal
@@ -249,11 +274,13 @@ WITH (m = {hnsw_m}, ef_construction = {hnsw_ef_construction});
 **Layout Requirements:**
 
 **Header Section:**
+
 - Page title: "Knowledge Bases" (update from "Documents")
 - Primary action button: "New Knowledge Base"
 - Positioned in top-right corner (in TopBar children slot)
 
 **KB Cards Grid:**
+
 - Display each KB as an expandable card with:
   - Emoji/icon indicator (📚)
   - KB name (prominent, clickable)
@@ -267,6 +294,7 @@ WITH (m = {hnsw_m}, ef_construction = {hnsw_ef_construction});
   - Call-to-action: "Create your first knowledge base"
 
 **Card Interactions:**
+
 - Click KB name/card body → Expand card in-place to show documents within that KB
 - Expanded state shows:
   - Upload zone specific to this KB
@@ -277,6 +305,7 @@ WITH (m = {hnsw_m}, ef_construction = {hnsw_ef_construction});
 - Click collapse chevron → Collapse expanded KB
 
 **Data Attributes for Testing:**
+
 ```
 Page container: data-testid="page-knowledge-bases" (update from "page-documents")
 Create button: data-testid="btn-create-kb"
@@ -295,6 +324,7 @@ Expanded content: data-testid="kb-expanded-{kbId}"
 **Form Fields:**
 
 **Name (Required):**
+
 - Text input, max 50 characters
 - Client-side validation:
   - Required field
@@ -306,17 +336,20 @@ Expanded content: data-testid="kb-expanded-{kbId}"
   - Duplicate: "A knowledge base with this name already exists"
 
 **Description (Optional):**
+
 - Textarea, max 500 characters
 - Placeholder: "Optional description for this knowledge base"
 - Auto-expanding height (up to 5 rows)
 
 **Color (Optional):**
+
 - Color picker or predefined palette
 - Options: Blue (#3B82F6), Green (#10B981), Red (#EF4444), Yellow (#F59E0B), Purple (#8B5CF6)
 - Default: no color selected (uses app default)
 - Display: circular color swatches, selected state with checkmark
 
 **Vector Configuration:**
+
 - Section title: "Vector Configuration"
 - Default: **expanded** (visible immediately, not collapsed)
 - Fields always visible:
@@ -328,6 +361,7 @@ Expanded content: data-testid="kb-expanded-{kbId}"
   - Info text: "⚠️ Changing these values later will require re-indexing all documents"
 
 **Hybrid Search Configuration:**
+
 - Section title: "Hybrid Search Settings"
 - Default: **expanded** (visible immediately, not collapsed)
 - All fields always visible with number inputs:
@@ -358,11 +392,13 @@ Expanded content: data-testid="kb-expanded-{kbId}"
   - Info text at bottom: "⚠️ Changing HNSW params or vector config later will require re-indexing"
 
 **Actions:**
+
 - Cancel button: Close modal without saving
 - Create button: Validate and save KB, then close modal
 - Create button disabled during save operation
 
 **Data Attributes:**
+
 ```
 Modal: data-testid="modal-create-kb"
 Name input: data-testid="input-kb-name"
@@ -380,6 +416,7 @@ Submit button: data-testid="btn-create-kb-submit"
 ```
 
 **Success Flow:**
+
 1. User fills required name field
 2. User reviews/modifies vector configuration (defaults pre-filled)
 3. User reviews/modifies hybrid search settings (defaults pre-filled)
@@ -401,6 +438,7 @@ Submit button: data-testid="btn-create-kb-submit"
 10. Show success toast: "Knowledge Base '{name}' created"
 
 **Validation Rules:**
+
 - **Embedding Model + Dimensions compatibility:**
   - text-embedding-3-small: supports 1-1536 dimensions (default 1536, recommend 768 for cost)
   - text-embedding-3-large: supports 1-3072 dimensions (default 3072, recommend 1536 for balance)
@@ -410,6 +448,7 @@ Submit button: data-testid="btn-create-kb-submit"
 - **Name uniqueness:** Check against existing KBs before submission
 
 **Implementation References:**
+
 - Global embedding model: `VectorDBContext.tsx` line 271 (DEFAULT_EMBEDDING_MODEL constant)
 - Global vector dimensions: `VectorDBContext.tsx` line 276 (768 hardcoded)
 - Global search settings: `feature-flags.ts` SEARCH_SETTINGS object
@@ -420,6 +459,7 @@ Submit button: data-testid="btn-create-kb-submit"
 **Trigger:** Click Edit button on KB card
 
 **Similar to Create Modal, but with additional re-index logic:**
+
 - Modal title: "Edit Knowledge Base"
 - Form pre-filled with existing KB data (all fields including vector/search config)
 - Submit button: "Save Changes"
@@ -427,11 +467,12 @@ Submit button: data-testid="btn-create-kb-submit"
 - Update timestamp on save
 
 **Re-Index Detection & Confirmation:**
+
 - Track which fields changed during edit
 - If embedding_model, embedding_dimensions, hnsw_m, or hnsw_ef_construction changed:
   - Show warning dialog before saving: "⚠️ Configuration Change Requires Re-Indexing"
   - Message: "Changing [field names] will require:"
-    - "• Dropping existing chunks table (kb_{kbId}_chunks)"
+    - "• Dropping existing chunks table (kb\_{kbId}\_chunks)"
     - "• Re-creating chunks table with new configuration"
     - "• Re-indexing all {N} documents in this knowledge base"
     - "• This may take several minutes"
@@ -441,13 +482,14 @@ Submit button: data-testid="btn-create-kb-submit"
   - Show info toast: "Search settings updated. Changes will apply on next search."
 
 **Save Flow with Re-Index:**
+
 1. User edits KB config and clicks "Save Changes"
 2. Detect which config fields changed
 3. If re-index required, show confirmation dialog
 4. If user confirms "Save & Re-Index":
    - Update KB record in database
-   - DROP TABLE kb_{kbId}_chunks
-   - CREATE TABLE kb_{kbId}_chunks with new config (dimensions, HNSW params)
+   - DROP TABLE kb\_{kbId}\_chunks
+   - CREATE TABLE kb\_{kbId}\_chunks with new config (dimensions, HNSW params)
    - Mark all documents in KB as 'pending' in indexing_queue
    - Trigger indexing pipeline for all docs
    - Show progress indicator (e.g., "Re-indexing 12 documents...")
@@ -457,6 +499,7 @@ Submit button: data-testid="btn-create-kb-submit"
    - Show success toast
 
 **Data Attributes:**
+
 ```
 Modal: data-testid="modal-edit-kb", data-kb-id="{kbId}"
 Submit button: data-testid="btn-edit-kb-submit"
@@ -465,6 +508,7 @@ Confirm re-index button: data-testid="btn-confirm-reindex"
 ```
 
 **Implementation References:**
+
 - Current indexing queue logic: `VectorDBContext.tsx` lines 692-796 (processJob method)
 - Embedding generation: `VectorDBContext.tsx` lines 231-294 (generateEmbeddings method)
 - Chunks table creation: `VectorDBContext.tsx` lines 392-416 (initializeDatabase method)
@@ -476,6 +520,7 @@ Confirm re-index button: data-testid="btn-confirm-reindex"
 **Purpose:** Confirm deletion with cascade warning
 
 **Content:**
+
 - Warning icon (⚠️)
 - Headline: "Delete Knowledge Base"
 - Message: "Are you sure you want to delete '{KB name}'?"
@@ -487,6 +532,7 @@ Confirm re-index button: data-testid="btn-confirm-reindex"
 - Disclaimer: "This action cannot be undone."
 
 **Actions:**
+
 - Cancel button: Close modal without deleting
 - Delete button: Confirm deletion and close modal
   - Styling: Red/destructive variant
@@ -494,6 +540,7 @@ Confirm re-index button: data-testid="btn-confirm-reindex"
   - Disabled during deletion operation
 
 **Data Attributes:**
+
 ```
 Modal: data-testid="modal-delete-kb"
 Confirmation button: data-testid="btn-delete-kb-confirm"
@@ -501,6 +548,7 @@ Display values: data-kb-name="{name}", data-doc-count="{N}", data-chunk-count="{
 ```
 
 **Success Flow:**
+
 1. User confirms deletion
 2. Delete KB from database (cascade to documents/chunks)
 3. Close modal
@@ -518,16 +566,19 @@ Display values: data-kb-name="{name}", data-doc-count="{N}", data-chunk-count="{
 **Architecture Change:** Upload zone now appears inside expanded KB card
 
 **UI Placement:**
+
 - Upload zone appears when KB card is expanded
 - Positioned at top of expanded content area (above document list)
 - No KB selector needed - context is implicit (uploading to expanded KB)
 
 **Upload Zone Display:**
+
 - Existing UploadZone component unchanged
 - Visual hint above zone: "Upload documents to: {KB name}"
 - Same drag-and-drop and file browser functionality
 
 **Upload Process:**
+
 1. User clicks KB card to expand
 2. Upload zone appears at top of expanded content
 3. User drags/drops files or browses
@@ -536,12 +587,14 @@ Display values: data-kb-name="{name}", data-doc-count="{N}", data-chunk-count="{
 6. Indexing pipeline runs automatically (existing behavior)
 
 **Data Attributes:**
+
 ```
 Upload zone container: data-testid="upload-zone-kb-{kbId}"
 Upload hint: data-testid="hint-upload-kb-{kbId}"
 ```
 
 **Functional Requirements:**
+
 - Upload zone only visible when KB is expanded
 - Uploads automatically associated with expanded KB
 - No manual KB selection needed (implicit from UI context)
@@ -554,11 +607,13 @@ Upload hint: data-testid="hint-upload-kb-{kbId}"
 **UI Element:** KB badge or action menu (clickable)
 
 **Display:**
+
 - Badge/menu accessible from document card (reuse existing DocumentCard component)
 - Action menu (⋮) includes "Move to..." option
 - Hover state: indicates clickable
 
 **Interaction:**
+
 1. Click "Move to..." in document action menu → Open dropdown menu
 2. Menu shows:
    - Header: "Move to Knowledge Base:"
@@ -569,6 +624,7 @@ Upload hint: data-testid="hint-upload-kb-{kbId}"
 4. Document disappears from current expanded KB, stats update
 
 **Data Attributes:**
+
 ```
 Move menu item: data-testid="btn-move-doc-{documentId}"
 Move menu: data-testid="menu-move-kb-{documentId}"
@@ -577,6 +633,7 @@ Remove option: data-testid="btn-move-doc-ungrouped"
 ```
 
 **Functional Requirements:**
+
 - Update document's KB foreign key only (no content changes)
 - Document removed from current expanded KB view immediately
 - Update KB stats (old KB -1, new KB +1)
@@ -592,6 +649,7 @@ Remove option: data-testid="btn-move-doc-ungrouped"
 **Interaction Model:** Click-to-expand instead of filter dropdown
 
 **Behavior:**
+
 - Click KB card → Card expands in-place to show documents
 - Expanded card shows:
   - Upload zone for this KB
@@ -601,6 +659,7 @@ Remove option: data-testid="btn-move-doc-ungrouped"
 - Click collapse chevron → KB collapses, returns to card-only view
 
 **URL Synchronization:**
+
 - Expanded KB reflected in URL query param: `/documents?kb={kbId}`
 - Query param values:
   - No param → No KB expanded (card view only)
@@ -609,18 +668,21 @@ Remove option: data-testid="btn-move-doc-ungrouped"
 - Direct URL navigation works (e.g., bookmark expanded KB view)
 
 **Data Attributes:**
+
 ```
 KB card: data-expanded="true|false"
 Expanded content: data-testid="kb-expanded-{kbId}"
 ```
 
 **Functional Requirements:**
+
 - Only one KB expanded at a time (single-expansion pattern)
 - Expanding new KB auto-collapses previously expanded KB
 - URL param syncs with expanded KB
 - Deep linking works (URL with ?kb={kbId} expands that KB on load)
 
 **Ungrouped Documents Section:**
+
 - Show separate collapsible section at bottom of page
 - Title: "📁 Ungrouped Documents ({count})"
 - Same expansion pattern as KB cards
@@ -629,12 +691,14 @@ Expanded content: data-testid="kb-expanded-{kbId}"
 ### 4.2 KB-Aware Document Query
 
 **Enhancement to getDocuments() query:**
+
 - Join documents table with knowledge_bases table (LEFT JOIN)
 - Return KB metadata with each document: KB name, KB color
 - Support loading documents for specific KB (WHERE clause)
 - Support loading ungrouped documents (WHERE KB IS NULL)
 
 **Query Scenarios:**
+
 1. Get KB list with stats: Load all KBs with document/chunk counts
 2. Get documents in specific KB: WHERE kb_id = {value}
 3. Get ungrouped documents: WHERE kb_id IS NULL
@@ -652,26 +716,31 @@ Expanded content: data-testid="kb-expanded-{kbId}"
 **UI Layout:**
 
 **Filter Section (Top):**
+
 - Dropdown: "Knowledge Base: {selected KB}"
 - Options same as Documents page filter (All / specific KBs / Ungrouped)
 - Positioned above search bar
 
 **Document List:**
+
 - Show only documents matching KB filter
 - Existing behavior: only completed documents selectable
 - KB badge displayed on each document (visual context)
 
 **Selection Actions:**
+
 - "Select All" button → Selects all visible documents (respects KB filter)
   - Label updates: "Select All ({count} completed)" where count is filtered count
 - "Clear Selection" button → Deselects all
 
 **Footer:**
+
 - Selection summary: "Selected: {N} documents from {KB name}"
 - If multiple KBs: "Selected: {N} documents from {M} knowledge bases"
 - If no filter: "Selected: {N} documents"
 
 **Data Attributes:**
+
 ```
 KB filter: data-testid="select-kb-filter-fileselector"
 Select All button: data-testid="btn-select-all-kb"
@@ -679,6 +748,7 @@ Selection summary: data-selected-count="{N}"
 ```
 
 **Functional Requirements:**
+
 - Filter is client-side (no backend calls)
 - "Select All" respects current KB filter
 - Switching KB filter clears selection (prevents confusion)
@@ -689,6 +759,7 @@ Selection summary: data-selected-count="{N}"
 **Architectural Decision:** Cannot search across multiple KBs in a single chat query
 
 **Rationale:**
+
 - Each KB may have different embedding models and dimensions (incompatible vector spaces)
 - Cross-KB search would require:
   - Separate query embedding per KB (different models)
@@ -698,6 +769,7 @@ Selection summary: data-selected-count="{N}"
 - Complexity not justified for initial implementation
 
 **Implementation:**
+
 - FileSelector enforces single-KB selection:
   - User selects one KB via dropdown filter
   - Can then select/unselect individual files within that KB
@@ -710,18 +782,21 @@ Selection summary: data-selected-count="{N}"
   - Hybrid search uses KB's vector_top_k, similarity_threshold, bm25_limit, rrf_k params
 
 **UI Enforcement:**
+
 - FileSelector shows KB filter at top (required selection before showing files)
 - Switching KB filter clears current file selection (prevents cross-KB selection)
 - Attach button disabled if no KB selected and no files from default KB selected
 - Warning message if user attempts to switch KB with active selections: "Switching knowledge bases will clear your current selection"
 
 **Future Enhancement (Not in Phase 1):**
+
 - Cross-KB search could be supported by:
   - Requiring all KBs to use same embedding model/dimensions
   - Validating embedding compatibility before allowing cross-KB search
   - Aggregating results with normalized scores
 
 **Implementation References:**
+
 - Current search logic: `VectorDBContext.tsx` searchHybrid method (lines 1020-1110)
 - Current FileSelector: `src/components/FileSelector.tsx`
 - Chat integration: `useChat.ts` hook (constructs search query)
@@ -731,6 +806,7 @@ Selection summary: data-selected-count="{N}"
 **Concept:** Attach entire KB in one click
 
 **Not included in Phase 1** - requires UX design decisions:
+
 - Should attached KB auto-expand when new docs added?
 - How to indicate "KB attachment" vs "document attachment" in UI?
 - What happens if KB is deleted during conversation?
@@ -743,12 +819,14 @@ Selection summary: data-selected-count="{N}"
 ### 6.1 VectorDBContext Extensions
 
 **New State:**
+
 - `knowledgeBases: KnowledgeBase[]` - List of all KBs with stats and config
 - `selectedKBId: string | null` - Currently selected KB (for filtering)
 
 **New Methods:**
 
 **KB CRUD:**
+
 - `createKnowledgeBase(params)` - Create new KB, return KB object
   - Params: name (required), description (optional), color (optional), vectorConfig (optional), searchConfig (optional)
   - Generates UUID for new KB
@@ -772,15 +850,15 @@ Selection summary: data-selected-count="{N}"
   - **Reference:** Modify current updateDocument pattern
 
 - `reindexKnowledgeBase(id)` - Drop chunks table, recreate with new config, re-index all docs
-  - DROP TABLE kb_{kbId}_chunks
-  - CREATE TABLE kb_{kbId}_chunks with updated config (dimensions, HNSW params from KB record)
+  - DROP TABLE kb\_{kbId}\_chunks
+  - CREATE TABLE kb\_{kbId}\_chunks with updated config (dimensions, HNSW params from KB record)
   - Mark all documents in KB as 'pending' in indexing_queue
   - Trigger indexing pipeline (processQueue)
   - **Reference:** Combine initializeDatabase + processQueue logic
 
 - `deleteKnowledgeBase(id)` - Delete KB and cascade to documents
   - Deletes KB from database
-  - DROP TABLE kb_{kbId}_chunks
+  - DROP TABLE kb\_{kbId}\_chunks
   - Cascade deletes all documents in KB (documents table)
   - Cascade deletes all indexing queue entries
   - Clears selectedKBId if deleted KB was selected
@@ -788,31 +866,33 @@ Selection summary: data-selected-count="{N}"
   - **Reference:** Current deleteDocument pattern (lines 598-630)
 
 - `refreshKnowledgeBases()` - Reload KB list from database
-  - Queries KBs with document/chunk counts (COUNT from kb_{kbId}_chunks table)
+  - Queries KBs with document/chunk counts (COUNT from kb\_{kbId}\_chunks table)
   - Updates knowledgeBases state
 
 **Document-KB Operations:**
+
 - `moveDocumentToKB(documentId, sourceKBId, targetKBId)` - Reassign document to different KB
   - targetKBId can be null (move to "Ungrouped")
   - Load source KB and target KB configs
   - If embedding configs differ (model or dimensions):
-    - Delete chunks from source KB table (DELETE FROM kb_{sourceKBId}_chunks WHERE document_id = ?)
+    - Delete chunks from source KB table (DELETE FROM kb\_{sourceKBId}\_chunks WHERE document_id = ?)
     - Update document's KB foreign key
     - Mark document as 'pending' in indexing_queue (will re-chunk + re-embed with target KB config)
     - Trigger processQueue
   - If embedding configs same:
-    - Move chunks from source to target table (INSERT INTO kb_{targetKBId}_chunks SELECT * FROM kb_{sourceKBId}_chunks WHERE document_id = ?)
-    - Delete from source table (DELETE FROM kb_{sourceKBId}_chunks WHERE document_id = ?)
+    - Move chunks from source to target table (INSERT INTO kb*{targetKBId}\_chunks SELECT \* FROM kb*{sourceKBId}\_chunks WHERE document_id = ?)
+    - Delete from source table (DELETE FROM kb\_{sourceKBId}\_chunks WHERE document_id = ?)
     - Update document's KB foreign key
   - Refreshes document list and KB stats
   - **Reference:** Combine current chunking/embedding logic with table operations
 
 **Modified Methods:**
+
 - `uploadFiles(files, kbId)` - Upload with KB assignment
   - Now requires KB identifier parameter
   - Sets KB foreign key on document INSERT
   - Indexing pipeline uses KB's embedding_model and embedding_dimensions
-  - Chunks stored in KB-specific table: kb_{kbId}_chunks
+  - Chunks stored in KB-specific table: kb\_{kbId}\_chunks
   - **Reference:** Current uploadFiles (lines 456-557), modify to use KB config
 
 - `generateEmbeddings(chunks, kbId)` - Generate embeddings using KB's model/dimensions
@@ -824,12 +904,13 @@ Selection summary: data-selected-count="{N}"
 - `searchHybrid(query, kbId, documentIds)` - KB-scoped hybrid search
   - Load KB config (embedding_model, dimensions, search params)
   - Generate query embedding using KB's model/dimensions
-  - Vector search: query KB's chunks table (kb_{kbId}_chunks)
+  - Vector search: query KB's chunks table (kb\_{kbId}\_chunks)
   - BM25 search: build Lunr index from KB's chunks only
   - Apply KB's vector_top_k, similarity_threshold, bm25_limit, rrf_k params
   - **Reference:** Current searchHybrid (lines 1020-1110), add kbId param and use KB config
 
 **Selection Management:**
+
 - `setSelectedKBId(id)` - Update selected KB for filtering
   - Accepts KB UUID, "all", "ungrouped", or null
   - Persists to localStorage
@@ -838,65 +919,68 @@ Selection summary: data-selected-count="{N}"
 ### 6.2 Data Types
 
 **KnowledgeBase Interface:**
+
 ```typescript
 interface KnowledgeBase {
   // Metadata
-  id: string // UUID
-  name: string // unique, 1-50 chars
-  description: string | null // optional, max 500 chars
-  color: string | null // optional, hex code #RRGGBB
-  created_at: string // ISO timestamp
-  updated_at: string // ISO timestamp
+  id: string; // UUID
+  name: string; // unique, 1-50 chars
+  description: string | null; // optional, max 500 chars
+  color: string | null; // optional, hex code #RRGGBB
+  created_at: string; // ISO timestamp
+  updated_at: string; // ISO timestamp
 
   // Vector Configuration
-  embedding_model: string // e.g., 'text-embedding-3-small'
-  embedding_dimensions: number // e.g., 768
-  chunks_table_name: string // computed: `kb_{id}_chunks`
+  embedding_model: string; // e.g., 'text-embedding-3-small'
+  embedding_dimensions: number; // e.g., 768
+  chunks_table_name: string; // computed: `kb_{id}_chunks`
 
   // Hybrid Search Configuration
-  vector_top_k: number // 1-20, default 3
-  similarity_threshold: number // 0-1, default 0.3
-  bm25_limit: number // 1-50, default 10
-  hnsw_m: number // 4-64, default 16
-  hnsw_ef_construction: number // 16-256, default 64
-  rrf_k: number // default 0.6
+  vector_top_k: number; // 1-20, default 3
+  similarity_threshold: number; // 0-1, default 0.3
+  bm25_limit: number; // 1-50, default 10
+  hnsw_m: number; // 4-64, default 16
+  hnsw_ef_construction: number; // 16-256, default 64
+  rrf_k: number; // default 0.6
 
   // Computed Stats
-  document_count: number // computed, may be 0
-  chunk_count: number // computed from kb_{id}_chunks table
+  document_count: number; // computed, may be 0
+  chunk_count: number; // computed from kb_{id}_chunks table
 }
 ```
 
 **KnowledgeBaseConfig Interface (for forms):**
+
 ```typescript
 interface KnowledgeBaseConfig {
   // Vector Config
-  embedding_model?: string
-  embedding_dimensions?: number
+  embedding_model?: string;
+  embedding_dimensions?: number;
 
   // Search Config
-  vector_top_k?: number
-  similarity_threshold?: number
-  bm25_limit?: number
-  hnsw_m?: number
-  hnsw_ef_construction?: number
-  rrf_k?: number
+  vector_top_k?: number;
+  similarity_threshold?: number;
+  bm25_limit?: number;
+  hnsw_m?: number;
+  hnsw_ef_construction?: number;
+  rrf_k?: number;
 }
 ```
 
 **DocumentWithKB Interface (extends existing Document):**
+
 ```typescript
 interface DocumentWithKB extends Document {
   // ... existing document fields (id, filename, content, file_size, etc.)
 
   // KB Association
-  knowledge_base_id: string | null
+  knowledge_base_id: string | null;
 
   // Joined KB Fields (from LEFT JOIN knowledge_bases)
-  kb_name: string | null
-  kb_color: string | null
-  kb_embedding_model: string | null
-  kb_embedding_dimensions: number | null
+  kb_name: string | null;
+  kb_color: string | null;
+  kb_embedding_model: string | null;
+  kb_embedding_dimensions: number | null;
 }
 ```
 
@@ -907,6 +991,7 @@ interface DocumentWithKB extends Document {
 ### 7.1 Repurposed Route
 
 **Knowledge Bases Page (formerly Documents Page):**
+
 - Path: `/documents` (route unchanged, but purpose transformed)
 - Component: DocumentsPage (repurposed to KB-centric view)
 - Purpose: List and manage all KBs, view documents within each KB
@@ -915,6 +1000,7 @@ interface DocumentWithKB extends Document {
 ### 7.2 Route Behavior
 
 **Documents Page with KB Expansion:**
+
 - Path: `/documents`
 - Query Param: `?kb={kbId}` (new)
 - Behavior:
@@ -926,6 +1012,7 @@ interface DocumentWithKB extends Document {
 ### 7.3 Navigation Flows
 
 **Flow 1: Browse KBs → View Documents**
+
 1. User navigates to `/documents`
 2. Sees grid of KB cards (collapsed)
 3. Clicks KB card for "React Documentation"
@@ -934,6 +1021,7 @@ interface DocumentWithKB extends Document {
 6. Back button collapses KB, returns to card-only view
 
 **Flow 2: Upload to KB**
+
 1. User at `/documents`
 2. Clicks KB card to expand
 3. Upload zone appears at top of expanded content
@@ -941,6 +1029,7 @@ interface DocumentWithKB extends Document {
 5. Indexing runs automatically
 
 **Flow 3: Filter in Chat**
+
 1. User opens FileSelector in chat
 2. Filters by "Company Wiki" KB
 3. Selects 3 documents
@@ -953,6 +1042,7 @@ interface DocumentWithKB extends Document {
 ### 8.1 E2E Test Files
 
 **Test Structure:**
+
 ```
 e2e/
 ├── knowledge-bases/
@@ -968,6 +1058,7 @@ e2e/
 **New Page Objects:**
 
 **KnowledgeBasesPage:**
+
 - navigate() - Go to /knowledge-bases
 - createKB(name, description?) - Create KB via modal
 - waitForKBToAppear(name) - Wait for KB card to render
@@ -979,6 +1070,7 @@ e2e/
 - clickKB(name) - Click KB card (navigate to documents)
 
 **Extended DocumentsPage:**
+
 - selectKB(kbName) - Select KB from filter dropdown
 - expectSelectedKB(kbName) - Assert KB filter shows selected KB
 - expectDocumentCount(count) - Assert visible document count
@@ -986,6 +1078,7 @@ e2e/
 - selectKBForUpload(kbName) - Select KB in upload dropdown
 
 **Extended FileSelectorComponent:**
+
 - selectKBFilter(kbName) - Filter by KB in FileSelector
 - expectKBFilteredDocCount(count) - Assert doc count after KB filter
 - selectAllInKB() - Click "Select All" with KB filter active
@@ -993,6 +1086,7 @@ e2e/
 ### 8.3 Test Scenarios
 
 **Test 1: KB CRUD Workflow** (`01-kb-crud.spec.ts`)
+
 ```
 1. Navigate to Knowledge Bases page
 2. Verify empty state (no KBs initially)
@@ -1005,6 +1099,7 @@ e2e/
 ```
 
 **Test 2: Upload to KB** (`02-kb-upload.spec.ts`)
+
 ```
 1. Create 2 KBs: "KB A", "KB B"
 2. Navigate to Documents page
@@ -1018,6 +1113,7 @@ e2e/
 ```
 
 **Test 3: KB Expansion** (`03-kb-filtering.spec.ts`)
+
 ```
 1. Create 2 KBs: "KB A", "KB B"
 2. Upload 2 docs to "KB A" (expand → upload)
@@ -1031,6 +1127,7 @@ e2e/
 ```
 
 **Test 4: KB Selection in Chat** (`04-kb-selection-chat.spec.ts`)
+
 ```
 1. Create KB with 3 indexed documents
 2. Navigate to Chat page
@@ -1043,6 +1140,7 @@ e2e/
 ```
 
 **Test 5: KB Persistence** (`05-kb-persistence.spec.ts`)
+
 ```
 1. Create KB "React Docs"
 2. Expand "React Docs" in Documents page
@@ -1063,16 +1161,19 @@ e2e/
 **Goal:** Create tables and constraints
 
 **Implementation:**
+
 - Create knowledge_bases table in VectorDBContext initialization
 - Add knowledge_base_id column to documents table (ALTER TABLE, nullable)
 - Create unique index on knowledge_bases.name
 - Create index on documents.knowledge_base_id
 
 **Testing:**
+
 - Verify tables exist via database inspection
 - Verify constraints work (duplicate name fails, cascade delete works)
 
 **Pass Criteria:**
+
 - Tables created successfully
 - Indexes created
 - Foreign key constraint functional
@@ -1087,6 +1188,7 @@ e2e/
 **Goal:** Build KB management interface by repurposing DocumentsPage
 
 **Implementation:**
+
 - Repurpose DocumentsPage component to show KB cards instead of document list
 - Create KBCard component (expandable/collapsible card)
 - Create CreateKBModal component (form validation)
@@ -1097,6 +1199,7 @@ e2e/
 - Add expansion state management (track which KB is expanded)
 
 **Testing:**
+
 - E2E test: `01-kb-crud.spec.ts`
   - Create KB → verify in list
   - Edit KB → verify updates
@@ -1105,6 +1208,7 @@ e2e/
   - Test expand/collapse behavior
 
 **Pass Criteria:**
+
 - DocumentsPage shows KB cards with stats (not document list)
 - Create/edit modals validate inputs
 - Delete modal shows impact and confirms
@@ -1120,6 +1224,7 @@ e2e/
 **Goal:** Assign documents to KB during upload within expanded KB context
 
 **Implementation:**
+
 - Show UploadZone inside expanded KB card (not at page level)
 - Upload zone appears when KB is expanded
 - Display upload hint: "Upload documents to: {KB name}"
@@ -1129,6 +1234,7 @@ e2e/
 - Implement moveDocumentToKB() method
 
 **Testing:**
+
 - E2E test: `02-kb-upload.spec.ts`
   - Expand KB → upload files → verify KB assignment
   - Move document between KBs → verify update
@@ -1136,6 +1242,7 @@ e2e/
   - Verify upload zone only visible when KB expanded
 
 **Pass Criteria:**
+
 - Upload zone only appears in expanded KB context
 - Documents assigned to correct KB automatically
 - Move between KBs works via document action menu
@@ -1151,6 +1258,7 @@ e2e/
 **Goal:** View documents in specific KB via expansion pattern
 
 **Implementation:**
+
 - Implement KB card expand/collapse behavior
 - Show documents in expanded card (reuse existing DocumentCard grid)
 - Show DocumentToolbar (search/sort/filter) within expanded KB
@@ -1160,6 +1268,7 @@ e2e/
 - Update getDocuments() query to LEFT JOIN knowledge_bases
 
 **Testing:**
+
 - E2E test: `03-kb-filtering.spec.ts`
   - Expand KB A → verify only KB A docs shown
   - Expand KB B → verify KB A collapses, only KB B docs shown
@@ -1168,6 +1277,7 @@ e2e/
   - Test deep linking (URL with ?kb={id} expands that KB)
 
 **Pass Criteria:**
+
 - KB cards expand/collapse correctly
 - Only one KB expanded at a time
 - Documents load and display in expanded KB
@@ -1184,6 +1294,7 @@ e2e/
 **Goal:** Filter FileSelector by KB for chat attachment
 
 **Implementation:**
+
 - Add KB filter dropdown to FileSelector component
 - Implement client-side filtering (show only docs in selected KB)
 - Update "Select All" to respect KB filter
@@ -1191,6 +1302,7 @@ e2e/
 - Add KB badges to documents in FileSelector list
 
 **Testing:**
+
 - E2E test: `04-kb-selection-chat.spec.ts`
   - Create KB with indexed docs
   - Open FileSelector in chat
@@ -1199,6 +1311,7 @@ e2e/
   - Verify attachments correct
 
 **Pass Criteria:**
+
 - KB filter in FileSelector works
 - "Select All" respects filter
 - Selection summary shows KB context
@@ -1214,12 +1327,14 @@ e2e/
 **Goal:** Remember KB expansion state across reload
 
 **Implementation:**
+
 - Save expandedKBId to URL query param on expansion/collapse
 - Restore from URL query param on DocumentsPage mount
 - No localStorage needed (URL is source of truth)
 - Browser back/forward navigation works correctly
 
 **Testing:**
+
 - E2E test: `05-kb-persistence.spec.ts`
   - Expand KB → reload → verify still expanded
   - Navigate to KB via URL → verify expanded on load
@@ -1227,6 +1342,7 @@ e2e/
   - Forward button → verify expands again
 
 **Pass Criteria:**
+
 - expandedKBId syncs with URL query param
 - URL query param restored correctly on load
 - Browser back/forward navigation works
@@ -1241,6 +1357,7 @@ e2e/
 **Phase: Knowledge Base Organization complete when:**
 
 ### Database ✅
+
 - knowledge_bases table exists with required fields
 - Unique index on name prevents duplicates
 - documents.knowledge_base_id FK exists (nullable)
@@ -1248,6 +1365,7 @@ e2e/
 - Indexes optimize KB-filtered queries
 
 ### UI Components ✅
+
 - DocumentsPage repurposed to show KB cards (not flat document list)
 - KB cards expandable/collapsible with stats
 - Create/Edit/Delete modals functional with validation
@@ -1258,6 +1376,7 @@ e2e/
 - KB filter in FileSelector for chat
 
 ### Functionality ✅
+
 - Create KB with name/description/color
 - Edit KB metadata (validates unique name)
 - Delete KB with cascade confirmation
@@ -1270,6 +1389,7 @@ e2e/
 - Deep linking to expanded KB works
 
 ### E2E Tests (5 Passing) ✅
+
 - 01-kb-crud.spec.ts (create, edit, delete, expand/collapse)
 - 02-kb-upload.spec.ts (upload to expanded KB, move between KBs)
 - 03-kb-filtering.spec.ts (expand KB to view documents)
@@ -1277,6 +1397,7 @@ e2e/
 - 05-kb-persistence.spec.ts (expansion state persistence via URL)
 
 ### Quality ✅
+
 - TypeScript compilation passes
 - Build successful
 - No console errors
@@ -1288,6 +1409,7 @@ e2e/
 ## 11. Implementation Checklist
 
 ### Phase kb-schema
+
 - [ ] Create knowledge_bases table
 - [ ] Add knowledge_base_id FK to documents (nullable)
 - [ ] Create unique index on kb.name
@@ -1295,6 +1417,7 @@ e2e/
 - [ ] Verify cascade delete works
 
 ### Phase kb-management
+
 - [ ] Repurpose DocumentsPage to show KB cards
 - [ ] Create KBCard component (expandable)
 - [ ] Create CreateKBModal component
@@ -1306,6 +1429,7 @@ e2e/
 - [ ] E2E test: 01-kb-crud.spec.ts
 
 ### Phase kb-upload
+
 - [ ] Show UploadZone inside expanded KB card
 - [ ] Add upload hint text for KB context
 - [ ] Modify uploadFiles() to use expanded KB ID
@@ -1315,6 +1439,7 @@ e2e/
 - [ ] E2E test: 02-kb-upload.spec.ts
 
 ### Phase kb-filtering
+
 - [ ] Implement KB card expand/collapse behavior
 - [ ] Show documents in expanded card
 - [ ] Show DocumentToolbar within expanded KB
@@ -1325,6 +1450,7 @@ e2e/
 - [ ] E2E test: 03-kb-filtering.spec.ts
 
 ### Phase kb-selection-chat
+
 - [ ] Add KB filter to FileSelector
 - [ ] Implement client-side filtering in FileSelector
 - [ ] Update "Select All" logic
@@ -1333,6 +1459,7 @@ e2e/
 - [ ] E2E test: 04-kb-selection-chat.spec.ts
 
 ### Phase kb-persistence
+
 - [ ] Save expandedKBId to URL query param
 - [ ] Restore from URL query param on mount
 - [ ] Browser back/forward navigation works
@@ -1340,6 +1467,7 @@ e2e/
 - [ ] E2E test: 05-kb-persistence.spec.ts
 
 ### Final Verification
+
 - [ ] All E2E tests passing (5 new + existing)
 - [ ] TypeScript compilation passing
 - [ ] Build successful
@@ -1358,12 +1486,14 @@ e2e/
 **Major Changes Required:**
 
 **1. Database Schema Migration (lines 356-416):**
+
 - Create knowledge_bases table with all config fields
 - Add knowledge_base_id FK to documents table (nullable)
 - Remove global chunks table creation
 - Add helper method: `createKBChunksTable(kbId, dimensions, hnswM, hnswEf)`
 
 **2. Embedding Generation (lines 231-294):**
+
 - Add kbId parameter to `generateEmbeddings()`
 - Load KB config from knowledge_bases table
 - Use KB's embedding_model instead of global DEFAULT_EMBEDDING_MODEL
@@ -1371,6 +1501,7 @@ e2e/
 - Pass model/dimensions to OpenAI API call
 
 **3. Upload & Indexing Pipeline (lines 456-796):**
+
 - Modify `uploadFiles()` to require kbId parameter
 - Store KB FK in documents table INSERT
 - Modify `processJob()` to:
@@ -1380,6 +1511,7 @@ e2e/
   - Pass kbId to generateEmbeddings()
 
 **4. Search Methods (lines 876-1110):**
+
 - Add kbId parameter to all search methods
 - Load KB config at start of search
 - `searchVectors()`:
@@ -1394,6 +1526,7 @@ e2e/
   - Combine results from KB-scoped vector/BM25 searches
 
 **5. New KB Management Methods:**
+
 - `createKnowledgeBase(params)` - KB CRUD + chunks table creation
 - `updateKnowledgeBase(id, updates)` - with re-index detection
 - `reindexKnowledgeBase(id)` - DROP/CREATE chunks table + re-index
@@ -1406,6 +1539,7 @@ e2e/
 **File:** `src/hooks/useChat.ts`
 
 **Changes Required:**
+
 - Track selected KB ID for current chat session
 - Pass kbId to search methods when retrieving context
 - Ensure all attached documents belong to same KB (validation)
@@ -1416,6 +1550,7 @@ e2e/
 **File:** `src/components/FileSelector.tsx`
 
 **Changes Required:**
+
 - Add KB filter dropdown at top
 - Filter documents by selected KB
 - Clear selection when KB filter changes
@@ -1428,6 +1563,7 @@ e2e/
 **Goal:** Migrate existing documents/chunks to new KB-based architecture
 
 **Steps:**
+
 1. Create default KB: "Default Knowledge Base"
 2. Create chunks table for default KB: `kb_{defaultKBId}_chunks`
 3. Move all chunks from old `chunks` table to new KB-specific table:
@@ -1440,9 +1576,10 @@ e2e/
    UPDATE documents SET knowledge_base_id = '{defaultKBId}';
    ```
 5. DROP old chunks table
-6. Verify migration: COUNT(*) matches in old vs new tables
+6. Verify migration: COUNT(\*) matches in old vs new tables
 
 **Rollback Plan:**
+
 - Keep old chunks table as backup (`chunks_backup`)
 - Test migration in development first
 - Verify all existing e2e tests pass with default KB
@@ -1450,6 +1587,7 @@ e2e/
 ### 12.5 Testing Updates
 
 **Unit Tests:**
+
 - Test KB CRUD operations
 - Test KB config validation
 - Test re-index detection logic
@@ -1457,12 +1595,14 @@ e2e/
 - Test search methods with KB-specific config
 
 **E2E Tests:**
+
 - Update existing search tests to use KB context
 - Add new KB management tests (see section 8)
 - Test cross-KB isolation (docs in KB A not searchable from KB B)
 - Test re-index workflow end-to-end
 
 **Modified Existing Tests:**
+
 - `e2e/chat-hybrid-search.spec.ts` - Add default KB creation in beforeEach
 - `e2e/vector-search-workflow.spec.ts` - Add KB selection before document upload
 - All document upload tests - Pass kbId to upload workflow
@@ -1470,18 +1610,21 @@ e2e/
 ### 12.6 Performance Considerations
 
 **Potential Issues:**
+
 - Multiple chunks tables = more table scans (if searching across all KBs in future)
 - Chunk count queries require iterating all KB chunks tables
 - Re-indexing large KBs can be slow
 
 **Optimizations:**
+
 - Cache KB configs in memory (refresh on update)
 - Batch chunk count queries (UNION ALL across KB tables)
 - Add progress tracking for re-index operations
 - Consider materialized view for KB stats (document_count, chunk_count)
 
 **Database Size:**
-- Each KB adds one table (kb_{kbId}_chunks) + one HNSW index
+
+- Each KB adds one table (kb\_{kbId}\_chunks) + one HNSW index
 - Minimal overhead compared to chunks stored
 - No significant increase vs single chunks table approach
 
@@ -1490,28 +1633,34 @@ e2e/
 ## 13. Future Enhancements (Not in Phase 1)
 
 ### Quick KB Attachment
+
 - Attach entire KB in one click (chat dropdown)
 - Auto-expand when new docs added to KB
 - Requires UX design for KB vs doc attachment indication
 
 ### KB Templates
+
 - Pre-configured KB templates ("Technical Docs", "Research Papers")
 - Create KB wizard with template selection
 
 ### KB Colors & Icons
+
 - Custom emoji icons for KBs (beyond color)
 - Color picker with custom hex input
 
 ### KB Export/Import
+
 - Export KB as ZIP (docs + embeddings)
 - Import on another device for backup/sharing
 
 ### Nested KBs (Folders)
+
 - Hierarchical organization (KB contains sub-KBs)
 - parent_kb_id foreign key
 - Requires tree view UI component
 
 ### KB Tags/Labels
+
 - Tag KBs with labels ("Work", "Personal", "Archive")
 - Many-to-many relationship via junction table
 - Cross-cutting organization
@@ -1525,6 +1674,7 @@ This phase introduces Knowledge Base organization with per-KB vector/search conf
 **Key Design Decisions:**
 
 **Architecture:**
+
 - Separate chunks table per KB (`kb_{kbId}_chunks`) for isolated vector spaces
 - Per-KB embedding model and dimensions (e.g., KB A uses 768d, KB B uses 1536d)
 - Per-KB hybrid search configuration (top-k, thresholds, HNSW params, RRF constant)
@@ -1532,16 +1682,19 @@ This phase introduces Knowledge Base organization with per-KB vector/search conf
 - Nullable KB FK for backward compatibility (allows "Ungrouped" docs)
 
 **Configuration Management:**
+
 - Global defaults copied at KB creation (embedding model, dimensions, search params)
 - KB-level config changes trigger re-index if model/dimensions/HNSW params change
 - Basic search params (top-k, threshold, BM25 limit, RRF) apply immediately without re-index
 
 **Data Integrity:**
+
 - CASCADE delete with user confirmation (KB → chunks table DROP, documents, queue entries)
 - Re-index required when moving documents between KBs with different embedding configs
 - Chunks moved directly if source/target KBs have same embedding config
 
 **UX:**
+
 - Client-side KB filtering (fast, no backend changes)
 - URL query param for deep linking and browser history support
 - Re-index confirmation dialogs with impact summary (affected doc count, time estimate)
@@ -1551,6 +1704,7 @@ This phase introduces Knowledge Base organization with per-KB vector/search conf
 - Embedding model/dimensions validation prevents invalid combinations
 
 **Benefits:**
+
 - **Flexible vector spaces:** Different KBs can use different embedding models optimized for their domain
 - **Independent tuning:** Per-KB HNSW index tuning for performance vs accuracy tradeoffs
 - **Clear separation:** Document collections isolated by project/topic/domain with no cross-contamination
@@ -1559,6 +1713,7 @@ This phase introduces Knowledge Base organization with per-KB vector/search conf
 - **Industry alignment:** Matches DocsGPT "Sources" pattern for familiarity
 
 **Technical Highlights:**
+
 - Dynamic table creation: `CREATE TABLE kb_{kbId}_chunks (embedding vector({dimensions}))`
 - Dynamic HNSW indexing: `WITH (m = {hnsw_m}, ef_construction = {hnsw_ef_construction})`
 - Migration strategy: Existing documents moved to default KB, preserves all data
@@ -1567,6 +1722,7 @@ This phase introduces Knowledge Base organization with per-KB vector/search conf
 **Estimated Effort:** 6 phases × focused implementation sessions (schema, CRUD, upload, filtering, chat, persistence)
 
 **Next Phase:** After Knowledge Base Organization complete, proceed to:
+
 - Context-Aware Query Rephrasing (phase query-rephrasing)
 - Advanced Hybrid Search RRF implementation (phase hybrid-search-rrf)
 - DocsGPT-style Agentic RAG (phase agentic-rag)

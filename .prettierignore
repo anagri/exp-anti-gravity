@@ -1,0 +1,15 @@
+# Build outputs
+dist
+coverage
+node_modules
+
+# Database
+.pglite
+
+# Git
+.git
+
+# Package manager
+package-lock.json
+pnpm-lock.yaml
+yarn.lock

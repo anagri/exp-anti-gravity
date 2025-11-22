@@ -11,6 +11,7 @@
 Runtime feature toggle system that allows users to enable/disable features through an interactive Settings UI. Toggles persist across page reloads using localStorage.
 
 **Key Characteristics:**
+
 - **Runtime:** Changes take effect immediately or after reload (no rebuild needed)
 - **User-Controlled:** Managed via Settings modal UI
 - **Persistent:** Stored in browser localStorage
@@ -23,12 +24,14 @@ Runtime feature toggle system that allows users to enable/disable features throu
 ### Storage Layer
 
 **localStorage Schema:**
+
 ```
 Key: "feature-flag-FEATURE_INDEXING_ENABLED"
 Value: "true" | "false"
 ```
 
 **Default Behavior:**
+
 - If key not in localStorage → Enabled (true)
 - If key = "false" → Disabled
 - Any other value → Enabled
@@ -50,6 +53,7 @@ Value: "true" | "false"
 ```
 
 **Flow:**
+
 1. User toggles feature in Settings modal
 2. UI calls `setFeatureFlag(flag, enabled)`
 3. Value written to localStorage
@@ -67,34 +71,36 @@ Value: "true" | "false"
 **File:** `src/lib/feature-flags.ts`
 
 ```typescript
-const STORAGE_PREFIX = 'feature-flag-'
+const STORAGE_PREFIX = 'feature-flag-';
 
 export function isFeatureEnabled(flag: string): boolean {
-  const key = `${STORAGE_PREFIX}${flag}`
-  const value = localStorage.getItem(key)
+  const key = `${STORAGE_PREFIX}${flag}`;
+  const value = localStorage.getItem(key);
   // Default to true (enabled) if not set
-  return value !== 'false'
+  return value !== 'false';
 }
 
 export function setFeatureFlag(flag: string, enabled: boolean): void {
-  const key = `${STORAGE_PREFIX}${flag}`
-  localStorage.setItem(key, enabled.toString())
+  const key = `${STORAGE_PREFIX}${flag}`;
+  localStorage.setItem(key, enabled.toString());
 
   // Dispatch custom event for listeners
-  window.dispatchEvent(new CustomEvent('featureFlagChanged', {
-    detail: { flag, enabled }
-  }))
+  window.dispatchEvent(
+    new CustomEvent('featureFlagChanged', {
+      detail: { flag, enabled },
+    })
+  );
 }
 
 export function getAllFeatureFlags(): Record<string, boolean> {
   return {
-    FEATURE_INDEXING_ENABLED: isFeatureEnabled('FEATURE_INDEXING_ENABLED')
-  }
+    FEATURE_INDEXING_ENABLED: isFeatureEnabled('FEATURE_INDEXING_ENABLED'),
+  };
 }
 
 export const FEATURES = {
-  INDEXING_ENABLED: 'FEATURE_INDEXING_ENABLED'
-} as const
+  INDEXING_ENABLED: 'FEATURE_INDEXING_ENABLED',
+} as const;
 ```
 
 ### 2. Interactive Settings Modal
@@ -102,12 +108,14 @@ export const FEATURES = {
 **File:** `src/pages/documents/components/SettingsModal.tsx`
 
 **Features:**
+
 - Toggle switch for each feature flag
 - Real-time state update
 - "Changes require page reload" warning
 - "Reload Now" button
 
 **UI Layout:**
+
 ```
 ┌──────────────────────────────────────────┐
 │ Settings                            [X]  │
@@ -126,6 +134,7 @@ export const FEATURES = {
 ```
 
 **Data Attributes:**
+
 - `data-testid="toggle-{flagName}"` - Toggle switch
 - `data-testid="reload-warning"` - Warning message
 - `data-testid="btn-reload-now"` - Reload button
@@ -133,41 +142,43 @@ export const FEATURES = {
 ### 3. Worker Integration
 
 **VectorDBContext (`src/contexts/VectorDBContext.tsx`):**
+
 ```typescript
 useEffect(() => {
   // Send initial flag state to worker
-  const enabled = isFeatureEnabled(FEATURES.INDEXING_ENABLED)
-  worker.setIndexingEnabled(enabled)
+  const enabled = isFeatureEnabled(FEATURES.INDEXING_ENABLED);
+  worker.setIndexingEnabled(enabled);
 
   // Listen for flag changes
   const handleFlagChange = (event: CustomEvent) => {
     if (event.detail.flag === 'FEATURE_INDEXING_ENABLED') {
-      worker.setIndexingEnabled(event.detail.enabled)
+      worker.setIndexingEnabled(event.detail.enabled);
     }
-  }
+  };
 
-  window.addEventListener('featureFlagChanged', handleFlagChange as EventListener)
-  return () => window.removeEventListener('featureFlagChanged', handleFlagChange as EventListener)
-}, [worker])
+  window.addEventListener('featureFlagChanged', handleFlagChange as EventListener);
+  return () => window.removeEventListener('featureFlagChanged', handleFlagChange as EventListener);
+}, [worker]);
 ```
 
 **Worker (`src/workers/pglite.worker.ts`):**
+
 ```typescript
-let indexingEnabled = true // default
+let indexingEnabled = true; // default
 
 function setIndexingEnabled(enabled: boolean): void {
-  indexingEnabled = enabled
+  indexingEnabled = enabled;
 }
 
 // In uploadDocument():
 async function uploadDocument(params: UploadDocumentParams): Promise<{ id: string }> {
-  const id = uuidv4()
+  const id = uuidv4();
 
   await db.query(
     `INSERT INTO documents (id, filename, content, file_size, mime_type)
      VALUES ($1, $2, $3, $4, $5)`,
     [id, params.filename, params.content, fileSize, params.mimeType]
-  )
+  );
 
   // ONLY create indexing job if feature enabled
   if (indexingEnabled) {
@@ -175,17 +186,17 @@ async function uploadDocument(params: UploadDocumentParams): Promise<{ id: strin
       `INSERT INTO indexing_queue (id, document_id, status)
        VALUES ($1, $2, 'pending')`,
       [uuidv4(), id]
-    )
+    );
   }
 
-  return { id }
+  return { id };
 }
 
 // Expose via Comlink:
 Comlink.expose({
   // ... existing methods
   setIndexingEnabled,
-})
+});
 ```
 
 ---
@@ -199,17 +210,18 @@ Comlink.expose({
 **Solution:** Use Playwright's `page.addInitScript()` to set localStorage BEFORE app loads
 
 **Pattern:**
+
 ```typescript
 test.beforeEach(async ({ page }) => {
   // Disable indexing for existing tests
   await page.addInitScript(() => {
-    localStorage.setItem('feature-flag-FEATURE_INDEXING_ENABLED', 'false')
-  })
+    localStorage.setItem('feature-flag-FEATURE_INDEXING_ENABLED', 'false');
+  });
 
-  documentsPage = new DocumentPage(page)
-  await documentsPage.clearDatabase()
-  await documentsPage.setup()
-})
+  documentsPage = new DocumentPage(page);
+  await documentsPage.clearDatabase();
+  await documentsPage.setup();
+});
 ```
 
 ### E2E Test Files
@@ -229,29 +241,29 @@ e2e/documents/
 
 ```typescript
 test('user can toggle feature flag and verify persistence', async ({ page }) => {
-  documentsPage = new DocumentPage(page)
-  await documentsPage.clearDatabase()
-  await documentsPage.setup()
+  documentsPage = new DocumentPage(page);
+  await documentsPage.clearDatabase();
+  await documentsPage.setup();
 
   // Initially enabled (default)
-  await documentsPage.openSettings()
-  let enabled = await documentsPage.getFeatureFlagValue('FEATURE_INDEXING_ENABLED')
-  expect(enabled).toBe(true)
+  await documentsPage.openSettings();
+  let enabled = await documentsPage.getFeatureFlagValue('FEATURE_INDEXING_ENABLED');
+  expect(enabled).toBe(true);
 
   // Toggle to disabled
-  await documentsPage.toggleFeatureFlag('FEATURE_INDEXING_ENABLED')
-  await documentsPage.expectReloadWarning()
+  await documentsPage.toggleFeatureFlag('FEATURE_INDEXING_ENABLED');
+  await documentsPage.expectReloadWarning();
 
   // Reload page
-  await documentsPage.reloadToApplyChanges()
+  await documentsPage.reloadToApplyChanges();
 
   // Verify persisted as disabled
-  await documentsPage.openSettings()
-  enabled = await documentsPage.getFeatureFlagValue('FEATURE_INDEXING_ENABLED')
-  expect(enabled).toBe(false)
+  await documentsPage.openSettings();
+  enabled = await documentsPage.getFeatureFlagValue('FEATURE_INDEXING_ENABLED');
+  expect(enabled).toBe(false);
 
-  await documentsPage.closeSettings()
-})
+  await documentsPage.closeSettings();
+});
 ```
 
 ---
@@ -261,6 +273,7 @@ test('user can toggle feature flag and verify persistence', async ({ page }) => 
 **File:** `e2e/pages/DocumentPage.ts`
 
 **New Methods:**
+
 ```typescript
 async toggleFeatureFlag(flagName: string) {
   await this.page.click(`[data-testid="toggle-${flagName}"]`)
@@ -281,6 +294,7 @@ async reloadToApplyChanges() {
 ## Acceptance Criteria
 
 ### UI & Functionality
+
 ✅ Settings modal displays feature toggles as interactive switches
 ✅ User can toggle features on/off
 ✅ Changes persist across page reload (localStorage)
@@ -288,17 +302,20 @@ async reloadToApplyChanges() {
 ✅ Reload button applies changes immediately
 
 ### Worker Integration
+
 ✅ Main thread communicates toggle state to worker on init
 ✅ Worker respects toggle state in conditional logic
 ✅ Real-time updates when toggle changed (via custom event)
 
 ### Testing
+
 ✅ Test 00-01: Enabled state (default) ✅
 ✅ Test 00-02: Disabled state (addInitScript) ✅
 ✅ Test 00-03: Toggle interaction & persistence ✅
 ✅ Tests 01-04: Disable indexing via addInitScript ✅
 
 ### Quality
+
 ✅ No env files needed
 ✅ Build-time independent (runtime only)
 ✅ TypeScript compilation passing
