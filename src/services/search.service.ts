@@ -5,18 +5,7 @@
 import type { PGlite } from '@electric-sql/pglite';
 import type OpenAI from 'openai';
 import { generateEmbeddings } from '@/lib/embeddings';
-
-export interface SearchResult {
-  chunkId: string;
-  documentId: string;
-  filename: string;
-  content: string;
-  heading: string | null;
-  chunkIndex: number;
-  similarity?: number;
-  score?: number;
-  fusedScore?: number;
-}
+import type { SearchResult } from '@/types';
 
 export interface HybridSearchOptions {
   vectorTopK: number;

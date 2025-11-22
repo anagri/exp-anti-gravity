@@ -4,34 +4,7 @@
  */
 
 import type { PGlite } from '@electric-sql/pglite';
-
-export interface KnowledgeBase {
-  id: string;
-  name: string;
-  description: string | null;
-  created_at: string;
-  embedding_model: string;
-  embedding_dimensions: number;
-  hnsw_m: number;
-  hnsw_ef_construction: number;
-  document_count: number;
-  chunk_count: number;
-}
-
-export interface Document {
-  id: string;
-  filename: string;
-  content: string;
-  file_size: number;
-  mime_type: string;
-  uploaded_at: string;
-  knowledge_base_id: string | null;
-  chunk_count: number | null;
-  indexed_at: string | null;
-  indexing_status: 'pending' | 'processing' | 'completed' | 'failed' | null;
-  error_message: string | null;
-  retry_count: number | null;
-}
+import type { KnowledgeBase, Document } from '@/types';
 
 export class DBService {
   constructor(private db: PGlite) {}
