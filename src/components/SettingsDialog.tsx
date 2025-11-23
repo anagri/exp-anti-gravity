@@ -244,6 +244,14 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
               />
             </div>
 
+            {/* Credential Change Info */}
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+              <p className="text-xs text-blue-900">
+                <strong>Note:</strong> Changing API key or base URL does not require re-indexing
+                knowledge bases if the same embedding model is available at the new endpoint.
+              </p>
+            </div>
+
             {/* Refresh Models Button */}
             <div className="grid grid-cols-2 gap-4 items-start">
               <div>

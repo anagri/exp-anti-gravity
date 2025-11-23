@@ -222,6 +222,58 @@ Shared navigation bar component used across Chat and Documents pages.
 - **Chat Page**: Model selector positioned **below** the chat input area with "Model:" label
 - Previously in header, moved to improve UX and make space for settings
 
+## Knowledge Base Configuration
+
+### Embedding Model Selection
+
+Knowledge bases store their embedding model configuration independently. When creating or editing a KB:
+
+**Model Selection UI:**
+
+- ModelCombobox dropdown fetches available models from OpenAI API
+- Shows all models without filtering (no pattern restriction)
+- Fallback to text input if API fetch fails
+- Model stored in knowledge_bases table per KB
+
+**Storage:**
+
+- `embedding_model` column in knowledge_bases table (e.g., 'text-embedding-3-small')
+- `embedding_dimensions` column for model dimensions
+
+**Credential Changes:**
+Changing base URL or API key does NOT require re-indexing if the same embedding model is available at the new endpoint.
+
+### Re-indexing Control
+
+Re-indexing is now optional when changing KB configuration:
+
+**Optional Re-index:**
+
+- EditKBModal shows checkbox: "Skip re-indexing now (apply changes later manually)"
+- If skipped, `config_changed_at` timestamp set in knowledge_bases table
+- Warning badge "Re-index needed" appears on KB card
+
+**Manual Re-index:**
+
+- Available via KB dropdown menu (RefreshCw icon)
+- Opens ReindexKBModal for confirmation
+- Shows document count and re-index impact warning
+- Clears `config_changed_at` after completion
+
+**Config Changes Requiring Re-index:**
+
+- embedding_model
+- embedding_dimensions
+- chunk_max_tokens
+- chunk_overlap_tokens
+- hnsw_m
+- hnsw_ef_construction
+
+**Implementation:**
+
+- VectorDBContext.updateKnowledgeBase() accepts `options: { skipReindex?: boolean }`
+- VectorDBContext.reindexKnowledgeBase() clears config_changed_at timestamp
+
 ## Linting & Formatting
 
 Project uses ESLint + Prettier with pre-commit hooks to maintain code quality and consistency.
