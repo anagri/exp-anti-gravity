@@ -22,7 +22,6 @@ test.describe('Settings: Feature Flags & OpenAI Configuration & Search Settings'
     await documentsPage.settings.expectFeatureFlagEnabled('FEATURE_INDEXING_ENABLED', true);
 
     await documentsPage.settings.toggleFeatureFlag('FEATURE_INDEXING_ENABLED');
-    await documentsPage.settings.expectReloadWarning();
 
     enabled = await documentsPage.settings.getFeatureFlagValue('FEATURE_INDEXING_ENABLED');
     expect(enabled).toBe(false);

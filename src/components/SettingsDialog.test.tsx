@@ -137,16 +137,18 @@ describe('SettingsDialog', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('shows reload warning when feature flag changed', async () => {
+  it('does not show reload warning when feature flag changed', async () => {
     renderSettingsDialog();
 
     const toggleButton = screen.getByTestId('toggle-FEATURE_INDEXING_ENABLED');
     fireEvent.click(toggleButton);
 
     await waitFor(() => {
-      expect(screen.getByTestId('reload-warning')).toBeInTheDocument();
-      expect(screen.getByText(/Feature flag changes require page reload/)).toBeInTheDocument();
+      expect(localStorage.getItem('feature-flag-FEATURE_INDEXING_ENABLED')).toBe('false');
     });
+
+    // Reload warning should NOT be shown - changes take effect immediately
+    expect(screen.queryByTestId('reload-warning')).not.toBeInTheDocument();
   });
 
   it('does not show reload warning for search setting changes', async () => {
@@ -162,16 +164,17 @@ describe('SettingsDialog', () => {
     expect(screen.queryByTestId('reload-warning')).not.toBeInTheDocument();
   });
 
-  it('shows reload button when feature flag changed', async () => {
+  it('does not show reload button when feature flag changed', async () => {
     renderSettingsDialog();
 
     const toggleButton = screen.getByTestId('toggle-FEATURE_INDEXING_ENABLED');
     fireEvent.click(toggleButton);
 
     await waitFor(() => {
-      const reloadButton = screen.getByTestId('btn-reload-now');
-      expect(reloadButton).toBeInTheDocument();
-      expect(reloadButton).toHaveTextContent('Reload Now');
+      expect(localStorage.getItem('feature-flag-FEATURE_INDEXING_ENABLED')).toBe('false');
     });
+
+    // Reload button should NOT be shown - changes take effect immediately
+    expect(screen.queryByTestId('btn-reload-now')).not.toBeInTheDocument();
   });
 });

@@ -66,7 +66,6 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
   const { apiKey, setApiKey: setApiKeyContext } = useApiKey();
   const [featureFlags, setFeatureFlagsState] = useState(getAllFeatureFlags());
   const [searchSettings, setSearchSettingsState] = useState(getAllSearchSettings());
-  const [hasFeatureFlagChanges, setHasFeatureFlagChanges] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // OpenAI Configuration state
@@ -120,7 +119,6 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
 
     setFeatureFlag(flagName, newValue);
     setFeatureFlagsState({ ...featureFlags, [flagName]: newValue });
-    setHasFeatureFlagChanges(true);
   };
 
   const handleSearchSettingChange = (key: keyof SearchSettings, value: string) => {
@@ -156,10 +154,6 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
   const handleChatModelChange = (value: string) => {
     setOpenAIConfig('CHAT_MODEL', value);
     setOpenaiConfigState({ ...openaiConfig, CHAT_MODEL: value });
-  };
-
-  const handleReload = () => {
-    window.location.reload();
   };
 
   return (
@@ -381,23 +375,7 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
           </div>
         </div>
 
-        {hasFeatureFlagChanges && (
-          <div
-            className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md"
-            data-testid="reload-warning"
-          >
-            <p className="text-sm text-amber-800">
-              ⚠ Feature flag changes require page reload to take effect
-            </p>
-          </div>
-        )}
-
         <div className="flex justify-end gap-3">
-          {hasFeatureFlagChanges && (
-            <Button variant="default" onClick={handleReload} data-testid="btn-reload-now">
-              Reload Now
-            </Button>
-          )}
           <Button variant="outline" onClick={onClose} data-testid="btn-close-settings-footer">
             Close
           </Button>

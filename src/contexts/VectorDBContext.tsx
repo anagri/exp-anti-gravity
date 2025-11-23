@@ -13,7 +13,6 @@ let dbGlobal: PGlite | undefined;
 let isInitializing = false; // Prevent concurrent initialization in StrictMode
 
 // Global state
-let indexingEnabled = true;
 let isProcessing = false;
 let openaiClient: OpenAI | null = null;
 let tokenizer: Tiktoken | null = null;
@@ -156,6 +155,7 @@ interface VectorDBContextType {
       config?: KnowledgeBaseConfig;
     }
   ) => Promise<{ requiresReindex: boolean; affectedDocCount?: number }>;
+  reindexKnowledgeBase: (id: string) => Promise<void>;
   deleteKnowledgeBase: (id: string) => Promise<void>;
   refreshKnowledgeBases: () => Promise<void>;
 }
@@ -472,23 +472,68 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         `);
 
         // Enforce NOT NULL constraint on knowledge_base_id
-        // Delete any orphaned documents without KB (no production data to preserve)
-        await db.exec(`DELETE FROM documents WHERE knowledge_base_id IS NULL;`);
+        // Count orphaned documents before deletion
+        const orphanedResult = await db.query<{ count: number; id: string; filename: string }>(
+          `SELECT COUNT(*)::integer as count FROM documents WHERE knowledge_base_id IS NULL`
+        );
+        const orphanedCount = orphanedResult.rows[0]?.count || 0;
 
-        // Now safe to add NOT NULL constraint
-        try {
-          await db.exec(`
-            ALTER TABLE documents
-            ALTER COLUMN knowledge_base_id SET NOT NULL;
-          `);
-        } catch (e) {
-          // Constraint might already exist, ignore error
+        if (orphanedCount > 0) {
+          // Log warning about orphaned documents
+          console.warn(
+            `[VectorDB] Found ${orphanedCount} orphaned documents without KB assignment - will be deleted`
+          );
+
           if (import.meta.env.DEV) {
+            // List first 10 orphaned documents
+            const orphanedDocs = await db.query<{ id: string; filename: string }>(
+              `SELECT id, filename FROM documents WHERE knowledge_base_id IS NULL LIMIT 10`
+            );
             console.log(
-              '[VectorDB] NOT NULL constraint on knowledge_base_id already exists or failed:',
-              e
+              '[VectorDB] Orphaned documents:',
+              orphanedDocs.rows.map((d) => d.filename).join(', ')
             );
           }
+
+          // Delete orphaned documents
+          await db.exec(`DELETE FROM documents WHERE knowledge_base_id IS NULL;`);
+
+          if (import.meta.env.DEV) {
+            console.log(`[VectorDB] Deleted ${orphanedCount} orphaned documents`);
+          }
+        } else if (import.meta.env.DEV) {
+          console.log('[VectorDB] No orphaned documents found');
+        }
+
+        // Check if NOT NULL constraint already exists
+        const constraintResult = await db.query<{ constraint_type: string }>(
+          `SELECT c.contype as constraint_type
+           FROM pg_constraint c
+           JOIN pg_attribute a ON a.attnum = ANY(c.conkey) AND a.attrelid = c.conrelid
+           WHERE c.conrelid = 'documents'::regclass
+             AND a.attname = 'knowledge_base_id'
+             AND c.contype = 'n'`
+        );
+
+        const constraintExists = constraintResult.rows.length > 0;
+
+        if (!constraintExists) {
+          try {
+            await db.exec(`
+              ALTER TABLE documents
+              ALTER COLUMN knowledge_base_id SET NOT NULL;
+            `);
+
+            if (import.meta.env.DEV) {
+              console.log('[VectorDB] Added NOT NULL constraint on knowledge_base_id');
+            }
+          } catch (e) {
+            console.error('[VectorDB] Failed to add NOT NULL constraint on knowledge_base_id:', e);
+            // Re-throw error so caller knows migration failed
+            throw new Error(`Migration failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        } else if (import.meta.env.DEV) {
+          console.log('[VectorDB] NOT NULL constraint on knowledge_base_id already exists');
         }
 
         // Create indexing_queue table
@@ -513,9 +558,6 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
           console.log('[VectorDB] Database initialized with all tables (KB-specific chunks only)');
         }
 
-        // Initialize indexing state
-        indexingEnabled = isFeatureEnabled(FEATURES.INDEXING_ENABLED);
-
         // Initialize OpenAI client
         if (apiKey) {
           const baseURL = getOpenAIConfig('BASE_URL');
@@ -526,8 +568,13 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
           });
         }
 
-        // Build Lunr index from KB-specific chunks tables
-        await buildLunrIndex();
+        // Lunr indexes will be built lazily on-demand during first BM25 search
+        if (import.meta.env.DEV) {
+          console.log('[VectorDB] Lunr indexes will build on-demand during BM25 search');
+        }
+
+        // Mark Lunr as ready (indexes built on-demand)
+        setLunrReadyState(true);
 
         // Start queue processor
         processQueue();
@@ -535,11 +582,22 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
         await refreshKnowledgeBases();
         await refreshDocuments();
+
+        // Expose database to window for E2E tests
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).dbGlobal = dbGlobal;
+        if (import.meta.env.DEV) {
+          console.log('[VectorDB] Database exposed to window.dbGlobal for testing');
+        }
+
         setInitialized(true);
         setInitError(null);
 
         if (import.meta.env.DEV) {
-          console.log('[VectorDB] Context initialized, indexing enabled:', indexingEnabled);
+          console.log(
+            '[VectorDB] Context initialized, indexing enabled:',
+            isFeatureEnabled(FEATURES.INDEXING_ENABLED)
+          );
         }
 
         isInitializing = false; // Reset flag on success
@@ -923,30 +981,156 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     return { requiresReindex: false };
   };
 
+  const reindexKnowledgeBase = async (id: string) => {
+    if (!dbGlobal) {
+      throw new Error('Database not initialized');
+    }
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] Starting re-index for KB ${id}...`);
+    }
+
+    // Validation Phase: Get current KB configuration
+    const kbResult = await dbGlobal.query<KnowledgeBase>(
+      'SELECT * FROM knowledge_bases WHERE id = $1',
+      [id]
+    );
+    const kb = kbResult.rows[0];
+    if (!kb) {
+      throw new Error('Knowledge base not found');
+    }
+
+    // Get all documents for this KB
+    const docsResult = await dbGlobal.query<{ id: string; filename: string }>(
+      'SELECT id, filename FROM documents WHERE knowledge_base_id = $1',
+      [id]
+    );
+    const documents = docsResult.rows;
+
+    if (import.meta.env.DEV) {
+      console.log(
+        `[VectorDB] Re-indexing ${documents.length} documents in KB "${kb.name}" (${id})`
+      );
+    }
+
+    // Cleanup Phase: Drop existing chunks table
+    const tableName = `kb_${id.replace(/-/g, '_')}_chunks`;
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] Dropping chunks table: ${tableName}`);
+    }
+
+    await dbGlobal.exec(`DROP TABLE IF EXISTS ${tableName} CASCADE`);
+
+    // Verify table was dropped
+    const verifyResult = await dbGlobal.query<{ table_name: string }>(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name = $1`,
+      [tableName]
+    );
+
+    if (verifyResult.rows.length > 0) {
+      throw new Error(`Failed to drop chunks table ${tableName}`);
+    }
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] Verified chunks table dropped: ${tableName}`);
+    }
+
+    // Rebuild Phase: Create new chunks table with updated config
+    await createKBChunksTable(id, kb.embedding_dimensions, kb.hnsw_m, kb.hnsw_ef_construction);
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] Recreated chunks table with updated config`);
+    }
+
+    // Clear Lunr index (will rebuild automatically during indexing)
+    lunrIndexes.delete(id);
+
+    if (import.meta.env.DEV) {
+      console.log(`[VectorDB] Cleared Lunr index for KB ${id}`);
+    }
+
+    // Queue Phase: Mark all documents for re-indexing
+    for (const doc of documents) {
+      // Delete existing queue entry if exists
+      await dbGlobal.query('DELETE FROM indexing_queue WHERE document_id = $1', [doc.id]);
+
+      // Insert new queue entry with reset state
+      await dbGlobal.query(
+        `INSERT INTO indexing_queue (id, document_id, status, retry_count)
+         VALUES ($1, $2, 'pending', 0)`,
+        [uuidv4(), doc.id]
+      );
+
+      // Reset document indexing metadata
+      await dbGlobal.query(
+        `UPDATE documents
+         SET chunk_count = NULL, indexed_at = NULL
+         WHERE id = $1`,
+        [doc.id]
+      );
+
+      if (import.meta.env.DEV) {
+        console.log(`[VectorDB] Queued document for re-indexing: ${doc.filename} (${doc.id})`);
+      }
+    }
+
+    if (import.meta.env.DEV) {
+      console.log(
+        `[VectorDB] Re-index complete for KB ${id}. Queued ${documents.length} documents for processing.`
+      );
+    }
+
+    // Trigger indexing pipeline
+    await refreshDocuments();
+    await refreshKnowledgeBases();
+    processQueue();
+  };
+
   const deleteKnowledgeBase = async (id: string) => {
     if (!dbGlobal) {
       throw new Error('Database not initialized');
     }
 
-    // Delete KB (CASCADE will delete documents and indexing_queue entries)
-    await dbGlobal.query('DELETE FROM knowledge_bases WHERE id = $1', [id]);
-
-    // Drop KB-specific chunks table
     const tableName = `kb_${id.replace(/-/g, '_')}_chunks`;
+
     try {
-      await dbGlobal.exec(`DROP TABLE IF EXISTS ${tableName}`);
+      // Delete KB (CASCADE will delete documents and indexing_queue entries)
+      await dbGlobal.query('DELETE FROM knowledge_bases WHERE id = $1', [id]);
+
+      // Drop KB-specific chunks table with CASCADE
+      await dbGlobal.exec(`DROP TABLE IF EXISTS ${tableName} CASCADE`);
+
+      // Verify table was dropped
+      const verifyResult = await dbGlobal.query<{ table_name: string }>(
+        `SELECT table_name FROM information_schema.tables
+         WHERE table_schema = 'public' AND table_name = $1`,
+        [tableName]
+      );
+
+      if (verifyResult.rows.length > 0) {
+        throw new Error(`Failed to drop chunks table ${tableName} - table still exists after DROP`);
+      }
+
+      // Remove Lunr index for this KB
+      if (lunrIndexes.has(id)) {
+        lunrIndexes.delete(id);
+        if (import.meta.env.DEV) {
+          console.log(`[VectorDB] Removed Lunr index for KB ${id}`);
+        }
+      }
+
+      await refreshKnowledgeBases();
+      await refreshDocuments();
+
+      if (import.meta.env.DEV) {
+        console.log(`[VectorDB] Deleted knowledge base: ${id}, chunks table: ${tableName}`);
+      }
     } catch (error) {
-      console.error(`[VectorDB] Error dropping chunks table ${tableName}:`, error);
-    }
-
-    // Remove Lunr index for this KB
-    lunrIndexes.delete(id);
-
-    await refreshKnowledgeBases();
-    await refreshDocuments();
-
-    if (import.meta.env.DEV) {
-      console.log(`[VectorDB] Deleted knowledge base: ${id}`);
+      console.error(`[VectorDB] Error deleting knowledge base ${id}:`, error);
+      // Re-throw error for UI to handle
+      throw error;
     }
   };
 
@@ -973,22 +1157,31 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
     }
   }, [apiKey]);
 
-  // Listen for feature flag changes
+  // Listen for OpenAI config changes (base URL, chat model)
   useEffect(() => {
-    const handleFlagChange = (event: Event) => {
+    const handleConfigChange = (event: Event) => {
       const customEvent = event as CustomEvent;
-      if (customEvent.detail.flag === 'FEATURE_INDEXING_ENABLED') {
-        indexingEnabled = customEvent.detail.enabled;
+      const { config, value } = customEvent.detail;
 
-        if (import.meta.env.DEV) {
-          console.log('[VectorDB] Indexing enabled changed to:', customEvent.detail.enabled);
+      // Recreate OpenAI client when base URL changes
+      if (config === 'BASE_URL') {
+        if (apiKey) {
+          openaiClient = new OpenAI({
+            apiKey,
+            baseURL: value || undefined,
+            dangerouslyAllowBrowser: true,
+          });
+
+          if (import.meta.env.DEV) {
+            console.log('[VectorDB] OpenAI client recreated with new base URL:', value);
+          }
         }
       }
     };
 
-    window.addEventListener('featureFlagChanged', handleFlagChange);
-    return () => window.removeEventListener('featureFlagChanged', handleFlagChange);
-  }, []);
+    window.addEventListener('openaiConfigChanged', handleConfigChange);
+    return () => window.removeEventListener('openaiConfigChanged', handleConfigChange);
+  }, [apiKey]);
 
   // Listen for search setting changes
   useEffect(() => {
@@ -1079,7 +1272,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
           [id, file.name, content, fileSize, mimeType, kbId]
         );
 
-        if (indexingEnabled) {
+        if (isFeatureEnabled(FEATURES.INDEXING_ENABLED)) {
           await dbGlobal.query(
             `INSERT INTO indexing_queue (id, document_id, status)
              VALUES ($1, $2, 'pending')`,
@@ -1741,6 +1934,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         lunrReady: lunrReadyState,
         createKnowledgeBase,
         updateKnowledgeBase,
+        reindexKnowledgeBase,
         deleteKnowledgeBase,
         refreshKnowledgeBases,
       }}
