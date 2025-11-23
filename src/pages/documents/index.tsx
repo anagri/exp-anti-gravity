@@ -9,6 +9,7 @@ import DeleteKBModal from './DeleteKBModal';
 import DeleteModal from './DeleteModal';
 import DocumentCard from './DocumentCard';
 import DocumentToolbar from './DocumentToolbar';
+import EditKBModal from './EditKBModal';
 import KBCard from './KBCard';
 import UploadZone from './UploadZone';
 
@@ -30,6 +31,8 @@ export default function DocumentsPage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [kbToEdit, setKbToEdit] = useState<(typeof knowledgeBases)[0] | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [kbToDelete, setKbToDelete] = useState<{
     id: string;
@@ -66,6 +69,11 @@ export default function DocumentsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized, expandedKBId]);
+
+  const handleEditClick = (kb: (typeof knowledgeBases)[0]) => {
+    setKbToEdit(kb);
+    setEditModalOpen(true);
+  };
 
   const handleDeleteClick = (kb: {
     id: string;
@@ -260,10 +268,7 @@ export default function DocumentsPage() {
                       createdAt={kb.created_at}
                       isExpanded={isExpanded}
                       onClick={() => handleKBClick(kb.id)}
-                      onEdit={() => {
-                        // TODO: Implement edit in next iteration
-                        console.log('Edit KB:', kb.id);
-                      }}
+                      onEdit={() => handleEditClick(kb)}
                       onDelete={() => handleDeleteClick(kb)}
                     />
 
@@ -329,6 +334,17 @@ export default function DocumentsPage() {
           {createModalOpen && (
             <CreateKBModal
               onClose={() => setCreateModalOpen(false)}
+              onSuccess={() => refreshKnowledgeBases()}
+            />
+          )}
+
+          {editModalOpen && kbToEdit && (
+            <EditKBModal
+              kb={kbToEdit}
+              onClose={() => {
+                setEditModalOpen(false);
+                setKbToEdit(null);
+              }}
               onSuccess={() => refreshKnowledgeBases()}
             />
           )}

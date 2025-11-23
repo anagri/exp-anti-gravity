@@ -573,6 +573,7 @@ test.describe('Indexing Workflow @live', () => {
 
 - `@live` tests hit real OpenAI APIs (chat completions + embeddings) and cost money
 - Tests without `@live` tag do not hit OpenAI APIs
+- **IMPORTANT: Never mock API calls in e2e tests** - Use `loadTestApiKey()` and mark tests with `@live` tag instead
 - Embedding pipeline automatically triggers when uploading files
 - To avoid automatic trigger, use `FEATURE_INDEXING_ENABLED` feature flag:
   - `false` - Disable automatic indexing (use for file upload tests only)
@@ -583,6 +584,38 @@ test.describe('Indexing Workflow @live', () => {
   - `npm run test:e2e:live` - Run live tests only (--grep @live)
   - `npm run test:e2e:all` - Run all tests
 - For single test debug/fix: `npx playwright test e2e/test-file.spec.ts` (no grep flags)
+
+**✅ CORRECT: Use real API with @live tag**
+
+```typescript
+import { loadTestApiKey } from '../utils/env';
+
+test.describe('KB Model Selection @live', () => {
+  let apiKey: string;
+
+  test.beforeAll(() => {
+    apiKey = loadTestApiKey();
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await documentsPage.setup(apiKey);
+  });
+  // ... tests that call OpenAI API
+});
+```
+
+**❌ WRONG: Mocking API calls in e2e tests**
+
+```typescript
+test.beforeEach(async ({ page }) => {
+  // DO NOT mock API calls in e2e tests
+  await page.route('**/v1/models', async (route) => {
+    await route.fulfill({
+      /* ... */
+    });
+  });
+});
+```
 
 ### Feature Flags
 

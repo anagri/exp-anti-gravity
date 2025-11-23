@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -5,7 +6,7 @@ interface DeleteKBModalProps {
   kbName: string;
   documentCount: number;
   chunkCount: number;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void>;
   onCancel: () => void;
 }
 
@@ -16,6 +17,20 @@ export default function DeleteKBModal({
   onConfirm,
   onCancel,
 }: DeleteKBModalProps) {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleConfirm = async () => {
+    setIsDeleting(true);
+    setError(null);
+    try {
+      await onConfirm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete knowledge base');
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
@@ -55,16 +70,26 @@ export default function DeleteKBModal({
             <p className="text-sm text-gray-600 font-medium">This action cannot be undone.</p>
           </div>
 
+          {error && (
+            <div
+              className="mb-4 text-sm text-red-600 bg-red-50 p-3 rounded-md"
+              data-testid="div-delete-error"
+            >
+              {error}
+            </div>
+          )}
+
           <div className="flex gap-3">
-            <Button onClick={onCancel} variant="outline" className="flex-1">
+            <Button onClick={onCancel} variant="outline" className="flex-1" disabled={isDeleting}>
               Cancel
             </Button>
             <Button
-              onClick={onConfirm}
+              onClick={handleConfirm}
               data-testid="btn-delete-kb-confirm"
               className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              disabled={isDeleting}
             >
-              Delete Knowledge Base
+              {isDeleting ? 'Deleting...' : 'Delete Knowledge Base'}
             </Button>
           </div>
         </div>

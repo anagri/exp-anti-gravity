@@ -61,6 +61,7 @@ export default function KBCard({
           <Button
             variant="ghost"
             size="sm"
+            data-testid={`btn-kb-menu-${id}`}
             onClick={() => setShowMenu(!showMenu)}
             className="h-8 w-8 p-0"
           >

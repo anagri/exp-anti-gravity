@@ -6,6 +6,7 @@ import { EmptyStateComponent } from './documents/EmptyStateComponent';
 import { KnowledgeBaseComponent } from './documents/KnowledgeBaseComponent';
 import { ToolbarComponent } from './documents/ToolbarComponent';
 import { UploadZoneComponent } from './documents/UploadZoneComponent';
+import { DatabaseInspectorComponent } from './shared/DatabaseInspectorComponent';
 import { SettingsComponent } from './shared/SettingsComponent';
 
 export class DocumentPage extends BasePage {
@@ -15,6 +16,7 @@ export class DocumentPage extends BasePage {
   readonly toolbar: ToolbarComponent;
   readonly emptyState: EmptyStateComponent;
   readonly knowledgeBase: KnowledgeBaseComponent;
+  readonly dbInspector: DatabaseInspectorComponent;
   readonly settings: SettingsComponent;
 
   constructor(page: Page, baseUrl: string = 'http://127.0.0.1:4173') {
@@ -25,6 +27,7 @@ export class DocumentPage extends BasePage {
     this.toolbar = new ToolbarComponent(page);
     this.emptyState = new EmptyStateComponent(page);
     this.knowledgeBase = new KnowledgeBaseComponent(page);
+    this.dbInspector = new DatabaseInspectorComponent(page);
     this.settings = new SettingsComponent(page);
   }
 
@@ -110,6 +113,18 @@ export class DocumentPage extends BasePage {
   // KB-aware operations (delegated to knowledgeBase component)
   async createKB(name: string, description?: string) {
     await this.knowledgeBase.create(name, description);
+  }
+
+  async createKBWithConfig(
+    name: string,
+    config: {
+      embeddingDimensions?: number;
+      embeddingModel?: string;
+      hnswM?: number;
+      hnswEfConstruction?: number;
+    }
+  ) {
+    await this.knowledgeBase.create(name, undefined, config);
   }
 
   async expandKB(kbName: string) {

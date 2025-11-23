@@ -1,27 +1,46 @@
 import { Page } from '@playwright/test';
-import { CreateKBModalComponent } from './CreateKBModalComponent';
+import { CreateKBModalComponent, KBConfig } from './CreateKBModalComponent';
 import { DeleteKBModalComponent } from './DeleteKBModalComponent';
+import { EditKBModalComponent } from './EditKBModalComponent';
 import { KBCardComponent } from './KBCardComponent';
 
 /**
  * Composite component for all KB operations
- * Delegates to: KBCardComponent, CreateKBModalComponent, DeleteKBModalComponent
+ * Delegates to: KBCardComponent, CreateKBModalComponent, EditKBModalComponent, DeleteKBModalComponent
  */
 export class KnowledgeBaseComponent {
   readonly card: KBCardComponent;
   readonly createModal: CreateKBModalComponent;
+  readonly editModal: EditKBModalComponent;
   readonly deleteModal: DeleteKBModalComponent;
 
   constructor(private readonly page: Page) {
     this.card = new KBCardComponent(page);
     this.createModal = new CreateKBModalComponent(page);
+    this.editModal = new EditKBModalComponent(page);
     this.deleteModal = new DeleteKBModalComponent(page);
   }
 
   // Backward-compatible wrapper methods delegate to sub-components
 
-  async create(name: string, description?: string) {
-    await this.createModal.create(name, description);
+  async create(name: string, description?: string, config?: KBConfig) {
+    await this.createModal.create(name, description, config);
+  }
+
+  async edit(kbName: string) {
+    await this.editModal.edit(kbName);
+  }
+
+  async updateChunkConfig(maxTokens: number, overlapTokens: number) {
+    await this.editModal.updateChunkConfig(maxTokens, overlapTokens);
+  }
+
+  async confirmReindex() {
+    await this.editModal.confirmReindex();
+  }
+
+  async cancelReindex() {
+    await this.editModal.cancelReindex();
   }
 
   async expand(kbName: string) {
@@ -62,6 +81,10 @@ export class KnowledgeBaseComponent {
 
   async getId(kbName: string): Promise<string> {
     return await this.card.getId(kbName);
+  }
+
+  async getKBId(kbName: string): Promise<string> {
+    return await this.getId(kbName);
   }
 
   async expectDuplicateError(name: string) {
