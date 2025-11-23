@@ -42,6 +42,7 @@ export default function EditKBModal({ kb, onClose, onSuccess }: EditKBModalProps
   const [error, setError] = useState<string | null>(null);
   const [showReindexWarning, setShowReindexWarning] = useState(false);
   const [requiresReindex, setRequiresReindex] = useState(false);
+  const [skipReindex, setSkipReindex] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
@@ -146,23 +147,29 @@ export default function EditKBModal({ kb, onClose, onSuccess }: EditKBModalProps
     setIsUpdating(true);
     try {
       // Apply updates
-      await updateKnowledgeBase(kb.id, {
-        name: trimmedName !== kb.name ? trimmedName : undefined,
-        description: description !== (kb.description || '') ? description : undefined,
-        config: {
-          embedding_model: embeddingModel !== kb.embedding_model ? embeddingModel : undefined,
-          embedding_dimensions: dimensions !== kb.embedding_dimensions ? dimensions : undefined,
-          chunk_max_tokens: maxTokens !== kb.chunk_max_tokens ? maxTokens : undefined,
-          chunk_overlap_tokens:
-            overlapTokens !== kb.chunk_overlap_tokens ? overlapTokens : undefined,
-          hnsw_m: m !== kb.hnsw_m ? m : undefined,
-          hnsw_ef_construction:
-            efConstruction !== kb.hnsw_ef_construction ? efConstruction : undefined,
+      await updateKnowledgeBase(
+        kb.id,
+        {
+          name: trimmedName !== kb.name ? trimmedName : undefined,
+          description: description !== (kb.description || '') ? description : undefined,
+          config: {
+            embedding_model: embeddingModel !== kb.embedding_model ? embeddingModel : undefined,
+            embedding_dimensions: dimensions !== kb.embedding_dimensions ? dimensions : undefined,
+            chunk_max_tokens: maxTokens !== kb.chunk_max_tokens ? maxTokens : undefined,
+            chunk_overlap_tokens:
+              overlapTokens !== kb.chunk_overlap_tokens ? overlapTokens : undefined,
+            hnsw_m: m !== kb.hnsw_m ? m : undefined,
+            hnsw_ef_construction:
+              efConstruction !== kb.hnsw_ef_construction ? efConstruction : undefined,
+          },
         },
-      });
+        {
+          skipReindex,
+        }
+      );
 
-      // Trigger re-index if needed
-      if (requiresReindex) {
+      // Trigger re-index if needed and not skipping
+      if (requiresReindex && !skipReindex) {
         await reindexKnowledgeBase(kb.id);
       }
 
@@ -249,6 +256,24 @@ export default function EditKBModal({ kb, onClose, onSuccess }: EditKBModalProps
               </div>
             </div>
 
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={skipReindex}
+                  onChange={(e) => setSkipReindex(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                  data-testid="checkbox-skip-reindex"
+                />
+                <span className="text-sm text-blue-900">
+                  Skip re-indexing now (apply changes later manually)
+                </span>
+              </label>
+              <p className="mt-1 ml-6 text-xs text-blue-700">
+                Config will be saved but documents won't be re-indexed until you manually trigger it
+              </p>
+            </div>
+
             <div className="flex gap-3">
               <Button
                 onClick={handleCancelReindex}
@@ -263,7 +288,7 @@ export default function EditKBModal({ kb, onClose, onSuccess }: EditKBModalProps
                 className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
                 data-testid="btn-confirm-reindex"
               >
-                Save & Re-Index
+                {skipReindex ? 'Save Without Re-Index' : 'Save & Re-Index'}
               </Button>
             </div>
           </div>

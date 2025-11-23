@@ -27,6 +27,7 @@ interface KnowledgeBase {
   color: string | null; // optional, hex code #RRGGBB
   created_at: string; // ISO timestamp
   updated_at: string; // ISO timestamp
+  config_changed_at: string | null; // timestamp when config was changed without re-index
 
   // Vector Configuration
   embedding_model: string; // e.g., 'text-embedding-3-small'
@@ -153,6 +154,9 @@ interface VectorDBContextType {
       description?: string | null;
       color?: string | null;
       config?: KnowledgeBaseConfig;
+    },
+    options?: {
+      skipReindex?: boolean;
     }
   ) => Promise<{ requiresReindex: boolean; affectedDocCount?: number }>;
   reindexKnowledgeBase: (id: string) => Promise<void>;
@@ -431,6 +435,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
             color TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            config_changed_at TIMESTAMP,
             embedding_model TEXT NOT NULL DEFAULT 'text-embedding-3-small',
             embedding_dimensions INTEGER NOT NULL DEFAULT 1536,
             chunk_max_tokens INTEGER NOT NULL DEFAULT 2000,
@@ -697,6 +702,7 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
           kb.color,
           kb.created_at,
           kb.updated_at,
+          kb.config_changed_at,
           kb.embedding_model,
           kb.embedding_dimensions,
           kb.chunk_max_tokens,
@@ -865,6 +871,9 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
       description?: string | null;
       color?: string | null;
       config?: KnowledgeBaseConfig;
+    },
+    options?: {
+      skipReindex?: boolean;
     }
   ): Promise<{ requiresReindex: boolean; affectedDocCount?: number }> => {
     if (!dbGlobal) {
@@ -900,23 +909,33 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
     // Detect if re-index is required
     const config = updates.config || {};
-    const requiresReindex =
-      (config.embedding_model && config.embedding_model !== current.embedding_model) ||
-      (config.embedding_dimensions &&
-        config.embedding_dimensions !== current.embedding_dimensions) ||
-      (config.chunk_max_tokens && config.chunk_max_tokens !== current.chunk_max_tokens) ||
-      (config.chunk_overlap_tokens &&
-        config.chunk_overlap_tokens !== current.chunk_overlap_tokens) ||
-      (config.hnsw_m && config.hnsw_m !== current.hnsw_m) ||
-      (config.hnsw_ef_construction && config.hnsw_ef_construction !== current.hnsw_ef_construction);
+    const requiresReindex: boolean =
+      !!(config.embedding_model && config.embedding_model !== current.embedding_model) ||
+      !!(
+        config.embedding_dimensions && config.embedding_dimensions !== current.embedding_dimensions
+      ) ||
+      !!(config.chunk_max_tokens && config.chunk_max_tokens !== current.chunk_max_tokens) ||
+      !!(
+        config.chunk_overlap_tokens && config.chunk_overlap_tokens !== current.chunk_overlap_tokens
+      ) ||
+      !!(config.hnsw_m && config.hnsw_m !== current.hnsw_m) ||
+      !!(
+        config.hnsw_ef_construction && config.hnsw_ef_construction !== current.hnsw_ef_construction
+      );
 
+    // Get affected document count if re-index required
+    let affectedDocCount = 0;
     if (requiresReindex) {
-      // Get affected document count
       const docResult = await dbGlobal.query<{ count: number }>(
         'SELECT COUNT(*)::integer as count FROM documents WHERE knowledge_base_id = $1',
         [id]
       );
-      return { requiresReindex: true, affectedDocCount: docResult.rows[0]?.count || 0 };
+      affectedDocCount = docResult.rows[0]?.count || 0;
+
+      // If not skipping re-index, return early for caller to handle
+      if (!options?.skipReindex) {
+        return { requiresReindex: true, affectedDocCount };
+      }
     }
 
     // Build UPDATE statement using parameterized query
@@ -960,8 +979,29 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
       setClauses.push(`rrf_k = $${paramIndex++}`);
       params.push(config.rrf_k);
     }
+    if (config.embedding_model !== undefined) {
+      setClauses.push(`embedding_model = $${paramIndex++}`);
+      params.push(config.embedding_model);
+    }
+    if (config.embedding_dimensions !== undefined) {
+      setClauses.push(`embedding_dimensions = $${paramIndex++}`);
+      params.push(config.embedding_dimensions);
+    }
+    if (config.hnsw_m !== undefined) {
+      setClauses.push(`hnsw_m = $${paramIndex++}`);
+      params.push(config.hnsw_m);
+    }
+    if (config.hnsw_ef_construction !== undefined) {
+      setClauses.push(`hnsw_ef_construction = $${paramIndex++}`);
+      params.push(config.hnsw_ef_construction);
+    }
 
     setClauses.push('updated_at = CURRENT_TIMESTAMP');
+
+    // If skipping re-index for config that requires it, mark config as changed
+    if (requiresReindex && options?.skipReindex) {
+      setClauses.push('config_changed_at = CURRENT_TIMESTAMP');
+    }
 
     if (setClauses.length > 1) {
       // More than just updated_at
@@ -976,9 +1016,12 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
 
     if (import.meta.env.DEV) {
       console.log(`[VectorDB] Updated knowledge base: ${id}`);
+      if (requiresReindex && options?.skipReindex) {
+        console.log(`[VectorDB] Re-index skipped for KB ${id}. Config marked as changed.`);
+      }
     }
 
-    return { requiresReindex: false };
+    return { requiresReindex, affectedDocCount };
   };
 
   const reindexKnowledgeBase = async (id: string) => {
@@ -1075,6 +1118,9 @@ export function VectorDBProvider({ children }: { children: ReactNode }) {
         console.log(`[VectorDB] Queued document for re-indexing: ${doc.filename} (${doc.id})`);
       }
     }
+
+    // Clear config_changed_at since re-index was completed
+    await dbGlobal.query(`UPDATE knowledge_bases SET config_changed_at = NULL WHERE id = $1`, [id]);
 
     if (import.meta.env.DEV) {
       console.log(

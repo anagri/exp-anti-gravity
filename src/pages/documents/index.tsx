@@ -11,6 +11,7 @@ import DocumentCard from './DocumentCard';
 import DocumentToolbar from './DocumentToolbar';
 import EditKBModal from './EditKBModal';
 import KBCard from './KBCard';
+import ReindexKBModal from './ReindexKBModal';
 import UploadZone from './UploadZone';
 
 export default function DocumentsPage() {
@@ -27,6 +28,7 @@ export default function DocumentsPage() {
     initialized,
     initError,
     retryInitialization,
+    reindexKnowledgeBase,
   } = useVectorDB();
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -42,6 +44,12 @@ export default function DocumentsPage() {
   } | null>(null);
   const [docDeleteModalOpen, setDocDeleteModalOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState<{ id: string; filename: string } | null>(null);
+  const [reindexModalOpen, setReindexModalOpen] = useState(false);
+  const [kbToReindex, setKbToReindex] = useState<{
+    id: string;
+    name: string;
+    documentCount: number;
+  } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   // Document filtering state
@@ -119,6 +127,28 @@ export default function DocumentsPage() {
   const handleDocumentDeleteCancel = () => {
     setDocDeleteModalOpen(false);
     setDocToDelete(null);
+  };
+
+  const handleReindexClick = (kb: { id: string; name: string; document_count: number }) => {
+    setKbToReindex({
+      id: kb.id,
+      name: kb.name,
+      documentCount: kb.document_count,
+    });
+    setReindexModalOpen(true);
+  };
+
+  const handleReindexConfirm = async () => {
+    if (!kbToReindex) return;
+
+    await reindexKnowledgeBase(kbToReindex.id);
+    setReindexModalOpen(false);
+    setKbToReindex(null);
+  };
+
+  const handleReindexCancel = () => {
+    setReindexModalOpen(false);
+    setKbToReindex(null);
   };
 
   const handleKBClick = (kbId: string) => {
@@ -266,10 +296,12 @@ export default function DocumentsPage() {
                       documentCount={kb.document_count}
                       chunkCount={kb.chunk_count}
                       createdAt={kb.created_at}
+                      configChangedAt={kb.config_changed_at}
                       isExpanded={isExpanded}
                       onClick={() => handleKBClick(kb.id)}
                       onEdit={() => handleEditClick(kb)}
                       onDelete={() => handleDeleteClick(kb)}
+                      onReindex={() => handleReindexClick(kb)}
                     />
 
                     {/* Show upload zone and documents when KB is expanded */}
@@ -364,6 +396,15 @@ export default function DocumentsPage() {
               filename={docToDelete.filename}
               onConfirm={handleDocumentDeleteConfirm}
               onCancel={handleDocumentDeleteCancel}
+            />
+          )}
+
+          {reindexModalOpen && kbToReindex && (
+            <ReindexKBModal
+              kbName={kbToReindex.name}
+              documentCount={kbToReindex.documentCount}
+              onConfirm={handleReindexConfirm}
+              onCancel={handleReindexCancel}
             />
           )}
         </div>

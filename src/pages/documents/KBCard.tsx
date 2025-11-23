@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { BookOpen, MoreVertical, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils';
 
@@ -10,10 +10,12 @@ interface KBCardProps {
   documentCount: number;
   chunkCount: number;
   createdAt: string;
+  configChangedAt: string | null;
   isExpanded?: boolean;
   onClick?: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onReindex: () => void;
 }
 
 export default function KBCard({
@@ -23,10 +25,12 @@ export default function KBCard({
   documentCount,
   chunkCount,
   createdAt,
+  configChangedAt,
   isExpanded = false,
   onClick,
   onEdit,
   onDelete,
+  onReindex,
 }: KBCardProps) {
   const [showMenu, setShowMenu] = useState(false);
 
@@ -54,6 +58,15 @@ export default function KBCard({
         <div className="flex items-center gap-3">
           <BookOpen className="w-6 h-6 text-blue-600" />
           <h3 className="text-lg font-semibold text-gray-900">{name}</h3>
+          {configChangedAt && (
+            <span
+              className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 rounded-md"
+              data-testid={`badge-config-changed-${id}`}
+              title="Configuration changed - re-index needed"
+            >
+              Re-index needed
+            </span>
+          )}
         </div>
 
         {/* Actions Menu */}
@@ -82,6 +95,17 @@ export default function KBCard({
                 >
                   <Pencil className="w-4 h-4" />
                   Edit
+                </button>
+                <button
+                  data-testid={`btn-reindex-kb-${id}`}
+                  onClick={() => {
+                    setShowMenu(false);
+                    onReindex();
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Re-index
                 </button>
                 <button
                   data-testid={`btn-delete-kb-${id}`}

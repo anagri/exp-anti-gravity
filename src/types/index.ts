@@ -24,8 +24,12 @@ export interface KnowledgeBase {
   name: string;
   description: string | null;
   created_at: string;
+  updated_at: string;
+  config_changed_at: string | null;
   embedding_model: string;
   embedding_dimensions: number;
+  chunk_max_tokens: number;
+  chunk_overlap_tokens: number;
   hnsw_m: number;
   hnsw_ef_construction: number;
   document_count: number;
